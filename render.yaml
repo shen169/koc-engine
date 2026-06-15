@@ -1,5 +1,5 @@
 services:
-  # ── Backend (FastAPI) ──
+  # ── Backend (FastAPI) · Render Free Tier ──
   - type: web
     name: koc-engine-api
     env: python
@@ -13,13 +13,3 @@ services:
         generateValue: true
       - key: ACCESS_PASSWORD
         sync: false
-
-  # ── Frontend (Next.js) ──
-  - type: web
-    name: koc-engine
-    env: node
-    buildCommand: cd frontend && npm install && npm run build
-    startCommand: cd frontend && npx next start
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        value: https://koc-engine-api.onrender.com
