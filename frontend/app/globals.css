@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+/* ── Brand Tokens ── */
+@theme inline {
+  --color-brand-pink: #EC4899;
+  --color-brand-purple: #8B5CF6;
+  --color-brand-cyan: #06B6D4;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ── Base ── */
+body {
+  background: #FFF7ED;
+  color: #18181B;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Brand Gradient Utilities ── */
+.brand-gradient {
+  background: linear-gradient(135deg, #EC4899, #8B5CF6);
+}
+.brand-gradient-text {
+  background: linear-gradient(135deg, #EC4899, #8B5CF6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.brand-gradient-stat {
+  background: linear-gradient(135deg, #EC4899, #06B6D4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Button Glow ── */
+.btn-brand {
+  background: linear-gradient(135deg, #EC4899, #8B5CF6);
+  color: #fff;
+  border-radius: 9999px;
+  font-weight: 700;
+  box-shadow: 0 4px 20px rgba(236, 72, 153, 0.25);
+  transition: box-shadow 150ms ease, filter 150ms ease;
+}
+.btn-brand:hover {
+  box-shadow: 0 6px 28px rgba(236, 72, 153, 0.35);
+  filter: brightness(1.05);
+}
+
+/* ── Spark Animation ── */
+@keyframes spark-pulse {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(236,72,153,0.4)); transform: scale(1) rotate(0deg); }
+  50% { filter: drop-shadow(0 0 20px rgba(139,92,246,0.6)); transform: scale(1.08) rotate(180deg); }
+}
+@keyframes spark-enter {
+  0% { transform: scale(0) rotate(-90deg); opacity: 0; }
+  60% { transform: scale(1.2) rotate(10deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes spark-particle {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+}
+@keyframes score-reveal {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes coin-drop {
+  0% { transform: translateY(-60px) scale(0.5); opacity: 0; }
+  60% { transform: translateY(0) scale(1.15); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes fade-in-up {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.animate-spark-pulse { animation: spark-pulse 3s ease-in-out infinite; }
+.animate-spark-enter { animation: spark-enter 500ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.animate-score-reveal { animation: score-reveal 400ms ease-out forwards; }
+.animate-coin-drop { animation: coin-drop 400ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.animate-fade-in-up { animation: fade-in-up 300ms ease-out forwards; }
+
+/* ── Smooth Transitions ── */
+.smooth-transition {
+  transition: background-color 300ms, color 300ms, border-color 300ms, box-shadow 300ms;
+}
