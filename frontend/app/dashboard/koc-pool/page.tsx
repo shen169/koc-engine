@@ -1,24 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { kocs, interests, getToken } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { kocs, interests, getToken, getRole, getConsolePath } from "@/lib/api";
+import NavBar from "@/components/NavBar";
 
 export default function KocPoolPage() {
+  const router = useRouter();
+  const token = getToken();
+  const role = getRole();
+  if (!token) { router.push("/login"); return null; }
+  if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return null; }
+
   const [pool, setPool] = useState<Array<Record<string, unknown>>>([]);
   const [myInterests, setMyInterests] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    kocs.pool(token).then(setPool).catch(() => {});
-    interests.list(token).then((list) => setMyInterests(new Set((list as Array<Record<string, unknown>>).map((i) => i.to_id as string)))).catch(() => {});
+    kocs.pool(token!).then(setPool).catch(() => {});
+    interests.list(token!).then((list) => setMyInterests(new Set((list as Array<Record<string, unknown>>).map((i) => i.to_id as string)))).catch(() => {});
   }, []);
 
   async function showInterest(kocId: string) {
-    const token = getToken();
-    if (!token) return;
-    await interests.express(kocId, "koc", token);
+    await interests.express(kocId, "koc", token!);
     setMyInterests((prev) => new Set([...prev, kocId]));
   }
 
@@ -26,11 +29,7 @@ export default function KocPoolPage() {
 
   return (
     <div className="min-h-screen bg-purple-50">
-      <nav className="bg-white border-b border-zinc-100 h-14 flex items-center px-6 shadow-sm gap-4">
-        <Link href="/dashboard" className="text-pink-500 text-sm font-semibold hover:underline">&larr; Dashboard</Link>
-        <h1 className="font-extrabold text-zinc-900">Find Creators</h1>
-        <span className="text-xs text-zinc-400 ml-auto">Profiles anonymized — contact hidden</span>
-      </nav>
+      <NavBar user={null} role="merchant" title="达人池" />
       <div className="max-w-3xl mx-auto px-6 py-8">
         {pool.length === 0 ? (
           <div className="text-center py-16 text-zinc-400 text-sm">No approved creators yet.</div>

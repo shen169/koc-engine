@@ -4,10 +4,18 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Spark from "@/components/Spark";
-import { auth, credits, tasks, getToken, clearToken } from "@/lib/api";
+import { auth, credits, tasks, getToken, clearToken, getRole, getConsolePath } from "@/lib/api";
+import NavBar from "@/components/NavBar";
 
 export default function PortalDashboard() {
   const router = useRouter();
+
+  // Role guard — redirect non-KOC users
+  const token = getToken();
+  const role = getRole();
+  if (!token) { router.push("/login"); return null; }
+  if (role && role !== "koc") { router.push(getConsolePath(role || "")); return null; }
+
   const [user, setUser] = useState<Record<string, unknown> | null>(null);
   const [balance, setBalance] = useState(0);
   const [taskList, setTaskList] = useState<Array<Record<string, unknown>>>([]);
@@ -24,18 +32,7 @@ export default function PortalDashboard() {
 
   return (
     <div className="min-h-screen bg-orange-50">
-      {/* Nav */}
-      <nav className="bg-white border-b border-zinc-100 h-14 flex items-center justify-between px-6 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Spark size={22} />
-          <h1 className="font-extrabold text-zinc-900">Creator Portal</h1>
-        </div>
-        <div className="flex items-center gap-4 text-sm">
-          <span className="text-zinc-400">{user.email as string}</span>
-          <span className="bg-pink-50 text-pink-700 px-3 py-1 rounded-full font-bold text-xs">🪙 {balance} pts</span>
-          <button onClick={() => { clearToken(); router.push("/"); }} className="text-zinc-400 hover:text-zinc-600">Sign Out</button>
-        </div>
-      </nav>
+      <NavBar user={user} role="koc" balance={balance} />
 
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Quick Actions */}

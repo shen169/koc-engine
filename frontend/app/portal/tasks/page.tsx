@@ -2,22 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { tasks, getToken, getRole } from "@/lib/api";
+import { tasks, getToken, getRole, getConsolePath } from "@/lib/api";
+import NavBar from "@/components/NavBar";
 
 export default function KocMyTasksPage() {
   const router = useRouter();
   const token = getToken();
   const role = getRole();
+  if (!token) { router.push("/login"); return null; }
+  if (role && role !== "koc") { router.push(getConsolePath(role || "")); return null; }
 
   const [myTasks, setMyTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("active");
 
   useEffect(() => {
-    if (!token || role !== "koc") {
-      router.push("/login");
-      return;
-    }
     loadMyTasks();
   }, []);
 
@@ -32,8 +31,6 @@ export default function KocMyTasksPage() {
       setLoading(false);
     }
   }
-
-  if (!token || role !== "koc") return null;
 
   const filtered = myTasks.filter((t: any) => {
     const status = t.my_slot?.status || t.task?.task_status;
@@ -54,6 +51,7 @@ export default function KocMyTasksPage() {
 
   return (
     <div className="min-h-screen bg-orange-50/30">
+      <NavBar user={null} role="koc" title="我的任务" />
       <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>

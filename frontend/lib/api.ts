@@ -44,6 +44,13 @@ export function setToken(token: string) {
 
 export function clearToken() {
   localStorage.removeItem("koc_token");
+  localStorage.removeItem("koc_role");
+}
+
+export function getConsolePath(role: string): string {
+  if (role === "merchant") return "/dashboard";
+  if (role === "admin") return "/admin";
+  return "/portal";
 }
 
 export function getRole(): string | null {

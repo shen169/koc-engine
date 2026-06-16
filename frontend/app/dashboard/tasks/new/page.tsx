@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { tasks, products, getToken, getRole } from "@/lib/api";
+import { tasks, products, getToken, getRole, getConsolePath } from "@/lib/api";
+import NavBar from "@/components/NavBar";
 
 export default function NewTaskPage() {
   const router = useRouter();
   const token = getToken();
   const role = getRole();
+  if (!token) { router.push("/login"); return null; }
+  if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return null; }
 
   const [productList, setProductList] = useState<any[]>([]);
   const [form, setForm] = useState({
@@ -23,10 +26,6 @@ export default function NewTaskPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!token || role !== "merchant") {
-      router.push("/login");
-      return;
-    }
     loadProducts();
   }, []);
 
@@ -90,21 +89,13 @@ export default function NewTaskPage() {
       });
   }
 
-  if (!token || role !== "merchant") return null;
-
   return (
     <div className="min-h-screen bg-purple-50/30">
+      <NavBar user={null} role="merchant" title="发布新任务" />
       <div className="max-w-2xl mx-auto px-6 py-8">
-        {/* Back */}
-        <button
-          onClick={() => router.back()}
-          className="text-sm text-gray-400 hover:text-gray-600 mb-4 inline-block"
-        >
-          ← 返回
-        </button>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">📢 发布新任务</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-6">📢 发布新任务</h1>
 
           {error && (
             <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">

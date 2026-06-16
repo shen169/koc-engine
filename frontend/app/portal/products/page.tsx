@@ -1,16 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { products, interests, getToken } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { products, interests, getToken, getRole, getConsolePath } from "@/lib/api";
+import NavBar from "@/components/NavBar";
 
 export default function BrowseProducts() {
+  const router = useRouter();
+
+  // Role guard — redirect non-KOC users
+  const token = getToken();
+  const role = getRole();
+  if (!token) { router.push("/login"); return null; }
+  if (role && role !== "koc") { router.push(getConsolePath(role || "")); return null; }
+
   const [items, setItems] = useState<Array<Record<string, unknown>>>([]);
   const [myInterests, setMyInterests] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) return;
+    const token = getToken()!;
     products.list(token).then(setItems).catch(() => {});
     interests.list(token).then((list) => setMyInterests(new Set((list as Array<Record<string, unknown>>).map((i) => i.to_id as string)))).catch(() => {});
   }, []);
@@ -24,10 +32,7 @@ export default function BrowseProducts() {
 
   return (
     <div className="min-h-screen bg-orange-50">
-      <nav className="bg-white border-b border-zinc-100 h-14 flex items-center px-6 shadow-sm gap-4">
-        <Link href="/portal" className="text-pink-500 text-sm font-semibold hover:underline">&larr; Dashboard</Link>
-        <h1 className="font-extrabold text-zinc-900">Browse Products</h1>
-      </nav>
+      <NavBar user={null} role="koc" title="产品浏览" />
       <div className="max-w-3xl mx-auto px-6 py-8">
         {items.length === 0 ? (
           <div className="text-center py-16 text-zinc-400 text-sm">No products yet.</div>

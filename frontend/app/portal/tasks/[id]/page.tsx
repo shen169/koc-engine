@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { tasks, getToken, getRole } from "@/lib/api";
+import { tasks, getToken, getRole, getConsolePath } from "@/lib/api";
 import IntegrityBadge from "@/components/IntegrityBadge";
+import NavBar from "@/components/NavBar";
 
 export default function KocTaskDetailPage() {
   const router = useRouter();
@@ -11,6 +12,8 @@ export default function KocTaskDetailPage() {
   const taskId = params.id as string;
   const token = getToken();
   const role = getRole();
+  if (!token) { router.push("/login"); return null; }
+  if (role && role !== "koc") { router.push(getConsolePath(role || "")); return null; }
 
   const [task, setTask] = useState<any>(null);
   const [mySlot, setMySlot] = useState<any>(null);
@@ -23,10 +26,6 @@ export default function KocTaskDetailPage() {
   const [merchantTrust, setMerchantTrust] = useState<any>(null);
 
   useEffect(() => {
-    if (!token || role !== "koc") {
-      router.push("/login");
-      return;
-    }
     loadTask();
   }, [taskId]);
 
@@ -115,7 +114,6 @@ export default function KocTaskDetailPage() {
     }
   }
 
-  if (!token || role !== "koc") return null;
   if (loading) return <div className="min-h-screen bg-orange-50/30 flex items-center justify-center text-gray-400">加载中...</div>;
   if (!task) return <div className="min-h-screen bg-orange-50/30 flex items-center justify-center text-gray-400">任务不存在</div>;
 
@@ -127,6 +125,7 @@ export default function KocTaskDetailPage() {
 
   return (
     <div className="min-h-screen bg-orange-50/30">
+      <NavBar user={null} role="koc" title="任务详情" />
       <div className="max-w-2xl mx-auto px-6 py-8">
         <button onClick={() => router.back()} className="text-sm text-gray-400 hover:text-gray-600 mb-4 inline-block">
           ← 返回

@@ -2,11 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { products, getToken } from "@/lib/api";
+import { products, getToken, getRole, getConsolePath } from "@/lib/api";
+import NavBar from "@/components/NavBar";
 
 export default function NewProduct() {
   const router = useRouter();
+  const token = getToken();
+  const role = getRole();
+  if (!token) { router.push("/login"); return null; }
+  if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return null; }
+
   const [form, setForm] = useState({ name: "", asin: "", category: "baby", commission_type: "discount_code", commission_value: "", commission_link: "", description: "", image_url: "" });
   const [loading, setLoading] = useState(false);
   const [linkWarning, setLinkWarning] = useState("");
@@ -44,18 +49,14 @@ export default function NewProduct() {
     if (linkWarning && linkWarning.includes("有效的 URL")) {
       return; // block submit on invalid URL
     }
-    const token = getToken();
-    if (!token) return;
     setLoading(true);
-    await products.create(form, token);
+    await products.create(form, token!);
     router.push("/dashboard/products");
   }
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <nav className="bg-white border-b px-6 py-3">
-        <Link href="/dashboard/products" className="text-indigo-600 text-sm hover:underline">&larr; Products</Link>
-      </nav>
+      <NavBar user={null} role="merchant" title="添加产品" />
       <div className="max-w-lg mx-auto p-6">
         <div className="bg-white rounded-xl border border-slate-100 p-6">
           <h1 className="text-xl font-bold text-slate-900 mb-6">Add New Product</h1>

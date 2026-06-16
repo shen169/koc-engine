@@ -1,18 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import CoinDrop from "@/components/CoinDrop";
-import { credits, getToken } from "@/lib/api";
+import { credits, getToken, getRole, getConsolePath } from "@/lib/api";
+import NavBar from "@/components/NavBar";
 
 export default function CreditsPage() {
+  const router = useRouter();
+
+  // Role guard — redirect non-KOC users
+  const token = getToken();
+  const role = getRole();
+  if (!token) { router.push("/login"); return null; }
+  if (role && role !== "koc") { router.push(getConsolePath(role || "")); return null; }
+
   const [balance, setBalance] = useState(0);
   const [history, setHistory] = useState<Array<Record<string, unknown>>>([]);
   const [showCoin, setShowCoin] = useState(false);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) return;
+    const token = getToken()!;
     credits.balance(token).then((r) => setBalance(r.balance)).catch(() => {});
     credits.history(token).then((list) => {
       setHistory(list as Array<Record<string, unknown>>);
@@ -27,9 +35,7 @@ export default function CreditsPage() {
 
   return (
     <div className="min-h-screen bg-orange-50">
-      <nav className="bg-white border-b border-zinc-100 h-14 flex items-center px-6 shadow-sm">
-        <Link href="/portal" className="text-pink-500 text-sm font-semibold hover:underline">&larr; Dashboard</Link>
-      </nav>
+      <NavBar user={null} role="koc" title="积分中心" />
       <div className="max-w-lg mx-auto px-6 py-8">
         {showCoin && <CoinDrop amount={30} />}
 

@@ -3,11 +3,23 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Spark from "@/components/Spark";
-import { landing } from "@/lib/api";
+import { landing, getToken, getRole, getConsolePath } from "@/lib/api";
 
 export default function HomePage() {
   const [stats, setStats] = useState({ total_kocs: 0, total_videos: 0, active_products: 0 });
-  useEffect(() => { landing.stats().then(setStats).catch(() => {}); }, []);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [role, setRole] = useState("");
+
+  useEffect(() => {
+    landing.stats().then(setStats).catch(() => {});
+    const token = getToken();
+    if (token) {
+      setIsLoggedIn(true);
+      setRole(getRole() || "");
+    }
+  }, []);
+
+  const consolePath = getConsolePath(role);
 
   return (
     <div>
@@ -16,19 +28,41 @@ export default function HomePage() {
         style={{ background: "linear-gradient(135deg, #FFF7ED 0%, #FDF2F8 50%, #F5F3FF 100%)" }}>
         <Spark size={64} animate className="mb-8" />
         <h1 className="text-5xl font-extrabold tracking-tight mb-4 max-w-3xl brand-gradient-text">
-          Become a Creator Partner
+          {isLoggedIn ? "Welcome Back" : "Become a Creator Partner"}
         </h1>
         <p className="text-lg text-zinc-500 max-w-xl mb-10">
-          Free products. Earn commissions. AI video tools that do the hard part.<br />No filming skills needed — we handle the magic.
+          {isLoggedIn
+            ? "Your console is ready. Manage tasks, track commissions, and grow your brand."
+            : "Free products. Earn commissions. AI video tools that do the hard part. No filming skills needed — we handle the magic."
+          }
         </p>
-        <div className="flex gap-3 flex-wrap justify-center">
-          <Link href="/koc/apply" className="btn-brand px-8 py-3.5 text-lg">
-            🎬 Apply Now — It&apos;s Free
-          </Link>
-          <Link href="/login" className="rounded-full px-8 py-3.5 text-lg font-bold bg-white text-zinc-900 border-2 border-zinc-200 hover:border-pink-300 transition">
-            🏢 I&apos;m a Brand
-          </Link>
-        </div>
+
+        {isLoggedIn ? (
+          <div className="flex gap-3 flex-wrap justify-center">
+            <Link href={consolePath} className="btn-brand px-8 py-3.5 text-lg">
+              🖥️ 进入控制台
+            </Link>
+            {role === "koc" && (
+              <Link href="/portal/hall" className="rounded-full px-8 py-3.5 text-lg font-bold bg-white text-zinc-900 border-2 border-zinc-200 hover:border-pink-300 transition">
+                🏪 任务广场
+              </Link>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-3 flex-wrap justify-center">
+              <Link href="/register" className="btn-brand px-8 py-3.5 text-lg">
+                🎬 立即注册
+              </Link>
+              <Link href="/register" className="rounded-full px-8 py-3.5 text-lg font-bold bg-white text-zinc-900 border-2 border-zinc-200 hover:border-pink-300 transition">
+                🏢 我是商家
+              </Link>
+            </div>
+            <p className="text-sm text-zinc-400 mt-4">
+              已有账号？<Link href="/login" className="text-pink-500 font-semibold hover:underline">登录</Link>
+            </p>
+          </>
+        )}
 
         {/* Stats */}
         <div className="flex gap-10 mt-16 text-center">
@@ -68,7 +102,7 @@ export default function HomePage() {
           <h2 className="text-3xl font-extrabold text-center text-zinc-900 mb-14">How It Works</h2>
           <div className="grid md:grid-cols-4 gap-6">
             {[
-              { step: "1", title: "Apply", desc: "Quick form. AI scores your profile instantly." },
+              { step: "1", title: "Register", desc: "Quick sign-up. Choose creator or brand role." },
               { step: "2", title: "Get Matched", desc: "Browse products. We match you with brands." },
               { step: "3", title: "Create", desc: "Receive free samples. AI tools make video easy." },
               { step: "4", title: "Earn", desc: "Post, earn credits & unlock higher commission tiers." },

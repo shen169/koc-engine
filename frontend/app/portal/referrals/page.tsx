@@ -1,17 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { getToken } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { getToken, getRole, getConsolePath } from "@/lib/api";
+import NavBar from "@/components/NavBar";
 
 export default function ReferralsPage() {
+  const router = useRouter();
+
+  // Role guard — redirect non-KOC users
+  const token = getToken();
+  const role = getRole();
+  if (!token) { router.push("/login"); return null; }
+  if (role && role !== "koc") { router.push(getConsolePath(role || "")); return null; }
+
   const [code, setCode] = useState("");
   const [stats, setStats] = useState<Record<string, unknown>>({});
   const [list, setList] = useState<Array<Record<string, unknown>>>([]);
 
   useEffect(() => {
     const token = getToken();
-    if (!token) return;
     fetch("http://localhost:8001/api/referrals/code", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json()).then((d) => setCode(d.referral_code)).catch(() => {});
     fetch("http://localhost:8001/api/referrals/stats", { headers: { Authorization: `Bearer ${token}` } })
@@ -22,9 +30,7 @@ export default function ReferralsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <nav className="bg-white border-b px-6 py-3">
-        <Link href="/portal" className="text-indigo-600 text-sm hover:underline">&larr; Dashboard</Link>
-      </nav>
+      <NavBar user={null} role="koc" title="推荐裂变" />
       <div className="max-w-2xl mx-auto p-6">
         <h1 className="text-xl font-bold text-slate-900 mb-6">Refer Friends & Earn</h1>
 

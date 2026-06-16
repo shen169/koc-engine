@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { tasks, getToken, getRole } from "@/lib/api";
+import { tasks, getToken, getRole, getConsolePath, auth } from "@/lib/api";
 import TaskCard from "@/components/TaskCard";
+import NavBar from "@/components/NavBar";
 
 const TABS = [
   { key: "", label: "全部" },
@@ -21,9 +22,14 @@ const SORT_OPTIONS = [
 
 export default function TaskHallPage() {
   const router = useRouter();
+
+  // Role guard — redirect non-KOC users
   const token = getToken();
   const role = getRole();
+  if (!token) { router.push("/login"); return null; }
+  if (role && role !== "koc") { router.push(getConsolePath(role || "")); return null; }
 
+  const [user, setUser] = useState<{ email?: string } | null>(null);
   const [taskList, setTaskList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("");
@@ -32,10 +38,7 @@ export default function TaskHallPage() {
   const [commissionMin, setCommissionMin] = useState(0);
 
   useEffect(() => {
-    if (!token || role !== "koc") {
-      router.push("/login");
-      return;
-    }
+    auth.me(token!).then(setUser).catch(() => {});
     loadTasks();
   }, [activeTab, sortBy]);
 
@@ -57,10 +60,10 @@ export default function TaskHallPage() {
     }
   }
 
-  if (!token || role !== "koc") return null;
-
   return (
     <div className="min-h-screen bg-orange-50/30">
+      <NavBar user={user} role="koc" title="任务广场" />
+
       {/* Header */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-4xl mx-auto px-6 py-6">

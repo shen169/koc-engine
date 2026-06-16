@@ -69,7 +69,7 @@ function ApplyForm() {
           </div>
 
           <p className="text-xs text-zinc-400 mt-4 mb-6">{result.ai_reason as string}</p>
-          <button onClick={() => router.push("/login")} className="btn-brand px-6 py-3 text-sm">Go to Portal</button>
+          <button onClick={() => router.push("/portal")} className="btn-brand px-6 py-3 text-sm">Go to Portal</button>
         </div>
       </div>
     );

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { tasks, getToken, getRole } from "@/lib/api";
+import { tasks, getToken, getRole, getConsolePath } from "@/lib/api";
+import NavBar from "@/components/NavBar";
 import TaskProgress from "@/components/TaskProgress";
 
 export default function MerchantTaskDetailPage() {
@@ -11,6 +12,8 @@ export default function MerchantTaskDetailPage() {
   const taskId = params.id as string;
   const token = getToken();
   const role = getRole();
+  if (!token) { router.push("/login"); return null; }
+  if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return null; }
 
   const [task, setTask] = useState<any>(null);
   const [report, setReport] = useState<any>(null);
@@ -21,10 +24,6 @@ export default function MerchantTaskDetailPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!token || role !== "merchant") {
-      router.push("/login");
-      return;
-    }
     loadTask();
   }, [taskId]);
 
@@ -61,7 +60,6 @@ export default function MerchantTaskDetailPage() {
     }
   }
 
-  if (!token || role !== "merchant") return null;
   if (loading) return <div className="text-center py-20 text-gray-400">加载中...</div>;
   if (!task) return <div className="text-center py-20 text-gray-400">任务不存在</div>;
 
@@ -70,10 +68,8 @@ export default function MerchantTaskDetailPage() {
 
   return (
     <div className="min-h-screen bg-purple-50/30">
+      <NavBar user={null} role="merchant" title="任务详情" />
       <div className="max-w-4xl mx-auto px-6 py-8">
-        <button onClick={() => router.back()} className="text-sm text-gray-400 hover:text-gray-600 mb-4 inline-block">
-          ← 返回
-        </button>
 
         {/* Task header */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">

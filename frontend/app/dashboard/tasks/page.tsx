@@ -2,23 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { tasks, getToken, getRole } from "@/lib/api";
+import { tasks, getToken, getRole, getConsolePath } from "@/lib/api";
+import NavBar from "@/components/NavBar";
 import TaskCard from "@/components/TaskCard";
 
 export default function MerchantTasksPage() {
   const router = useRouter();
   const token = getToken();
   const role = getRole();
+  if (!token) { router.push("/login"); return null; }
+  if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return null; }
 
   const [taskList, setTaskList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
 
   useEffect(() => {
-    if (!token || role !== "merchant") {
-      router.push("/login");
-      return;
-    }
     loadTasks();
   }, []);
 
@@ -33,8 +32,6 @@ export default function MerchantTasksPage() {
       setLoading(false);
     }
   }
-
-  if (!token || role !== "merchant") return null;
 
   const statusCounts = {
     all: taskList.length,
@@ -62,14 +59,13 @@ export default function MerchantTasksPage() {
 
   return (
     <div className="min-h-screen bg-purple-50/30">
-      {/* Header */}
+      <NavBar user={null} role="merchant" title="任务管理" />
+
+      {/* Header controls */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">📋 任务管理</h1>
-              <p className="text-sm text-gray-500 mt-1">管理你的推广任务和 KOC 合作</p>
-            </div>
+            <p className="text-sm text-gray-500">管理你的推广任务和 KOC 合作</p>
             <button
               onClick={() => router.push("/dashboard/tasks/new")}
               className="btn-brand text-white px-5 py-2.5 rounded-xl text-sm font-semibold"

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Spark from "@/components/Spark";
-import { auth, setToken } from "@/lib/api";
+import { auth, setToken, getToken, getRole, getConsolePath } from "@/lib/api";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -13,6 +13,16 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  // Already logged in → go to console
+  if (typeof window !== "undefined") {
+    const token = getToken();
+    if (token) {
+      const currentRole = getRole() || "koc";
+      router.push(getConsolePath(currentRole));
+      return null;
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setError(""); setLoading(true);
