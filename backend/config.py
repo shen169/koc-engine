@@ -40,6 +40,10 @@ SCORE_THRESHOLD_REJECT = 60   # <60 自动婉拒
 SCORE_THRESHOLD_L2 = 65       # ≥65 → L2
 SCORE_THRESHOLD_L3 = 80       # ≥80 → L3
 
+# Platform
+PLATFORM_SERVICE_FEE = 5          # 每发一个任务固定扣点（平台服务费）
+PLATFORM_PROFIT_RATE = 0.15       # 平台抽佣率（备用）
+
 # Cron
 GHOSTED_GRACE_DAYS = 14       # due_at 过期后宽限天数
 STALE_DAYS = 30               # 无活动标记 stale

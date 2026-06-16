@@ -22,6 +22,7 @@ def create_product(data: dict, current_user: dict = Depends(require_merchant)):
         category=data.get("category", ""),
         commission_type=data.get("commission_type", "discount_code"),
         commission_value=data.get("commission_value", ""),
+        commission_link=data.get("commission_link", ""),
         description=data.get("description", ""),
     )
     product_store.create(product)
@@ -61,7 +62,7 @@ def update_product(product_id: str, updates: dict, current_user: dict = Depends(
     if not m or p.merchant_id != m.id:
         if current_user.get("role") != "admin":
             raise HTTPException(403, "Not your product")
-    allowed = {"name", "image_url", "category", "commission_type", "commission_value", "description", "status"}
+    allowed = {"name", "image_url", "category", "commission_type", "commission_value", "commission_link", "description", "status"}
     safe = {k: v for k, v in updates.items() if k in allowed}
     updated = product_store.update(product_id, safe)
     return updated.model_dump()

@@ -52,3 +52,85 @@ def update_my_merchant(updates: dict, current_user: dict = Depends(get_current_u
 @router.get("/merchants")
 def list_merchants(current_user: dict = Depends(require_admin)):
     return [m.model_dump() for m in merchant_store.list_all()]
+
+
+# ── V2 新增：商家诚信度 ──
+
+@router.get("/merchants/{merchant_id}/trust")
+def get_merchant_trust(merchant_id: str, current_user: dict = Depends(get_current_user)):
+    """查询商家诚信度（KOC 可查看，用于决定是否接单）"""
+    m = merchant_store.get(merchant_id)
+    if not m:
+        raise HTTPException(404, "Merchant not found")
+    return {
+        "merchant_id": merchant_id,
+        "trust_score": m.trust_score,
+        "total_tasks_completed": m.total_tasks_completed,
+        "total_tasks_disputed": m.total_tasks_disputed,
+        "avg_rating": m.avg_rating,
+        "level": _trust_level(m.trust_score),
+    }
+
+
+@router.post("/admin/merchants/{merchant_id}/trust")
+def adjust_merchant_trust(merchant_id: str, data: dict, current_user: dict = Depends(require_admin)):
+    """Admin 手动调整商家诚信度"""
+    delta = data.get("delta", 0)
+    reason = data.get("reason", "")
+    if delta == 0:
+        raise HTTPException(400, "delta is required")
+    updated = merchant_store.update_trust_score(merchant_id, delta, reason)
+    if not updated:
+        raise HTTPException(404, "Merchant not found")
+    return {
+        "merchant_id": merchant_id,
+        "new_trust_score": updated.trust_score,
+        "delta": delta,
+        "level": _trust_level(updated.trust_score),
+    }
+
+
+@router.post("/merchants/{merchant_id}/report-fake-link")
+def report_fake_commission_link(merchant_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    """KOC 举报商家的返佣链接无效 → 诚信度直接降到 0"""
+    if current_user.get("role") not in ("koc", "admin"):
+        raise HTTPException(403, "Only KOC can report fake links")
+
+    m = merchant_store.get(merchant_id)
+    if not m:
+        raise HTTPException(404, "Merchant not found")
+
+    task_id = data.get("task_id", "")
+    reason = data.get("reason", "")
+
+    # 直接降到 0
+    updated = merchant_store.update(merchant_id, {
+        "trust_score": 0,
+        "total_tasks_disputed": m.total_tasks_disputed + 1,
+    })
+
+    # 记录投诉
+    from stores.user_store import user_store
+    user = user_store.get_by_id(current_user["sub"])
+    reporter_email = user.email if user else "unknown"
+
+    return {
+        "status": "reported",
+        "merchant_id": merchant_id,
+        "new_trust_score": 0,
+        "level": _trust_level(0),
+        "task_id": task_id,
+        "reported_by": reporter_email,
+        "message": "Merchant trust score set to 0. KOC投诉返佣链接无效，诚信度归零。",
+    }
+
+
+def _trust_level(score: int) -> str:
+    if score >= 80:
+        return "🛡️ 高信"
+    elif score >= 60:
+        return "⚠️ 一般"
+    elif score >= 40:
+        return "🔶 低信"
+    else:
+        return "🚫 危险"

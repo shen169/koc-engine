@@ -41,8 +41,9 @@ export default function DashboardPage() {
         {isMerchant ? (
           <div className="grid md:grid-cols-3 gap-4">
             {[
+              { href: "/dashboard/tasks", label: "📋 Task Management", desc: "Manage promotions" },
+              { href: "/dashboard/tasks/new", label: "➕ New Task", desc: "Launch campaign" },
               { href: "/dashboard/products", label: "📦 My Products", desc: "Manage listings" },
-              { href: "/dashboard/products/new", label: "➕ Add Product", desc: "List for creators" },
               { href: "/dashboard/koc-pool", label: "🔍 Find Creators", desc: "Browse anonymously" },
             ].map((item) => (
               <Link key={item.href} href={item.href} className="bg-white rounded-2xl p-5 border border-rose-100 shadow-sm hover:border-purple-200 transition">

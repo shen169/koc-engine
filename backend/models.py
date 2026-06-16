@@ -82,6 +82,10 @@ class Merchant(BaseModel):
     avg_rating: float = 0.0
     total_collaborations: int = 0
     is_blacklisted: bool = False
+    # ── V2 新增：诚信度体系 ──
+    trust_score: int = 100           # 诚信度 0-100，默认 100
+    total_tasks_completed: int = 0   # 累计完成（恢复诚信度用）
+    total_tasks_disputed: int = 0    # 累计争议数
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
 
@@ -98,6 +102,7 @@ class Product(BaseModel):
     category: str = ""
     commission_type: str = "discount_code"  # discount_code | affiliate
     commission_value: str = ""  # 如 "15% off"
+    commission_link: str = ""  # 返佣链接（Amazon联盟/独立站分佣链接），KOC 拿这个去推广
     description: str = ""
     status: str = "active"  # active | paused | archived
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
@@ -136,17 +141,41 @@ class Interest(BaseModel):
 
 
 # ═══════════════════════════════════════════
-# 任务/履约（PRD §7.3）
+# 任务/履约 V2 — 批量 KOC + 质押 + 全状态机
 # ═══════════════════════════════════════════
 
 class KocTask(BaseModel):
     id: str = Field(default_factory=_uid)
-    koc_id: str
-    merchant_id: str = ""       # 新增：关联商家
-    product_id: str = ""        # 新增：关联产品
+    merchant_id: str = ""
+    product_id: str = ""
     product_asin: str = ""
     product_name: str = ""
-    sample_status: str = "none"  # none | sent | received
+
+    # ── V2 新增：任务类型 + 状态 ──
+    task_type: str = "urgent"       # urgent | long_term
+    task_status: str = "pending"    # pending|assigned|accepted|shipped|creating|completed|disputed
+
+    # ── V2 新增：批量 KOC ──
+    koc_required: int = 1           # 需要几个 KOC
+    koc_slots: list = Field(default_factory=list)
+    # 每个 slot: {koc_id, status, assigned_at, accepted_at, shipped_at, received_at,
+    #             submitted_at, tracking_number, content_urls, content_data,
+    #             pledge_paid, commission_paid, reject_count}
+
+    # ── V2 新增：质押 + 佣金 ──
+    pledge_merchant: int = 0        # 商家单次质押点
+    pledge_koc: int = 0             # KOC 单次质押点
+    commission: int = 0             # KOC 完成佣金
+
+    # ── V2 新增：物流 ──
+    tracking_number: str = ""
+
+    # ── V2 新增：内容 ──
+    content_urls: list = Field(default_factory=list)
+
+    # ── 保留（兼容） ──
+    koc_id: str = ""                # deprecated，用 koc_slots
+    sample_status: str = "none"
     deposit_paid: bool = False
     deposit_amount_usd: float = 0.0
     submit_url: str = ""
@@ -279,3 +308,8 @@ VALID_DECISIONS = ["pending", "approved", "rejected", "watching"]
 VALID_INTEREST_STATUSES = ["expressed", "matched", "declined", "completed"]
 VALID_REFERRAL_STATUSES = ["pending", "joined", "completed"]
 VALID_PRODUCT_STATUSES = ["active", "paused", "archived"]
+
+# ── V2 任务状态机 ──
+TASK_TYPES = ["urgent", "long_term"]
+TASK_STATUSES = ["pending", "assigned", "accepted", "shipped", "creating", "completed", "disputed"]
+SLOT_STATUSES = ["pending", "assigned", "accepted", "shipped", "received", "creating", "submitted", "completed", "rejected", "timed_out"]

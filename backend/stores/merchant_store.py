@@ -59,5 +59,22 @@ class MerchantStore:
             data = self._load()
         return [Merchant(**m) for m in data.values()]
 
+    # ── V2 新增：诚信度操作 ──
+
+    def get_trust_score(self, merchant_id: str) -> int:
+        m = self.get(merchant_id)
+        return m.trust_score if m else 100
+
+    def update_trust_score(self, merchant_id: str, delta: int, reason: str = "") -> Merchant | None:
+        """delta 正数=加分，负数=扣分。自动 clamp 0-100"""
+        with self._lock:
+            data = self._load()
+            if merchant_id not in data:
+                return None
+            new_score = max(0, min(100, data[merchant_id].get("trust_score", 100) + delta))
+            data[merchant_id]["trust_score"] = new_score
+            self._save(data)
+        return Merchant(**data[merchant_id])
+
 
 merchant_store = MerchantStore()

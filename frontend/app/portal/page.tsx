@@ -41,6 +41,7 @@ export default function PortalDashboard() {
         {/* Quick Actions */}
         <div className="grid md:grid-cols-4 gap-4 mb-8">
           {[
+            { href: "/portal/hall", label: "🏪 Task Hall", desc: "Discover new tasks" },
             { href: "/portal/products", label: "🛍 Browse Products", desc: "Find products to promote" },
             { href: "/portal/tasks", label: "📋 My Tasks", desc: `${taskList.length} active` },
             { href: "/portal/credits", label: "💰 Credits", desc: `${balance} points` },

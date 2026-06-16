@@ -7,13 +7,43 @@ import { products, getToken } from "@/lib/api";
 
 export default function NewProduct() {
   const router = useRouter();
-  const [form, setForm] = useState({ name: "", asin: "", category: "baby", commission_type: "discount_code", commission_value: "", description: "", image_url: "" });
+  const [form, setForm] = useState({ name: "", asin: "", category: "baby", commission_type: "discount_code", commission_value: "", commission_link: "", description: "", image_url: "" });
   const [loading, setLoading] = useState(false);
+  const [linkWarning, setLinkWarning] = useState("");
 
-  function update(field: string, value: string) { setForm((p) => ({ ...p, [field]: value })); }
+  const AFFILIATE_PARAMS = ["tag", "aff", "ref", "affiliate", "utm_source", "pid", "campaign", "tracking", "coupon", "code"];
+
+  function detectAffiliateLink(url: string): boolean {
+    if (!url) return false;
+    try {
+      const u = new URL(url);
+      return AFFILIATE_PARAMS.some((p) => u.searchParams.has(p));
+    } catch {
+      return false;
+    }
+  }
+
+  function update(field: string, value: string) {
+    setForm((p) => ({ ...p, [field]: value }));
+    if (field === "commission_link") {
+      if (!value) {
+        setLinkWarning("");
+      } else {
+        try {
+          new URL(value);
+          setLinkWarning(detectAffiliateLink(value) ? "" : "⚠️ 未检测到返佣参数（tag/aff/ref等），请确认这是有效的返佣链接");
+        } catch {
+          setLinkWarning("⚠️ 请输入有效的 URL（以 http:// 或 https:// 开头）");
+        }
+      }
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (linkWarning && linkWarning.includes("有效的 URL")) {
+      return; // block submit on invalid URL
+    }
     const token = getToken();
     if (!token) return;
     setLoading(true);
@@ -64,6 +94,19 @@ export default function NewProduct() {
                 <input value={form.commission_value} onChange={(e) => update("commission_value", e.target.value)} placeholder="15% off"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900" />
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                🔗 Commission Link <span className="text-slate-400 font-normal">（返佣链接，KOC拿这个推广）</span>
+              </label>
+              <input value={form.commission_link} onChange={(e) => update("commission_link", e.target.value)}
+                placeholder="https://amazon.com/dp/B0XXX?tag=youraff-20"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900" />
+              {linkWarning && (
+                <p className={`text-xs mt-1 ${linkWarning.startsWith("✅") ? "text-green-600" : "text-amber-600"}`}>
+                  {linkWarning}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Image URL</label>

@@ -97,13 +97,37 @@ export const interests = {
     api(`/api/interests/${id}/match`, { method: "PUT", token }),
 };
 
-// Tasks
+// Tasks V2
 export const tasks = {
   create: (data: Record<string, unknown>, token: string) =>
     api("/api/tasks", { method: "POST", body: data, token }),
   list: (token: string) => api("/api/tasks", { token }),
+  mine: (token: string) => api("/api/tasks/mine", { token }),
   get: (id: string, token: string) => api(`/api/tasks/${id}`, { token }),
-  submit: (id: string, submitUrl: string, token: string) =>
+  // V2: Task hall for KOCs
+  hall: (token: string, params?: Record<string, string>) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api(`/api/tasks/hall${qs}`, { token });
+  },
+  // V2: KOC accepts a slot
+  accept: (taskId: string, slotIndex: number, token: string) =>
+    api(`/api/tasks/${taskId}/accept/${slotIndex}`, { method: "PUT", token }),
+  // V2: Merchant ships task
+  ship: (taskId: string, trackingNumber: string, token: string) =>
+    api(`/api/tasks/${taskId}/ship`, { method: "PUT", body: { tracking_number: trackingNumber }, token }),
+  // V2: KOC confirms receipt
+  receive: (taskId: string, slotIndex: number, token: string) =>
+    api(`/api/tasks/${taskId}/receive/${slotIndex}`, { method: "PUT", token }),
+  // V2: KOC submits content
+  submit: (taskId: string, slotIndex: number, contentUrls: string[], token: string) =>
+    api(`/api/tasks/${taskId}/submit/${slotIndex}`, { method: "PUT", body: { content_urls: contentUrls }, token }),
+  // V2: Merchant data report
+  report: (taskId: string, token: string) => api(`/api/tasks/${taskId}/report`, { token }),
+  // V2: Admin force rematch
+  forceRematch: (taskId: string, slotIndex: number, token: string) =>
+    api(`/api/tasks/${taskId}/force-rematch/${slotIndex}`, { method: "POST", token }),
+  // Deprecated compat
+  submitLegacy: (id: string, submitUrl: string, token: string) =>
     api(`/api/tasks/${id}/submit`, { method: "PUT", body: { submit_url: submitUrl }, token }),
   confirm: (id: string, token: string) =>
     api(`/api/tasks/${id}/confirm`, { method: "PUT", token }),
@@ -118,6 +142,19 @@ export const credits = {
 // Admin
 export const admin = {
   stats: (token: string) => api("/api/admin/stats", { token }),
+};
+
+// Merchants V2
+export const merchants = {
+  me: (token: string) => api("/api/merchants/me", { token }),
+  create: (data: Record<string, unknown>, token: string) =>
+    api("/api/merchants", { method: "POST", body: data, token }),
+  getTrust: (merchantId: string, token: string) =>
+    api(`/api/merchants/${merchantId}/trust`, { token }),
+  reportFakeLink: (merchantId: string, taskId: string, reason: string, token: string) =>
+    api(`/api/merchants/${merchantId}/report-fake-link`, {
+      method: "POST", body: { task_id: taskId, reason }, token,
+    }),
 };
 
 // Landing
