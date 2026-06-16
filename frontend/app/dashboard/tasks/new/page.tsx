@@ -19,8 +19,6 @@ export default function NewTaskPage() {
     task_type: "urgent",
     koc_required: 5,
     commission: 30,
-    pledge_merchant: 0,
-    pledge_koc: 0,
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -64,9 +62,6 @@ export default function NewTaskPage() {
     setSubmitting(true);
     setError("");
 
-    const pledgeM = form.pledge_merchant > 0 ? form.pledge_merchant : form.commission * 2 * form.koc_required;
-    const pledgeK = form.pledge_koc > 0 ? form.pledge_koc : form.commission;
-
     tasks
       .create(
         {
@@ -75,8 +70,6 @@ export default function NewTaskPage() {
           task_type: form.task_type,
           koc_required: form.koc_required,
           commission: form.commission,
-          pledge_merchant: pledgeM,
-          pledge_koc: pledgeK,
         },
         token!
       )
@@ -184,10 +177,10 @@ export default function NewTaskPage() {
               </div>
             </div>
 
-            {/* Commission */}
+            {/* Commission (reference for affiliate link, NOT paid in points) */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                每 KOC 佣金（点）
+                💰 返佣参考值（$/KOC，用于质押计算，实际佣金走返佣链接）
               </label>
               <input
                 type="number"
@@ -197,56 +190,33 @@ export default function NewTaskPage() {
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
               <p className="text-xs text-gray-400 mt-1">
-                总佣金预算 = {form.commission} × {form.koc_required} = {form.commission * form.koc_required} 点
+                KOC 通过返佣链接推广，成交佣金由联盟平台自动结算。此处仅作质押计算参考。
               </p>
             </div>
 
-            {/* Pledges */}
+            {/* Pledges — fixed at 10 pts/slot */}
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  商家质押（最低=总佣金 {form.commission * form.koc_required} 点，确保样品必发）
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.pledge_merchant || ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, pledge_merchant: Number(e.target.value) || 0 }))
-                  }
-                  placeholder={`最低 ${form.commission * form.koc_required}`}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none text-sm"
-                />
+              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
+                <div className="text-xs text-purple-500 font-semibold mb-1">商家质押（履约后退还）</div>
+                <div className="text-2xl font-extrabold text-purple-700">10 × {form.koc_required} = {10 * form.koc_required} 点</div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  KOC 质押（最低={form.commission} 点）
-                </label>
-                <input
-                  type="number"
-                  min={form.commission}
-                  value={form.pledge_koc || ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, pledge_koc: Number(e.target.value) || 0 }))
-                  }
-                  placeholder={`最低 ${form.commission}`}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none text-sm"
-                />
+              <div className="bg-pink-50 border border-pink-100 rounded-xl p-4">
+                <div className="text-xs text-pink-500 font-semibold mb-1">KOC 质押/人（履约后退还）</div>
+                <div className="text-2xl font-extrabold text-pink-700">10 点</div>
               </div>
             </div>
 
             {/* Summary */}
             <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 space-y-1">
               <div className="font-semibold text-gray-800 mb-2">📊 费用预估</div>
-              <div>KOC 总佣金预算：{form.commission * form.koc_required} 点</div>
               <div>
-                平台服务费（固定）：5 点
+                平台服务费（商家）：5 点 <span className="text-xs text-gray-400">（发布即扣，不退）</span>
               </div>
-              <div className="pt-2 border-t border-gray-200 font-semibold text-gray-800">
-                本次发布扣点：{form.commission * form.koc_required + 5} 点
+              <div>
+                商家质押：10 × {form.koc_required} = {10 * form.koc_required} 点 <span className="text-xs text-gray-400">（发货时扣，KOC 完成后退还）</span>
               </div>
-              <div className="text-xs text-gray-400">
-                * 佣金由返佣链接自动结算，平台只收取发布服务费
+              <div className="text-xs text-gray-400 mt-2">
+                * KOC 接单冻结 10 点质押，完成后退还 5 点（平台扣 5 点）
               </div>
             </div>
 

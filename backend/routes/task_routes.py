@@ -11,7 +11,7 @@ from stores.credit_store import credit_store
 from stores.product_store import product_store
 from services.matcher import match_kocs_for_task, rematch_slot
 from auth import get_current_user, require_admin
-from config import PLATFORM_SERVICE_FEE
+from config import PLATFORM_SERVICE_FEE, KOC_PLATFORM_FEE, PLEDGE_PER_SLOT
 
 router = APIRouter(tags=["tasks"])
 
@@ -59,22 +59,9 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
     koc_required = data.get("koc_required", 1)
     commission = data.get("commission", 30)
 
-    # ── 质押规则 ──
-    total_commission = commission * koc_required
-    pledge_merchant_min = total_commission     # 商家最低质押 = 总佣金（确保样品必发）
-    pledge_koc_min = commission                 # KOC 最低质押 = 单笔佣金
-
-    pledge_merchant = data.get("pledge_merchant", pledge_merchant_min)
-    pledge_koc = data.get("pledge_koc", pledge_koc_min)
-
-    # 不能低于最低
-    if pledge_merchant < pledge_merchant_min:
-        raise HTTPException(400,
-            f"Merchant pledge must be >= total commission ({pledge_merchant_min} pts). "
-            f"Got {pledge_merchant}. This ensures samples are shipped.")
-    if pledge_koc < pledge_koc_min:
-        raise HTTPException(400,
-            f"KOC pledge must be >= commission ({pledge_koc_min} pts). Got {pledge_koc}.")
+    # ── 质押规则（固定每 slot 10 点）──
+    pledge_merchant = PLEDGE_PER_SLOT * koc_required   # 商家质押 = 10 × KOC人数
+    pledge_koc = PLEDGE_PER_SLOT                        # KOC 质押 = 10 点
 
     # ── 平台服务费：发任务即扣 ──
     m_uid = _get_merchant_user_id(merchant_id)
@@ -272,9 +259,10 @@ def accept_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
     if slot_koc_id and slot_koc_id != koc_id:
         raise HTTPException(403, "This slot is assigned to another KOC")
 
-    # 扣 KOC 质押点
+    koc_uid = _get_koc_user_id(koc_id)
+
+    # 扣 KOC 质押点（平台费在完成时从质押中扣）
     if task.pledge_koc > 0:
-        koc_uid = _get_koc_user_id(koc_id)
         result = credit_store.deduct_credits(
             koc_uid, task.pledge_koc, "pledge_koc",
             task_id, f"Pledge for task: {task.product_name}"
@@ -429,25 +417,25 @@ def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict
         "content_urls": content_urls,
     })
 
-    # ── 自动完成：释放质押 + 结算佣金 ──
+    # ── 自动完成：释放质押（KOC 扣平台费）──
     koc_uid = _get_koc_user_id(koc_id)
 
-    # 退 KOC 质押
+    # 退 KOC 质押（质押 10 - 平台费 5 = 实际退还 5 点）
     if task.pledge_koc > 0 and slot.get("pledge_paid"):
-        credit_store.add_credits(koc_uid, task.pledge_koc, "pledge_return_koc",
-                                 task_id, f"Pledge returned for: {task.product_name}")
+        koc_return = task.pledge_koc - KOC_PLATFORM_FEE
+        if koc_return > 0:
+            credit_store.add_credits(koc_uid, koc_return, "pledge_return_koc",
+                                     task_id, f"Pledge returned (after platform fee): {task.product_name}")
+        credit_store.add_credits("platform", KOC_PLATFORM_FEE, "koc_platform_fee",
+                                 task_id, f"KOC platform fee from: {task.product_name}")
 
-    # 退商家质押
+    # 退商家质押（全额退还）
     if task.pledge_merchant > 0:
         m_uid = _get_merchant_user_id(task.merchant_id)
         credit_store.add_credits(m_uid, task.pledge_merchant, "pledge_return_merchant",
                                  task_id, f"Pledge returned for: {task.product_name}")
 
-    # 结算佣金（如果还没结）
-    if task.commission > 0 and not slot.get("commission_paid"):
-        credit_store.add_credits(koc_uid, task.commission, "task_commission",
-                                 task_id, f"Commission for: {task.product_name}")
-        task_store.update_slot(task_id, slot_index, {"commission_paid": True})
+    # 佣金由返佣链接（affiliate link）自动结算，平台积分不参与佣金发放
 
     # 更新 KOC 统计
     koc = koc_store.get(koc_id)

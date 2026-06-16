@@ -149,6 +149,9 @@ export const credits = {
 // Admin
 export const admin = {
   stats: (token: string) => api("/api/admin/stats", { token }),
+  users: (token: string) => api("/api/admin/users", { token }),
+  rewardCredits: (userId: string, amount: number, note: string, token: string) =>
+    api("/api/credits/reward", { method: "POST", body: { user_id: userId, amount, note }, token }),
 };
 
 // Merchants V2

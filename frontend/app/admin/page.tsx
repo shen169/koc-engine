@@ -39,6 +39,7 @@ export default function AdminPage() {
     ["/admin/merchants", "Merchants"],
     ["/admin/interests", "Matches"],
     ["/admin/tasks", "Tasks"],
+    ["/admin/credits", "💰 Credits"],
   ];
 
   return (

@@ -233,7 +233,7 @@ def _handle_merchant_ship_timeout(task):
             koc_id = slot.get("koc_id", "")
             if koc_id:
                 koc_uid = _get_koc_user_id(koc_id)
-                credit_store.add_credits(koc_uid, task.pledge_koc or task.commission,
+                credit_store.add_credits(koc_uid, task.pledge_koc,
                                          "breach_compensation_koc", task.id,
                                          f"Merchant breach compensation: {task.product_name}")
                 task_store.update_slot(task.id, i, {"pledge_paid": False})

@@ -65,9 +65,9 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
 
       {/* Info row */}
       <div className="flex flex-wrap gap-3 text-sm text-gray-500 mb-3">
-        <span>💰 佣金 <strong className="text-gray-800">{task.commission} 点</strong></span>
-        {mode === "hall" && task.pledge_koc > 0 && (
-          <span>🔒 质押 {task.pledge_koc} 点</span>
+        <span>💰 返佣 <strong className="text-gray-800">${task.commission}</strong></span>
+        {mode === "hall" && (
+          <span>🔒 质押 <strong className="text-gray-800">10</strong> 点</span>
         )}
         <span>👥 {task.koc_filled}/{task.koc_required} 人</span>
         {mode === "hall" && task.merchant_avg_rating && (

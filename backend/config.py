@@ -31,7 +31,7 @@ ADMIN_EMAIL = "admin@koc-engine.internal"
 ADMIN_PASSWORD = os.getenv("ACCESS_PASSWORD", "admin123")
 
 # 点数
-DEFAULT_INITIAL_CREDITS = 30       # KOC 通过审核后的初始点数
+DEFAULT_INITIAL_CREDITS = 50       # KOC 注册初始点数（够接 3 单：每单 15 点=5平台费+10质押）
 DEFAULT_TASK_REWARD_CREDITS = 30   # 完成一次履约奖励
 DEFAULT_REFERRAL_REWARD_CREDITS = 10  # 推荐成功奖励
 
@@ -41,7 +41,9 @@ SCORE_THRESHOLD_L2 = 65       # ≥65 → L2
 SCORE_THRESHOLD_L3 = 80       # ≥80 → L3
 
 # Platform
-PLATFORM_SERVICE_FEE = 5          # 每发一个任务固定扣点（平台服务费）
+PLATFORM_SERVICE_FEE = 5          # 商家每发一个任务固定扣点（平台服务费）
+KOC_PLATFORM_FEE = 5              # KOC 每接一个 slot 固定扣点（平台服务费）
+PLEDGE_PER_SLOT = 10              # 双方每 slot 质押点数（商家=10×KOC人数，KOC=10）
 PLATFORM_PROFIT_RATE = 0.15       # 平台抽佣率（备用）
 
 # Cron

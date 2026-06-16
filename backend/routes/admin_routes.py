@@ -10,6 +10,7 @@ from stores.interest_store import interest_store
 from stores.referral_store import referral_store
 from stores.coupon_store import coupon_store
 from stores.credit_store import credit_store
+from stores.user_store import user_store
 from auth import require_admin
 from services.cron import run_weekly_scan, check_ghosted_status
 
@@ -66,3 +67,19 @@ def trigger_scan(current_user: dict = Depends(require_admin)):
 def ghosted_alerts(current_user: dict = Depends(require_admin)):
     """查看逾期任务"""
     return check_ghosted_status()
+
+
+@router.get("/admin/users")
+def list_all_users(current_user: dict = Depends(require_admin)):
+    """列出所有用户（含积分余额）"""
+    users = user_store.list_all()
+    result = []
+    for u in users:
+        balance = credit_store.get_balance(u.id)
+        result.append({
+            "id": u.id,
+            "email": u.email,
+            "role": u.role,
+            "balance": balance,
+        })
+    return result

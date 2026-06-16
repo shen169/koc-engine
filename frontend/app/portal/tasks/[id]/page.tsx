@@ -150,12 +150,12 @@ export default function KocTaskDetailPage() {
 
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="bg-gray-50 rounded-xl p-3">
-              <div className="text-gray-400 text-xs">佣金</div>
-              <div className="font-bold text-gray-900">{task.commission || 0} 点</div>
+              <div className="text-gray-400 text-xs">返佣参考</div>
+              <div className="font-bold text-gray-900">${task.commission || 0}</div>
             </div>
             <div className="bg-gray-50 rounded-xl p-3">
-              <div className="text-gray-400 text-xs">质押</div>
-              <div className="font-bold text-gray-900">{task.pledge_koc || 0} 点</div>
+              <div className="text-gray-400 text-xs">质押（完成退 5 点）</div>
+              <div className="font-bold text-gray-900">10 点</div>
             </div>
             <div className="bg-gray-50 rounded-xl p-3">
               <div className="text-gray-400 text-xs">接单时限</div>
@@ -260,13 +260,18 @@ export default function KocTaskDetailPage() {
         {!isCompleted && (
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             {isAssignedToMe && (
-              <button
-                onClick={handleAccept}
-                disabled={accepting}
-                className="w-full btn-brand text-white py-3.5 rounded-xl font-semibold text-lg disabled:opacity-50"
-              >
-                {accepting ? "接单中..." : `✅ 接单（质押 ${task.pledge_koc || 0} 点）`}
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={handleAccept}
+                  disabled={accepting}
+                  className="w-full btn-brand text-white py-3.5 rounded-xl font-semibold text-lg disabled:opacity-50"
+                >
+                  {accepting ? "接单中..." : "✅ 接单（质押 10 点）"}
+                </button>
+                <p className="text-xs text-gray-400 text-center">
+                  接单冻结 10 点质押，完成后退还 5 点（平台扣 5 点服务费）
+                </p>
+              </div>
             )}
 
             {canReceive && (
@@ -298,7 +303,7 @@ export default function KocTaskDetailPage() {
                   {submitting ? "提交中..." : "🚀 提交内容（完成履约）"}
                 </button>
                 <p className="text-xs text-gray-400 text-center">
-                  提交后自动结算佣金 + 退还质押
+                  提交后退还 5 点（质押 10 - 平台费 5），佣金走返佣链接
                 </p>
               </div>
             )}
@@ -315,7 +320,7 @@ export default function KocTaskDetailPage() {
           <div className="bg-green-50 rounded-2xl border border-green-100 p-6 text-center">
             <div className="text-3xl mb-2">🎉</div>
             <p className="font-semibold text-green-700 text-lg">任务已提交！</p>
-            <p className="text-sm text-green-600 mt-1">佣金已结算，质押已退还</p>
+            <p className="text-sm text-green-600 mt-1">质押退还 5 点（已扣 5 点平台费），佣金走返佣链接</p>
             {mySlot?.content_urls && (
               <div className="mt-4 space-y-1">
                 {(mySlot.content_urls as string[]).map((url: string, i: number) => (
