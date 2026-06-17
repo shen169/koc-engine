@@ -141,6 +141,13 @@ class TaskStore:
             if already_in:
                 continue
 
+            # 加急任务已 auto-match 填满 slot → 不进入广场
+            # 只展示有空闲 slot 的任务（长线任务或未填满的加急）
+            assigned_count = sum(1 for s in task.koc_slots if s.get("koc_id"))
+            total_slots = len(task.koc_slots)
+            if total_slots > 0 and assigned_count >= total_slots:
+                continue  # 所有 slot 已分配完毕，广场不展示
+
             # 品类筛选
             if category and category.lower() not in task.product_name.lower():
                 continue
@@ -153,8 +160,9 @@ class TaskStore:
             if task_type and task.task_type != task_type:
                 continue
 
-            # 计算已填充的 slot 数
-            filled = sum(1 for s in task.koc_slots if s.get("koc_id"))
+            # 计算已接单的 slot 数（只算已接受/执行中的，不算仅 assigned）
+            active_statuses = {"accepted", "shipped", "received", "creating", "submitted", "completed"}
+            filled = sum(1 for s in task.koc_slots if s.get("koc_id") and s.get("status") in active_statuses)
             if filled >= task.koc_required:
                 continue  # 已满
 

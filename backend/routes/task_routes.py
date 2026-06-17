@@ -10,6 +10,7 @@ from stores.user_store import user_store
 from stores.credit_store import credit_store
 from stores.product_store import product_store
 from services.matcher import match_kocs_for_task, rematch_slot
+from services.cron import sync_koc_tier, sync_merchant_tier
 from auth import get_current_user, require_admin
 from config import PLATFORM_SERVICE_FEE, KOC_PLATFORM_FEE, PLEDGE_PER_SLOT
 
@@ -88,10 +89,10 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
     )
     task_store.create(task)
 
-    # 加急任务：自动运行匹配引擎
+    # 自动运行匹配引擎（所有任务类型）
     matched = []
-    if task_type == "urgent":
-        results = match_kocs_for_task(task, count=koc_required, buffer=3)
+    results = match_kocs_for_task(task, count=koc_required, buffer=3)
+    if results:
         slots = []
         for r in results:
             slots.append({
@@ -259,6 +260,15 @@ def accept_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
     if slot_koc_id and slot_koc_id != koc_id:
         raise HTTPException(403, "This slot is assigned to another KOC")
 
+    # 检查同时进行中任务数上限（最多 5 个 active slot）
+    active_slots = 0
+    for t in task_store.list_by_koc(koc_id):
+        for s in t.koc_slots:
+            if s.get("koc_id") == koc_id and s.get("status") in ("accepted", "shipped", "received", "creating"):
+                active_slots += 1
+    if active_slots >= 5:
+        raise HTTPException(400, f"You already have {active_slots} active tasks (max 5). Complete some before accepting new ones.")
+
     koc_uid = _get_koc_user_id(koc_id)
 
     # 扣 KOC 质押点（平台费在完成时从质押中扣）
@@ -286,6 +296,70 @@ def accept_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
     _sync_task_status(task_id)
 
     return {"status": "accepted", "task_id": task_id, "slot_index": slot_index, "accepted_at": now}
+
+
+# ═══════════════════════════════════════════
+# KOC 拒绝任务
+# ═══════════════════════════════════════════
+
+@router.put("/tasks/{task_id}/reject/{slot_index}")
+def reject_task(task_id: str, slot_index: int, current_user: dict = Depends(get_current_user)):
+    """KOC 主动拒绝已分配的任务 → 扣信任分 + 自动重推"""
+    if current_user.get("role") not in ("koc", "admin"):
+        raise HTTPException(403, "Only KOC can reject tasks")
+
+    task = task_store.get(task_id)
+    if not task:
+        raise HTTPException(404, "Task not found")
+
+    slot = task_store.get_slot(task_id, slot_index)
+    if not slot:
+        raise HTTPException(404, f"Slot {slot_index} not found")
+
+    # 验证 KOC 身份
+    user = user_store.get_by_id(current_user["sub"])
+    koc = koc_store.get_by_email(user.email) if user else None
+    koc_id = koc.id if koc else current_user["sub"]
+
+    if slot.get("koc_id") != koc_id and current_user.get("role") != "admin":
+        raise HTTPException(403, "This slot is not assigned to you")
+
+    if slot.get("status") != "assigned":
+        raise HTTPException(400, f"Cannot reject slot in '{slot.get('status')}' status")
+
+    # 扣信任分（主动拒绝是负责任行为，轻度扣分）
+    koc_profile = koc_store.get(koc_id)
+    if koc_profile:
+        new_trust = max(0, koc_profile.trust_score - 3)
+        koc_store.update(koc_id, {"trust_score": new_trust})
+        # 信任分联动校准等级
+        sync_koc_tier(koc_id)
+
+    # 标记超时 → 触发重推
+    now = datetime.utcnow().isoformat()
+    task_store.update_slot(task_id, slot_index, {
+        "status": "timed_out",
+        "reject_count": slot.get("reject_count", 0) + 1,
+    })
+
+    # 尝试重新匹配
+    new_match = rematch_slot(task, slot_index)
+    if new_match:
+        task_store.update_slot(task_id, slot_index, {
+            "koc_id": new_match["koc_id"],
+            "status": "assigned",
+            "assigned_at": now,
+            "reject_count": slot.get("reject_count", 0) + 1,
+            "match_score": new_match["score"],
+        })
+
+    return {
+        "status": "rejected",
+        "task_id": task_id,
+        "slot_index": slot_index,
+        "trust_penalty": -10,
+        "new_trust": koc_profile.trust_score - 10 if koc_profile else 0,
+    }
 
 
 # ═══════════════════════════════════════════
@@ -437,21 +511,29 @@ def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict
 
     # 佣金由返佣链接（affiliate link）自动结算，平台积分不参与佣金发放
 
-    # 更新 KOC 统计
+    # 更新 KOC 统计 + 履约奖励（信任回升 + 等级校准）
     koc = koc_store.get(koc_id)
     if koc:
+        # 每次成功履约，信任分回升 3 点（上限 100）
+        new_trust = min(100, koc.trust_score + 3)
         koc_store.update(koc_id, {
             "completed_tasks": koc.completed_tasks + 1,
             "total_collaborations": koc.total_collaborations + 1,
+            "trust_score": new_trust,
         })
+        # 双向校准等级（完成多了可能升级）
+        sync_koc_tier(koc_id)
 
-    # 更新商家统计
+    # 更新商家统计 + 信任恢复 + 等级校准
     m = merchant_store.get(task.merchant_id)
     if m:
+        new_m_trust = min(100, m.trust_score + 3)
         merchant_store.update(task.merchant_id, {
             "total_collaborations": m.total_collaborations + 1,
             "total_tasks_completed": m.total_tasks_completed + 1,
+            "trust_score": new_m_trust,
         })
+        sync_merchant_tier(task.merchant_id)
 
     # 同步 task 整体状态
     _sync_task_status(task_id)

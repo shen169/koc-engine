@@ -52,9 +52,44 @@ def me(current_user: dict = Depends(get_current_user)):
     if not user:
         raise HTTPException(404, "User not found")
     balance = credit_store.get_balance(user.id)
-    return {
+
+    # 补全 KOC/Merchant profile id + 信任分/等级
+    profile_id = ""
+    koc_trust = None
+    merchant_trust = None
+    if user.role == "koc":
+        from stores.koc_store import koc_store as ks
+        koc = ks.get_by_email(user.email)
+        if koc:
+            profile_id = koc.id
+            koc_trust = {
+                "trust_score": koc.trust_score,
+                "tier": koc.tier,
+                "completed_tasks": koc.completed_tasks,
+                "avg_rating": koc.avg_rating,
+            }
+    elif user.role == "merchant":
+        from stores.merchant_store import merchant_store as ms
+        m = ms.get_by_user_id(user.id)
+        if m:
+            profile_id = m.id
+            merchant_trust = {
+                "trust_score": m.trust_score,
+                "tier": m.tier,
+                "total_tasks_completed": m.total_tasks_completed,
+                "total_tasks_disputed": m.total_tasks_disputed,
+                "avg_rating": m.avg_rating,
+            }
+
+    result = {
         "id": user.id,
         "email": user.email,
         "role": user.role,
         "credits_balance": balance,
+        "profile_id": profile_id,
     }
+    if koc_trust:
+        result["koc_profile"] = koc_trust
+    if merchant_trust:
+        result["merchant_profile"] = merchant_trust
+    return result

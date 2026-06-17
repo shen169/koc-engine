@@ -148,6 +148,167 @@ print("   rematched={}, m_defaulted={}, auto_recv={}, koc_defaulted={}".format(
 alerts = check_ghosted_status()
 print("   Alerts: {}".format(len(alerts)))
 
+# ── 10. Auto-Matching Engine ──
+print("\n10. Auto-Matching Engine...")
+
+# 10a. Create merchants + products with different categories
+print("   10a. Setting up products with categories...")
+# Register merchant 2 with beauty product
+r2 = requests.post(BASE + "/auth/register", json={
+    "email": "beautybrand@test.com", "password": "test123", "role": "merchant"
+})
+m2t = ok(r2)["token"]
+mp2 = ok(requests.post(BASE + "/merchants", json={
+    "company_name": "Beauty Brand",
+    "product_categories": ["skincare", "beauty", "k-beauty"],
+}, headers=auth_headers(m2t)))
+m2id = mp2["id"]
+
+prod2 = ok(requests.post(BASE + "/products", json={
+    "name": "Vitamin C Serum",
+    "category": "skincare,beauty",
+    "commission_value": "20% off",
+    "description": "Korean beauty vitamin C serum for brightening",
+}, headers=auth_headers(m2t)))
+p2id = prod2["id"]
+print("      Product 2: {} (category: {})".format(prod2["name"], prod2["category"]))
+
+# Register merchant 3 with fitness product
+r3 = requests.post(BASE + "/auth/register", json={
+    "email": "fitbrand@test.com", "password": "test123", "role": "merchant"
+})
+m3t = ok(r3)["token"]
+mp3 = ok(requests.post(BASE + "/merchants", json={
+    "company_name": "Fit Brand",
+    "product_categories": ["fitness", "sports"],
+}, headers=auth_headers(m3t)))
+prod3 = ok(requests.post(BASE + "/products", json={
+    "name": "Resistance Bands Set",
+    "category": "fitness,sports",
+    "commission_value": "15% off",
+}, headers=auth_headers(m3t)))
+p3id = prod3["id"]
+print("      Product 3: {} (category: {})".format(prod3["name"], prod3["category"]))
+
+# 10b. Create KOCs with different niche tags
+print("\n   10b. Creating KOCs with different niches...")
+
+def register_and_approve_koc(email, handle, niche_tags, platform="tiktok", follower_count=10000):
+    """Helper: register KOC → apply → admin approve"""
+    r = requests.post(BASE + "/auth/register", json={
+        "email": email, "password": "test123", "role": "koc"
+    })
+    kt = ok(r)["token"]
+    app = ok(requests.post(BASE + "/applications", json={
+        "handle": handle,
+        "platform": platform,
+        "follower_count": follower_count,
+        "niche_tags": niche_tags,
+        "email": email,
+        "video_links": ["https://tiktok.com/{}/video/1".format(handle)],
+    }))
+    app_id = app.get("application_id") or app.get("id")
+    ok(requests.put(BASE + "/applications/" + app_id + "/decision", json={
+        "decision": "approved",
+    }, headers=auth_headers(at)))
+    return kt
+
+kt_beauty = register_and_approve_koc("beautykoc@test.com", "@beautyguru", ["skincare", "beauty", "k-beauty"], follower_count=50000)
+kt_fitness = register_and_approve_koc("fitkoc@test.com", "@fitguru", ["fitness", "workout", "sports"], follower_count=80000)
+kt_mixed = register_and_approve_koc("mixedkoc@test.com", "@mixedguru", ["beauty", "fitness", "lifestyle"], follower_count=30000)
+print("      Created 3 approved KOCs: beauty, fitness, mixed")
+
+# 10c. Match KOCs for beauty product
+print("\n   10c. Testing match_kocs_for_product (rule engine)...")
+r = requests.post(BASE + "/matching/product/" + p2id + "?top_n=10",
+                  headers=auth_headers(m2t))
+match_result = ok(r)
+print("      Product: {}".format(match_result["product_name"]))
+print("      Matches found: {}".format(match_result["matches_count"]))
+
+matches = match_result["matches"]
+assert len(matches) >= 1, "Should have at least 1 match"
+# Beauty KOC should rank higher than fitness KOC for beauty product
+if len(matches) >= 2:
+    beauty_scores = [m["match_score"] for m in matches if "beauty" in str(m.get("niche_tags", [])).lower() or "skincare" in str(m.get("niche_tags", [])).lower()]
+    print("      Beauty-related KOC scores: {}".format(beauty_scores))
+    for m in matches[:3]:
+        print("        {} (tags: {}) → score={}, reasons={}".format(
+            m["display_name"], m.get("niche_tags", []), m["match_score"], m["match_reasons"][:2]))
+    # First match should have high niche relevance
+    assert matches[0]["match_score"] > 0, "Top match should have positive score"
+    print("      ✅ Top match: {} (score={})".format(matches[0]["display_name"], matches[0]["match_score"]))
+
+# 10d. Match products for KOC
+print("\n   10d. Testing match_products_for_koc...")
+# Get beauty KOC's user to find koc_id
+koc_me = ok(requests.get(BASE + "/auth/me", headers=auth_headers(kt_beauty)))
+# Find koc profile by listing
+koc_list = ok(requests.get(BASE + "/koc", headers=auth_headers(at)))
+beauty_koc = next((k for k in koc_list if k.get("email") == "beautykoc@test.com"), None)
+if beauty_koc:
+    r = requests.get(BASE + "/matching/koc/" + beauty_koc["id"] + "?top_n=10",
+                     headers=auth_headers(at))
+    koc_match = ok(r)
+    print("      KOC: {}".format(koc_match["display_name"]))
+    print("      Matches found: {}".format(koc_match["matches_count"]))
+    for m in koc_match["matches"][:3]:
+        print("        {} → score={}, reasons={}".format(
+            m["product_name"], m["match_score"], m["match_reasons"][:2]))
+    # Beauty KOC should match better with beauty product than fitness product
+    beauty_product_match = next((m for m in koc_match["matches"] if "Serum" in m.get("product_name", "")), None)
+    fitness_product_match = next((m for m in koc_match["matches"] if "Resistance" in m.get("product_name", "")), None)
+    if beauty_product_match and fitness_product_match:
+        print("      Beauty product score: {}, Fitness product score: {}".format(
+            beauty_product_match["match_score"], fitness_product_match["match_score"]))
+        assert beauty_product_match["match_score"] >= fitness_product_match["match_score"], \
+            "Beauty KOC should score higher on beauty product than fitness product"
+        print("      ✅ Beauty KOC matches beauty product better ({} vs {})".format(
+            beauty_product_match["match_score"], fitness_product_match["match_score"]))
+
+# 10e. Auto-interest batch (merchant → KOCs)
+print("\n   10e. Testing auto-interest batch creation...")
+# Get a few KOC IDs from the match results
+top_koc_ids = [m["koc_id"] for m in matches[:2]]
+r = requests.post(BASE + "/matching/auto-interest", json={
+    "product_id": p2id,
+    "koc_ids": top_koc_ids,
+}, headers=auth_headers(m2t))
+auto_result = ok(r)
+print("      Created: {}, Skipped: {}".format(auto_result["total_created"], auto_result["total_skipped"]))
+assert auto_result["total_created"] >= 1, "Should create at least 1 interest"
+# Verify interests exist
+my_interests = ok(requests.get(BASE + "/interests", headers=auth_headers(m2t)))
+print("      Total interests for merchant: {}".format(len(my_interests)))
+
+# 10f. Duplicate prevention
+print("\n   10f. Testing duplicate prevention...")
+r = requests.post(BASE + "/matching/auto-interest", json={
+    "product_id": p2id,
+    "koc_ids": top_koc_ids,
+}, headers=auth_headers(m2t))
+dup_result = ok(r)
+print("      Created: {}, Skipped: {} (should all be skipped)".format(
+    dup_result["total_created"], dup_result["total_skipped"]))
+assert dup_result["total_created"] == 0, "Duplicates should be skipped"
+assert dup_result["total_skipped"] == len(top_koc_ids), "All should be skipped"
+print("      ✅ Duplicate prevention works")
+
+# 10g. KOC recommendation endpoint
+print("\n   10g. Testing KOC recommendation endpoint...")
+r = requests.get(BASE + "/matching/koc?top_n=10", headers=auth_headers(kt_beauty))
+koc_recs = ok(r)
+print("      KOC: {}".format(koc_recs["display_name"]))
+print("      Niche tags: {}".format(koc_recs["niche_tags"]))
+print("      Recommendations: {}".format(koc_recs["matches_count"]))
+assert koc_recs["matches_count"] >= 1, "Should have at least 1 recommendation"
+for m in koc_recs["matches"][:3]:
+    print("        {} (category: {}) → score={}".format(
+        m["product_name"], m.get("product_category", ""), m["match_score"]))
+print("      ✅ KOC recommendations work")
+
+print("\n✅ All auto-matching tests passed!")
+
 print("\n" + "=" * 60)
 print("ALL V2 E2E TESTS PASSED")
 print("=" * 60)

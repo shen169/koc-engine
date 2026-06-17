@@ -120,8 +120,9 @@ def run_weekly_scan() -> dict:
                     if koc and koc.status != "Ghosted":
                         koc_store.update(koc_id, {
                             "status": "Ghosted",
-                            "trust_score": max(0, koc.trust_score - 30),
+                            "trust_score": max(0, koc.trust_score - 20),
                         })
+                        sync_koc_tier(koc_id)
                         result["ghosted"] += 1
 
     # ── Stale 检测 ──
@@ -205,7 +206,7 @@ def check_ghosted_status() -> list[dict]:
 # ═══════════════════════════════════════════
 
 def _handle_accept_timeout(task, slot_index: int, old_koc_id: str):
-    """KOC 12h 未接单 → 自动重推"""
+    """KOC 12h 未接单 → 自动重推（早期不扣信任分）"""
     # 记录超时到 slot
     task_store.update_slot(task.id, slot_index, {
         "status": "timed_out",
@@ -246,6 +247,7 @@ def _handle_merchant_ship_timeout(task):
         merchant_store.update(task.merchant_id, {
             "total_tasks_disputed": m.total_tasks_disputed + 1,
         })
+        sync_merchant_tier(task.merchant_id)
 
     task_store.update(task.id, {"task_status": "disputed"})
 
@@ -264,8 +266,10 @@ def _handle_submit_timeout(task, slot_index: int, koc_id: str):
         koc = koc_store.get(koc_id)
         if koc:
             koc_store.update(koc_id, {
-                "trust_score": max(0, koc.trust_score - 20),
+                "trust_score": max(0, koc.trust_score - 15),
             })
+            # 信任分联动降级
+            sync_koc_tier(koc_id)
 
     task_store.update_slot(task.id, slot_index, {"status": "timed_out"})
     _sync_task_disputed(task.id)
@@ -307,6 +311,110 @@ def _get_koc_user_id(koc_profile_id: str) -> str:
 def _get_merchant_user_id(merchant_id: str) -> str:
     m = merchant_store.get(merchant_id)
     return m.user_id if m else merchant_id
+
+
+# ═══════════════════════════════════════════
+# 信任分 + 表现 → 等级双向联动
+# ═══════════════════════════════════════════
+
+def calculate_tier(trust_score: int, completed_tasks: int, avg_rating: float) -> str:
+    """根据信任分和历史表现综合计算等级（双向：信任回升等级也回升）。
+
+    门槛：
+    - L3：信任 ≥ 75 且完成 ≥ 5 单 且均分 ≥ 4.0
+    - L2：信任 ≥ 55 且完成 ≥ 2 单 且均分 ≥ 3.0
+    - L1：不满足以上任一条件
+    """
+    if trust_score >= 75 and completed_tasks >= 5 and avg_rating >= 4.0:
+        return "L3"
+    elif trust_score >= 55 and completed_tasks >= 2 and avg_rating >= 3.0:
+        return "L2"
+    else:
+        return "L1"
+
+
+def sync_koc_tier(koc_id: str) -> dict | None:
+    """根据 calculate_tier 同步 KOC 等级（双向：可升可降）。
+
+    每次信任分或完成数据变化后调用，自动校准等级。
+    """
+    koc = koc_store.get(koc_id)
+    if not koc:
+        return None
+
+    old_tier = koc.tier
+    new_tier = calculate_tier(koc.trust_score, koc.completed_tasks, koc.avg_rating)
+
+    if new_tier == old_tier:
+        return None  # 无需调整
+
+    koc_store.update(koc_id, {"tier": new_tier})
+
+    direction = "↑" if (old_tier == "L1" and new_tier in ("L2", "L3")) or \
+                       (old_tier == "L2" and new_tier == "L3") else "↓"
+    reason = f"信任={koc.trust_score} 完成={koc.completed_tasks} 均分={koc.avg_rating:.1f}"
+    print(f"[tier] {koc.display_name or koc_id[:8]}: {old_tier} {direction} {new_tier} ({reason})")
+
+    return {
+        "koc_id": koc_id,
+        "old_tier": old_tier,
+        "new_tier": new_tier,
+        "trust_score": koc.trust_score,
+        "direction": "up" if direction == "↑" else "down",
+        "reason": reason,
+    }
+
+
+# ═══════════════════════════════════════════
+# 商家诚信等级（对标 KOC）
+# ═══════════════════════════════════════════
+
+def calculate_merchant_tier(trust_score: int, completed_tasks: int, avg_rating: float) -> str:
+    """根据商家信任分和历史表现综合计算等级（双向）。
+
+    门槛：
+    - M3：信任 ≥ 75 且完成 ≥ 10 单 且均分 ≥ 4.0
+    - M2：信任 ≥ 55 且完成 ≥ 3 单 且均分 ≥ 3.0
+    - M1：不满足以上任一条件
+    """
+    if trust_score >= 75 and completed_tasks >= 10 and avg_rating >= 4.0:
+        return "M3"
+    elif trust_score >= 55 and completed_tasks >= 3 and avg_rating >= 3.0:
+        return "M2"
+    else:
+        return "M1"
+
+
+def sync_merchant_tier(merchant_id: str) -> dict | None:
+    """根据 calculate_merchant_tier 同步商家等级（双向：可升可降）。
+
+    每次信任分或完成数据变化后调用，自动校准等级。
+    """
+    m = merchant_store.get(merchant_id)
+    if not m:
+        return None
+
+    old_tier = m.tier
+    new_tier = calculate_merchant_tier(m.trust_score, m.total_tasks_completed, m.avg_rating)
+
+    if new_tier == old_tier:
+        return None  # 无需调整
+
+    merchant_store.update(merchant_id, {"tier": new_tier})
+
+    direction = "↑" if (old_tier == "M1" and new_tier in ("M2", "M3")) or \
+                       (old_tier == "M2" and new_tier == "M3") else "↓"
+    reason = f"信任={m.trust_score} 完成={m.total_tasks_completed} 均分={m.avg_rating:.1f}"
+    print(f"[tier:merchant] {m.company_name or merchant_id[:8]}: {old_tier} {direction} {new_tier} ({reason})")
+
+    return {
+        "merchant_id": merchant_id,
+        "old_tier": old_tier,
+        "new_tier": new_tier,
+        "trust_score": m.trust_score,
+        "direction": "up" if direction == "↑" else "down",
+        "reason": reason,
+    }
 
 
 def _sync_task_disputed(task_id: str):

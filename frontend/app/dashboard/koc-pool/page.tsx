@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { kocs, interests, getToken, getRole, getConsolePath } from "@/lib/api";
 import NavBar from "@/components/NavBar";
+import IntegrityBadge from "@/components/IntegrityBadge";
 
 export default function KocPoolPage() {
   const router = useRouter();
@@ -51,6 +52,9 @@ export default function KocPoolPage() {
                       <span>⭐ {(k.avg_rating as number)?.toFixed(1) || "—"}</span>
                       <span>{k.completed_tasks as number} tasks</span>
                       <span>AI: {k.score_total as number}</span>
+                    </div>
+                    <div className="mt-1.5">
+                      <IntegrityBadge score={k.trust_score as number} />
                     </div>
                   </div>
                 </div>

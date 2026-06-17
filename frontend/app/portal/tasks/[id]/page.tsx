@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { tasks, getToken, getRole, getConsolePath } from "@/lib/api";
+import { tasks, auth, interests, getToken, getRole, getConsolePath } from "@/lib/api";
 import IntegrityBadge from "@/components/IntegrityBadge";
 import NavBar from "@/components/NavBar";
 
@@ -23,6 +23,9 @@ export default function KocTaskDetailPage() {
   const [contentUrls, setContentUrls] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [accepting, setAccepting] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [expressingInterest, setExpressingInterest] = useState(false);
+  const [interestSent, setInterestSent] = useState(false);
   const [merchantTrust, setMerchantTrust] = useState<any>(null);
 
   useEffect(() => {
@@ -46,12 +49,16 @@ export default function KocTaskDetailPage() {
         setMySlot(found.my_slot || {});
         setMySlotIndex(found.my_slot_index ?? -1);
       } else {
-        // KOC hasn't accepted yet — find assigned slot
+        // KOC hasn't accepted yet — find slot assigned to THIS KOC
+        const myProfile = await auth.me(token!);
+        const myKocId = (myProfile as any).profile_id || "";
         const slots = t.koc_slots || [];
-        const assignedSlot = slots.find((s: any) => s.status === "assigned");
-        if (assignedSlot) {
-          setMySlot(assignedSlot);
-          setMySlotIndex(slots.indexOf(assignedSlot));
+        const myAssignedSlot = slots.find(
+          (s: any) => s.status === "assigned" && s.koc_id === myKocId
+        );
+        if (myAssignedSlot) {
+          setMySlot(myAssignedSlot);
+          setMySlotIndex(slots.indexOf(myAssignedSlot));
         }
       }
 
@@ -83,6 +90,20 @@ export default function KocTaskDetailPage() {
     }
   }
 
+  async function handleReject() {
+    if (!confirm("拒绝该任务将扣除 3 点信任分。确定拒绝吗？")) return;
+    setRejecting(true);
+    setError("");
+    try {
+      await tasks.reject(taskId, mySlotIndex, token!);
+      // 拒绝后返回任务广场
+      router.push("/portal/hall");
+    } catch (e: any) {
+      setError(e.message || "拒绝失败");
+      setRejecting(false);
+    }
+  }
+
   async function handleReceive() {
     try {
       await tasks.receive(taskId, mySlotIndex, token!);
@@ -111,6 +132,19 @@ export default function KocTaskDetailPage() {
       setError(e.message || "提交失败");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleExpressInterest() {
+    setExpressingInterest(true);
+    setError("");
+    try {
+      await interests.express(task.product_id, "product", token!);
+      setInterestSent(true);
+    } catch (e: any) {
+      setError(e.message || "表达意向失败");
+    } finally {
+      setExpressingInterest(false);
     }
   }
 
@@ -217,6 +251,8 @@ export default function KocTaskDetailPage() {
             <div className="mt-4 pt-4 border-t border-gray-100">
               <IntegrityBadge
                 score={merchantTrust.trust_score}
+                tier={merchantTrust.tier}
+                tierLabels={{ M3: "🏆 金牌商家", M2: "🥈 银牌商家", M1: "🥉 铜牌商家" }}
                 totalCompleted={merchantTrust.total_tasks_completed}
                 totalDisputed={merchantTrust.total_tasks_disputed}
                 avgRating={merchantTrust.avg_rating}
@@ -268,9 +304,43 @@ export default function KocTaskDetailPage() {
                 >
                   {accepting ? "接单中..." : "✅ 接单（质押 10 点）"}
                 </button>
+                <button
+                  onClick={handleReject}
+                  disabled={rejecting}
+                  className="w-full border border-red-200 text-red-500 py-3 rounded-xl font-medium hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  {rejecting ? "拒绝中..." : "❌ 拒绝（-3 信任分）"}
+                </button>
                 <p className="text-xs text-gray-400 text-center">
                   接单冻结 10 点质押，完成后退还 5 点（平台扣 5 点服务费）
                 </p>
+              </div>
+            )}
+
+            {/* No slot assigned — express interest in the product */}
+            {!isAssignedToMe && !canReceive && !canSubmit && slotStatus !== "accepted" && (
+              <div className="space-y-3">
+                {interestSent ? (
+                  <div className="text-center py-3">
+                    <span className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-full text-sm font-bold inline-block">
+                      ✓ 已表达意向
+                    </span>
+                    <p className="text-xs text-gray-400 mt-2">商家看到意向后可能会将你加入任务</p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-500 text-center">
+                      你尚未被分配到该任务。对产品表达意向后，商家可以看到你。
+                    </p>
+                    <button
+                      onClick={handleExpressInterest}
+                      disabled={expressingInterest}
+                      className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3.5 rounded-xl font-semibold text-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      {expressingInterest ? "发送中..." : "💌 对产品表达意向"}
+                    </button>
+                  </>
+                )}
               </div>
             )}
 

@@ -1,5 +1,6 @@
 """KOC Engine · FastAPI 主入口"""
 
+import asyncio
 import bcrypt
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,7 +33,7 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
-    """创建 admin 用户 + 输出目录"""
+    """创建 admin 用户 + 输出目录 + 启动 cron 定时器"""
     for sub in ["users", "merchants", "koc_profiles", "applications", "products",
                  "interests", "tasks", "credits", "coupons", "referrals", "reviews", "blacklist"]:
         os.makedirs(os.path.join(OUTPUT_DIR, sub), exist_ok=True)
@@ -46,6 +47,22 @@ async def startup():
         )
         user_store.create(admin)
         credit_store.set_initial_balance(admin.id, 9999)
+
+    # 启动 cron 定时器（每小时执行一次超时检测）
+    asyncio.create_task(_cron_loop())
+
+
+async def _cron_loop():
+    """后台每小时跑一次超时扫描"""
+    from services.cron import run_weekly_scan
+    while True:
+        await asyncio.sleep(3600)  # 每小时
+        try:
+            result = run_weekly_scan()
+            if any(v for k, v in result.items() if k != "trust_threshold_alerts" and v):
+                print(f"[cron] Scan: { {k: v for k, v in result.items() if v} }")
+        except Exception as e:
+            print(f"[cron] Error: {e}")
 
 
 # ── 健康检查 ────────────────────────────────
@@ -72,6 +89,7 @@ from routes.review_routes import router as review_router
 from routes.blacklist_routes import router as blacklist_router
 from routes.scoring_routes import router as scoring_router
 from routes.admin_routes import router as admin_router
+from routes.matching_routes import router as matching_router
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(landing_router, prefix="/api")
@@ -88,3 +106,4 @@ app.include_router(review_router, prefix="/api")
 app.include_router(blacklist_router, prefix="/api")
 app.include_router(scoring_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
+app.include_router(matching_router, prefix="/api")

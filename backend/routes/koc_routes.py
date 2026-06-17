@@ -53,6 +53,7 @@ def koc_pool_detail(koc_id: str, current_user: dict = Depends(get_current_user))
         "completed_tasks": koc.completed_tasks,
         "region": koc.region,
         "follower_count": koc.follower_count,
+        "trust_score": koc.trust_score,
     }
 
 
@@ -73,7 +74,7 @@ def update_koc(koc_id: str, updates: dict, current_user: dict = Depends(require_
     koc = koc_store.get(koc_id)
     if not koc:
         raise HTTPException(404, "KOC not found")
-    allowed = {"status", "tier", "trust_score", "is_blacklisted", "display_name", "niche_tags"}
+    allowed = {"status", "tier", "trust_score", "is_blacklisted", "display_name", "niche_tags", "email"}
     safe = {k: v for k, v in updates.items() if k in allowed}
     updated = koc_store.update(koc_id, safe)
     return updated.model_dump()

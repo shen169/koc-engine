@@ -104,6 +104,28 @@ export const interests = {
     api(`/api/interests/${id}/match`, { method: "PUT", token }),
 };
 
+// Matching — auto-match engine
+export const matching = {
+  forProduct: (productId: string, opts: { top_n?: number; use_ai?: boolean }, token: string) => {
+    const qs = new URLSearchParams();
+    if (opts.top_n) qs.set("top_n", String(opts.top_n));
+    if (opts.use_ai) qs.set("use_ai", "true");
+    const qsStr = qs.toString();
+    return api(`/api/matching/product/${productId}${qsStr ? "?" + qsStr : ""}`, {
+      method: "POST", token,
+    });
+  },
+  forKoc: (opts: { top_n?: number; use_ai?: boolean }, token: string) => {
+    const qs = new URLSearchParams();
+    if (opts.top_n) qs.set("top_n", String(opts.top_n));
+    if (opts.use_ai) qs.set("use_ai", "true");
+    const qsStr = qs.toString();
+    return api(`/api/matching/koc${qsStr ? "?" + qsStr : ""}`, { token });
+  },
+  autoInterest: (data: { product_id?: string; koc_ids: string[] }, token: string) =>
+    api("/api/matching/auto-interest", { method: "POST", body: data, token }),
+};
+
 // Tasks V2
 export const tasks = {
   create: (data: Record<string, unknown>, token: string) =>
@@ -119,6 +141,9 @@ export const tasks = {
   // V2: KOC accepts a slot
   accept: (taskId: string, slotIndex: number, token: string) =>
     api(`/api/tasks/${taskId}/accept/${slotIndex}`, { method: "PUT", token }),
+  // V2: KOC rejects a slot
+  reject: (taskId: string, slotIndex: number, token: string) =>
+    api(`/api/tasks/${taskId}/reject/${slotIndex}`, { method: "PUT", token }),
   // V2: Merchant ships task
   ship: (taskId: string, trackingNumber: string, token: string) =>
     api(`/api/tasks/${taskId}/ship`, { method: "PUT", body: { tracking_number: trackingNumber }, token }),

@@ -65,6 +65,7 @@ def get_merchant_trust(merchant_id: str, current_user: dict = Depends(get_curren
     return {
         "merchant_id": merchant_id,
         "trust_score": m.trust_score,
+        "tier": m.tier,
         "total_tasks_completed": m.total_tasks_completed,
         "total_tasks_disputed": m.total_tasks_disputed,
         "avg_rating": m.avg_rating,
@@ -109,6 +110,10 @@ def report_fake_commission_link(merchant_id: str, data: dict, current_user: dict
         "total_tasks_disputed": m.total_tasks_disputed + 1,
     })
 
+    # 联动等级（信任归零 → 必然降级）
+    from services.cron import sync_merchant_tier
+    sync_merchant_tier(merchant_id)
+
     # 记录投诉
     from stores.user_store import user_store
     user = user_store.get_by_id(current_user["sub"])
@@ -118,6 +123,7 @@ def report_fake_commission_link(merchant_id: str, data: dict, current_user: dict
         "status": "reported",
         "merchant_id": merchant_id,
         "new_trust_score": 0,
+        "tier": updated.get("tier", "M1") if updated else "M1",
         "level": _trust_level(0),
         "task_id": task_id,
         "reported_by": reporter_email,
@@ -134,3 +140,10 @@ def _trust_level(score: int) -> str:
         return "🔶 低信"
     else:
         return "🚫 危险"
+
+
+MERCHANT_TIER_LABELS = {
+    "M3": "🏆 金牌商家",
+    "M2": "🥈 银牌商家",
+    "M1": "🥉 铜牌商家",
+}

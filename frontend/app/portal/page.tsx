@@ -4,8 +4,30 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Spark from "@/components/Spark";
+import IntegrityBadge from "@/components/IntegrityBadge";
 import { auth, credits, tasks, getToken, clearToken, getRole, getConsolePath } from "@/lib/api";
 import NavBar from "@/components/NavBar";
+
+function TrustLevelBadge({ score, tier }: { score: number; tier: string }) {
+  const tierColors: Record<string, string> = {
+    L3: "bg-gradient-to-r from-amber-400 to-orange-500 text-white",
+    L2: "bg-purple-100 text-purple-700",
+    L1: "bg-pink-100 text-pink-700",
+  };
+  const tierLabel: Record<string, string> = {
+    L3: "合伙人",
+    L2: "创作官",
+    L1: "体验官",
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${tierColors[tier] || "bg-gray-100 text-gray-600"}`}>
+        {tier} {tierLabel[tier] || ""}
+      </span>
+      <IntegrityBadge score={score} />
+    </div>
+  );
+}
 
 export default function PortalDashboard() {
   const router = useRouter();
@@ -19,11 +41,17 @@ export default function PortalDashboard() {
   const [user, setUser] = useState<Record<string, unknown> | null>(null);
   const [balance, setBalance] = useState(0);
   const [taskList, setTaskList] = useState<Array<Record<string, unknown>>>([]);
+  const [kocProfile, setKocProfile] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
-    auth.me(token).then(setUser).catch(() => { clearToken(); router.push("/login"); });
+    auth.me(token).then((u) => {
+      setUser(u);
+      if ((u as any).koc_profile) {
+        setKocProfile((u as any).koc_profile);
+      }
+    }).catch(() => { clearToken(); router.push("/login"); });
     credits.balance(token).then((r) => setBalance(r.balance)).catch(() => {});
     tasks.list(token).then(setTaskList).catch(() => {});
   }, [router]);
@@ -35,6 +63,31 @@ export default function PortalDashboard() {
       <NavBar user={user} role="koc" balance={balance} />
 
       <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* Trust & Tier Card */}
+        {kocProfile && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs text-gray-400 mb-1">我的信用</div>
+                <TrustLevelBadge
+                  score={kocProfile.trust_score as number}
+                  tier={kocProfile.tier as string}
+                />
+              </div>
+              <div className="flex gap-4 text-sm">
+                <div className="text-center">
+                  <div className="font-bold text-gray-900">{kocProfile.completed_tasks as number}</div>
+                  <div className="text-xs text-gray-400">已完成</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-bold text-gray-900">{(kocProfile.avg_rating as number)?.toFixed(1) || "—"}</div>
+                  <div className="text-xs text-gray-400">均分</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Quick Actions */}
         <div className="grid md:grid-cols-4 gap-4 mb-8">
           {[

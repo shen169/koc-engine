@@ -45,6 +45,7 @@ def submit_application(data: dict):
         follower_count=data.get("follower_count", 0),
         region=data.get("region", ""),
         email=data.get("email", ""),
+        niche_tags=data.get("niche_tags", []),
         score_authenticity=scoring["authenticity"],
         score_niche=scoring["niche"],
         score_engagement=scoring["engagement"],

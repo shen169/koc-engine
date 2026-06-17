@@ -95,6 +95,7 @@ class KocStore:
                 "completed_tasks": k.completed_tasks,
                 "region": k.region,
                 "follower_count": k.follower_count,
+                "trust_score": k.trust_score,
             })
         return result
 

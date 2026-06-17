@@ -84,6 +84,7 @@ class Merchant(BaseModel):
     is_blacklisted: bool = False
     # ── V2 新增：诚信度体系 ──
     trust_score: int = 100           # 诚信度 0-100，默认 100
+    tier: str = "M1"                 # M1｜M2｜M3（商家诚信等级）
     total_tasks_completed: int = 0   # 累计完成（恢复诚信度用）
     total_tasks_disputed: int = 0    # 累计争议数
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
