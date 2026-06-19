@@ -290,7 +290,9 @@ koc-engine/
 | PUT | `/api/tasks/{id}/ship` | ✅ | 商家发货 (物流+承运商+凭证+扣质押) |
 | PUT | `/api/tasks/{id}/receive/{slot}` | ✅ | KOC 确认收货 (含开箱照片+备注) |
 | PUT | `/api/tasks/{id}/submit/{slot}` | ✅ | KOC 提交内容 → 进入待审核（不自动完成） |
-| PUT | `/api/tasks/{id}/review/{slot}` | ✅ | 商家审核 KOC 内容 (approve→完成/reject→驳回) |
+| PUT | `/api/tasks/{id}/review/{slot}` | ✅ | 商家审核 KOC 内容 (approve→完成+确认佣金/reject→驳回) |
+| PUT | `/api/tasks/{id}/metrics/{slot}` | ✅ | KOC 更新内容表现数据 (播放/点赞/评论/分享/转化) |
+| GET | `/api/tasks/{id}/performance` | ✅ | 商家查看内容表现看板 (汇总+单KOC明细) |
 | GET | `/api/tasks/{id}/report` | ✅ | 商家看任务数据报表 |
 | POST | `/api/tasks/{id}/force-rematch/{slot}` | 🔒 | Admin 强制重推 slot |
 | PUT | `/api/tasks/{id}/sample` | 🔒 | DEPRECATED: 旧版 sample_status 兼容 |

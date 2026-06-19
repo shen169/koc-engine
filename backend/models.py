@@ -64,6 +64,10 @@ class KocProfile(BaseModel):
     avg_rating: float = 0.0
     total_collaborations: int = 0
     completed_tasks: int = 0
+    # ── 内容表现聚合 ──
+    performance_score: float = 0.0     # 综合内容表现分 (0-100, log-scale 归一化)
+    total_engagement: int = 0          # 累计互动数 (likes+comments+shares+saves)
+    total_content_posts: int = 0       # 有表现数据的帖子数
     discovered_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
     last_scanned_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
@@ -272,6 +276,25 @@ class BlacklistEntry(BaseModel):
     target_id: str
     reason: str = ""
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+
+
+# ═══════════════════════════════════════════
+# 内容表现数据（KOC 提交 / 平台采集）
+# ═══════════════════════════════════════════
+
+class ContentMetrics(BaseModel):
+    """KOC 单条内容的表现指标。存储在 slot.content_data 中。"""
+    views: int = 0
+    likes: int = 0
+    comments: int = 0
+    shares: int = 0
+    saves: int = 0
+    clicks: int = 0              # 返佣链接点击
+    conversions: int = 0          # 成交转化数
+    revenue: float = 0.0          # 归因收入
+    engagement_rate: float = 0.0   # (likes+comments+shares+saves)/views*100，服务端计算
+    platform: str = ""            # tiktok | instagram | xiaohongshu | youtube
+    last_updated: str = ""        # ISO timestamp
 
 
 # ═══════════════════════════════════════════

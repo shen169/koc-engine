@@ -148,6 +148,14 @@ def _rule_score(koc: dict, product: dict) -> dict:
     elif trust >= 90:
         reasons.append(f"信任分优秀({trust})")
 
+    # 8. 内容表现 (5%) — KOC 历史内容表现力
+    dim_performance = koc.get("performance_score", 0) or 0
+    dimensions["content_performance"] = round(dim_performance, 1)
+    if dim_performance >= 70:
+        reasons.append(f"内容表现优秀({dim_performance})")
+    elif dim_performance >= 40:
+        reasons.append(f"内容表现良好({dim_performance})")
+
     # 7. 新品时效 (10%) — 24h 内上架 = 100，线性衰减到 7 天 = 0
     created_at = product.get("created_at", "")
     dim_recency = 0
@@ -166,15 +174,16 @@ def _rule_score(koc: dict, product: dict) -> dict:
     elif dim_recency >= 30:
         reasons.append(f"近期上架")
 
-    # 加权总分（新品时效 10%，从品类匹配挤出）
+    # 加权总分（内容表现 5%，从品类匹配挤出）
     weights = {
-        "niche_match": 0.40,
+        "niche_match": 0.35,
         "tier_bonus": 0.10,
         "score_normalized": 0.15,
         "region_match": 0.15,
         "history": 0.05,
         "trust_score": 0.05,
         "recency": 0.10,
+        "content_performance": 0.05,
     }
     total = sum(dimensions[k] * weights[k] for k in weights)
 

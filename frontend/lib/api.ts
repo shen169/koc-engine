@@ -150,9 +150,21 @@ export const tasks = {
   // V2: KOC confirms receipt
   receive: (taskId: string, slotIndex: number, token: string) =>
     api(`/api/tasks/${taskId}/receive/${slotIndex}`, { method: "PUT", token }),
-  // V2: KOC submits content
-  submit: (taskId: string, slotIndex: number, contentUrls: string[], token: string) =>
-    api(`/api/tasks/${taskId}/submit/${slotIndex}`, { method: "PUT", body: { content_urls: contentUrls }, token }),
+  // V2: KOC submits content (optional content_data for performance metrics)
+  submit: (taskId: string, slotIndex: number, contentUrls: string[], token: string, contentData?: Record<string, number>) => {
+    const body: Record<string, unknown> = { content_urls: contentUrls };
+    if (contentData) body.content_data = contentData;
+    return api(`/api/tasks/${taskId}/submit/${slotIndex}`, { method: "PUT", body, token });
+  },
+  // V2: KOC updates content performance metrics (views, likes, comments, etc.)
+  submitMetrics: (taskId: string, slotIndex: number, metrics: Record<string, number>, token: string) =>
+    api(`/api/tasks/${taskId}/metrics/${slotIndex}`, { method: "PUT", body: metrics, token }),
+  // V2: Merchant views content performance dashboard
+  performance: (taskId: string, token: string) =>
+    api(`/api/tasks/${taskId}/performance`, { token }),
+  // V2: Merchant reviews KOC content (approve/reject)
+  review: (taskId: string, slotIndex: number, action: string, feedback: string, token: string) =>
+    api(`/api/tasks/${taskId}/review/${slotIndex}`, { method: "PUT", body: { action, feedback }, token }),
   // V2: Merchant data report
   report: (taskId: string, token: string) => api(`/api/tasks/${taskId}/report`, { token }),
   // V2: Admin force rematch

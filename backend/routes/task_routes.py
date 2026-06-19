@@ -13,6 +13,7 @@ from services.matcher import match_kocs_for_task, rematch_slot
 from services.cron import sync_koc_tier, sync_merchant_tier
 from auth import get_current_user, require_admin
 from config import PLATFORM_SERVICE_FEE, KOC_PLATFORM_FEE, PLEDGE_PER_SLOT, MAX_REVISIONS
+from models import ContentMetrics
 
 router = APIRouter(tags=["tasks"])
 
@@ -594,6 +595,23 @@ def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict
     if not content_urls:
         raise HTTPException(400, "content_urls is required (at least one link)")
 
+    # 可选的初始表现数据
+    raw_metrics = data.get("content_data", {})
+    content_data = {}
+    if raw_metrics and isinstance(raw_metrics, dict) and raw_metrics.get("views", 0) > 0:
+        try:
+            metrics = ContentMetrics(**raw_metrics)
+            # 服务端计算互动率
+            if metrics.views > 0:
+                metrics.engagement_rate = round(
+                    (metrics.likes + metrics.comments + metrics.shares + metrics.saves)
+                    / metrics.views * 100, 1
+                )
+            metrics.last_updated = datetime.utcnow().isoformat()
+            content_data = metrics.model_dump()
+        except Exception:
+            content_data = {}
+
     now = datetime.utcnow().isoformat()
 
     # 更新 slot 为 submitted（待商家审核）
@@ -601,7 +619,12 @@ def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict
         "status": "submitted",
         "submitted_at": now,
         "content_urls": content_urls,
+        "content_data": content_data,
     })
+
+    # 如果提交了表现数据 → 同步 KOC performance_score
+    if content_data:
+        _sync_koc_performance(koc_id)
 
     # 不自动完成！等待商家审核
     # 不释放质押！商家 approve 后才释放
@@ -671,11 +694,12 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
     now = datetime.utcnow().isoformat()
 
     if action == "approve":
-        # ── 审核通过 → 完成履约 ──
+        # ── 审核通过 → 完成履约 + 确认佣金 ──
         task_store.update_slot(task_id, slot_index, {
             "status": "approved",
             "reviewed_at": now,
             "review_feedback": feedback or "Approved",
+            "commission_paid": True,
         })
 
         # 释放 KOC 质押（扣平台费）
@@ -785,6 +809,152 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
 
 
 # ═══════════════════════════════════════════
+# KOC 更新内容表现数据
+# ═══════════════════════════════════════════
+
+@router.put("/tasks/{task_id}/metrics/{slot_index}")
+def update_content_metrics(task_id: str, slot_index: int, data: dict, current_user: dict = Depends(get_current_user)):
+    """KOC 独立更新内容表现数据（播放量/点赞/评论/分享/转化等）。
+
+    内容发布后数据持续增长，KOC 可随时调用此接口更新。
+    slot 状态为 submitted/approved/completed 时均可更新。
+    """
+    if current_user.get("role") not in ("koc", "admin"):
+        raise HTTPException(403, "Only KOC can update metrics")
+
+    task = task_store.get(task_id)
+    if not task:
+        raise HTTPException(404, "Task not found")
+
+    slot = task_store.get_slot(task_id, slot_index)
+    if not slot:
+        raise HTTPException(404, f"Slot {slot_index} not found")
+
+    if slot.get("status") not in ("submitted", "approved", "completed"):
+        raise HTTPException(400, f"Slot status '{slot.get('status')}' — metrics can only be updated after submission")
+
+    # 验证是该 KOC
+    user = user_store.get_by_id(current_user["sub"])
+    koc = koc_store.get_by_email(user.email) if user else None
+    koc_id = koc.id if koc else current_user["sub"]
+    if slot.get("koc_id") != koc_id and current_user.get("role") != "admin":
+        raise HTTPException(403, "Not your slot")
+
+    # 合并现有 data（保留旧值，新值覆盖）
+    existing = dict(slot.get("content_data", {}) or {})
+    existing.update({k: v for k, v in data.items() if k not in ("engagement_rate", "last_updated")})
+
+    # 计算互动率
+    views = existing.get("views", 0)
+    if views > 0:
+        engagement = (existing.get("likes", 0) + existing.get("comments", 0) +
+                      existing.get("shares", 0) + existing.get("saves", 0))
+        existing["engagement_rate"] = round(engagement / views * 100, 1)
+    else:
+        existing["engagement_rate"] = 0.0
+
+    existing["last_updated"] = datetime.utcnow().isoformat()
+
+    task_store.update_slot(task_id, slot_index, {"content_data": existing})
+
+    # 同步 KOC 综合表现分
+    _sync_koc_performance(koc_id)
+
+    return {
+        "status": "updated",
+        "task_id": task_id,
+        "slot_index": slot_index,
+        "content_data": existing,
+    }
+
+
+# ═══════════════════════════════════════════
+# 内容表现看板（商家视角）
+# ═══════════════════════════════════════════
+
+@router.get("/tasks/{task_id}/performance")
+def get_task_performance(task_id: str, current_user: dict = Depends(get_current_user)):
+    """商家查看任务下所有 KOC 的内容表现汇总 + 单 KOC 明细"""
+    if current_user.get("role") not in ("merchant", "admin"):
+        raise HTTPException(403, "Only merchant can view performance")
+
+    task = task_store.get(task_id)
+    if not task:
+        raise HTTPException(404, "Task not found")
+
+    if current_user.get("role") == "merchant":
+        m = merchant_store.get_by_user_id(current_user["sub"])
+        if not m or m.id != task.merchant_id:
+            raise HTTPException(403, "Not your task")
+
+    # 汇总
+    summary = {
+        "total_views": 0, "total_likes": 0, "total_comments": 0,
+        "total_shares": 0, "total_saves": 0, "total_clicks": 0,
+        "total_conversions": 0, "total_revenue": 0.0,
+        "total_engagement": 0, "average_engagement_rate": 0.0,
+        "slots_with_data": 0,
+    }
+
+    slots_detail = []
+    for i, slot in enumerate(task.koc_slots):
+        cd = slot.get("content_data", {}) or {}
+        detail = {
+            "slot_index": i,
+            "koc_anon_id": f"KOC-{slot.get('koc_id', '')[:4].upper()}" if slot.get("koc_id") else "-",
+            "status": slot.get("status", "unknown"),
+            "content_urls": slot.get("content_urls", []),
+            "metrics": {
+                "views": cd.get("views", 0),
+                "likes": cd.get("likes", 0),
+                "comments": cd.get("comments", 0),
+                "shares": cd.get("shares", 0),
+                "saves": cd.get("saves", 0),
+                "clicks": cd.get("clicks", 0),
+                "conversions": cd.get("conversions", 0),
+                "revenue": cd.get("revenue", 0.0),
+                "engagement_rate": cd.get("engagement_rate", 0.0),
+                "platform": cd.get("platform", ""),
+                "last_updated": cd.get("last_updated", ""),
+            },
+        }
+        slots_detail.append(detail)
+
+        # 累加汇总
+        if cd.get("views", 0) > 0:
+            summary["slots_with_data"] += 1
+        summary["total_views"] += cd.get("views", 0)
+        summary["total_likes"] += cd.get("likes", 0)
+        summary["total_comments"] += cd.get("comments", 0)
+        summary["total_shares"] += cd.get("shares", 0)
+        summary["total_saves"] += cd.get("saves", 0)
+        summary["total_clicks"] += cd.get("clicks", 0)
+        summary["total_conversions"] += cd.get("conversions", 0)
+        summary["total_revenue"] += cd.get("revenue", 0.0)
+        summary["total_engagement"] += (
+            cd.get("likes", 0) + cd.get("comments", 0) +
+            cd.get("shares", 0) + cd.get("saves", 0)
+        )
+
+    # 平均互动率
+    rates = [s["metrics"]["engagement_rate"] for s in slots_detail if s["metrics"]["views"] > 0]
+    if rates:
+        summary["average_engagement_rate"] = round(sum(rates) / len(rates), 1)
+
+    # 按互动率降序排列
+    slots_detail.sort(key=lambda s: s["metrics"]["engagement_rate"], reverse=True)
+
+    return {
+        "task_id": task.id,
+        "product_name": task.product_name,
+        "task_type": task.task_type,
+        "task_status": task.task_status,
+        "summary": summary,
+        "slots": slots_detail,
+    }
+
+
+# ═══════════════════════════════════════════
 # 数据报表（商家视角）
 # ═══════════════════════════════════════════
 
@@ -825,6 +995,14 @@ def get_task_report(task_id: str, current_user: dict = Depends(get_current_user)
     total_content_urls = sum(len(s.get("content_urls", [])) for s in task.koc_slots)
     total_commission_paid = sum(s.get("commission_paid", 0) for s in task.koc_slots)
 
+    # 内容表现汇总
+    perf_views = sum((s.get("content_data", {}) or {}).get("views", 0) for s in task.koc_slots)
+    perf_likes = sum((s.get("content_data", {}) or {}).get("likes", 0) for s in task.koc_slots)
+    perf_comments = sum((s.get("content_data", {}) or {}).get("comments", 0) for s in task.koc_slots)
+    perf_shares = sum((s.get("content_data", {}) or {}).get("shares", 0) for s in task.koc_slots)
+    perf_conversions = sum((s.get("content_data", {}) or {}).get("conversions", 0) for s in task.koc_slots)
+    perf_revenue = sum((s.get("content_data", {}) or {}).get("revenue", 0.0) for s in task.koc_slots)
+
     return {
         "task_id": task.id,
         "product_name": task.product_name,
@@ -839,6 +1017,14 @@ def get_task_report(task_id: str, current_user: dict = Depends(get_current_user)
         "submitted_slots": submitted_slots,
         "total_slots": total_slots,
         "koc_reports": koc_reports,
+        "performance": {
+            "total_views": perf_views,
+            "total_likes": perf_likes,
+            "total_comments": perf_comments,
+            "total_shares": perf_shares,
+            "total_conversions": perf_conversions,
+            "total_revenue": perf_revenue,
+        },
         "created_at": task.created_at,
     }
 
@@ -952,3 +1138,48 @@ def _sync_task_disputed(task_id: str):
     active = sum(1 for s in slots if s.get("status") not in ("completed", "approved", "timed_out", "rejected"))
     if active == 0:
         task_store.update(task_id, {"task_status": "disputed"})
+
+
+def _sync_koc_performance(koc_id: str):
+    """扫描该 KOC 所有 slot 的 content_data → 计算 performance_score 并写入 KocProfile。
+
+    performance_score 用 log-scale 归一化到 0-100：
+    - 0 互动 → 0 分
+    - 平均 100 互动/帖 → ~69 分
+    - 平均 1000 互动/帖 → ~100 分
+    """
+    import math
+    all_tasks = task_store.list_by_koc(koc_id)
+    total_views = 0
+    total_engagement = 0
+    total_posts = 0
+
+    for task in all_tasks:
+        for slot in task.koc_slots:
+            if slot.get("koc_id") != koc_id:
+                continue
+            cd = slot.get("content_data", {})
+            if not cd or not isinstance(cd, dict):
+                continue
+            v = cd.get("views", 0)
+            if v <= 0:
+                continue
+            total_views += v
+            total_engagement += (
+                cd.get("likes", 0) + cd.get("comments", 0) +
+                cd.get("shares", 0) + cd.get("saves", 0)
+            )
+            total_posts += 1
+
+    if total_posts > 0 and total_views > 0:
+        avg_engagement = total_engagement / max(total_posts, 1)
+        raw = math.log(avg_engagement + 1) * 15
+        performance_score = min(100, round(raw, 1))
+    else:
+        performance_score = 0.0
+
+    koc_store.update(koc_id, {
+        "performance_score": performance_score,
+        "total_engagement": total_engagement,
+        "total_content_posts": total_posts,
+    })

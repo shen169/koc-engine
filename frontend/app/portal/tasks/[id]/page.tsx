@@ -24,6 +24,10 @@ export default function KocTaskDetailPage() {
   const [expressingInterest, setExpressingInterest] = useState(false);
   const [interestSent, setInterestSent] = useState(false);
   const [merchantTrust, setMerchantTrust] = useState<any>(null);
+  // ── 内容表现数据 ──
+  const [showMetricsForm, setShowMetricsForm] = useState(false);
+  const [metrics, setMetrics] = useState({ views: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, conversions: 0, revenue: 0 });
+  const [updatingMetrics, setUpdatingMetrics] = useState(false);
 
   useEffect(() => {
     const t = getToken();
@@ -138,6 +142,20 @@ export default function KocTaskDetailPage() {
     }
   }
 
+  async function handleUpdateMetrics() {
+    setUpdatingMetrics(true);
+    setError("");
+    try {
+      await tasks.submitMetrics(taskId, mySlotIndex, metrics as any, getToken()!);
+      await loadTask();
+      setShowMetricsForm(false);
+    } catch (e: any) {
+      setError(e.message || "更新表现数据失败");
+    } finally {
+      setUpdatingMetrics(false);
+    }
+  }
+
   async function handleClaim() {
     setAccepting(true);
     setError("");
@@ -171,8 +189,9 @@ export default function KocTaskDetailPage() {
   const isAssignedToMe = slotStatus === "assigned";
   const isAcceptedByMe = slotStatus === "accepted" || slotStatus === "shipped" || slotStatus === "received" || slotStatus === "creating";
   const canReceive = slotStatus === "shipped";
-  const canSubmit = slotStatus === "received" || slotStatus === "creating";
-  const isCompleted = slotStatus === "submitted" || slotStatus === "completed";
+  const canSubmit = slotStatus === "received" || slotStatus === "creating" || slotStatus === "revision_requested";
+  const canUpdateMetrics = slotStatus === "submitted" || slotStatus === "approved" || slotStatus === "completed";
+  const isActive = !["submitted", "approved", "completed"].includes(slotStatus);
 
   // 查找第一个可用空位（KOC 可接单）
   const allSlots = (task.koc_slots || []) as any[];
@@ -336,7 +355,7 @@ export default function KocTaskDetailPage() {
         </div>
 
         {/* Actions */}
-        {!isCompleted && (
+        {isActive && (
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             {isAssignedToMe && (
               <div className="space-y-2">
@@ -361,7 +380,7 @@ export default function KocTaskDetailPage() {
             )}
 
             {/* No slot — offer to claim an empty one */}
-            {!isAssignedToMe && !isAcceptedByMe && !canReceive && !canSubmit && !isCompleted && (
+            {!isAssignedToMe && !isAcceptedByMe && !canReceive && !canSubmit && isActive && (
               <div className="space-y-3">
                 {canClaim ? (
                   <>
@@ -444,21 +463,118 @@ export default function KocTaskDetailPage() {
           </div>
         )}
 
-        {isCompleted && (
-          <div className="bg-green-50 rounded-2xl border border-green-100 p-6 text-center">
+        {(canUpdateMetrics || slotStatus === "approved") && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <h2 className="font-semibold text-gray-900 mb-4">📊 内容表现数据</h2>
+
+            {/* Show current metrics if available */}
+            {mySlot?.content_data && typeof mySlot.content_data === "object" && mySlot.content_data.views > 0 ? (
+              <div className="mb-4">
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  {[
+                    { label: "播放", value: mySlot.content_data.views || 0 },
+                    { label: "点赞", value: mySlot.content_data.likes || 0 },
+                    { label: "评论", value: mySlot.content_data.comments || 0 },
+                    { label: "分享", value: mySlot.content_data.shares || 0 },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="bg-gray-50 rounded-lg p-2 text-center">
+                      <div className="text-lg font-bold text-gray-900">{(value as number).toLocaleString()}</div>
+                      <div className="text-xs text-gray-400">{label}</div>
+                    </div>
+                  ))}
+                </div>
+                {mySlot.content_data.engagement_rate > 0 && (
+                  <p className="text-xs text-green-600 text-center">
+                    📈 互动率：{mySlot.content_data.engagement_rate}%
+                    {mySlot.content_data.last_updated && ` · 更新于 ${new Date(mySlot.content_data.last_updated).toLocaleDateString()}`}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 mb-4">内容已提交，添加表现数据让商家看到你的带货效果 📈</p>
+            )}
+
+            {!showMetricsForm ? (
+              <button
+                onClick={() => setShowMetricsForm(true)}
+                className="w-full border-2 border-dashed border-gray-300 text-gray-500 py-3 rounded-xl font-medium hover:border-pink-300 hover:text-pink-600 transition-all"
+              >
+                {mySlot?.content_data?.views > 0 ? "✏️ 更新表现数据" : "📊 添加表现数据"}
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: "views", label: "播放量" },
+                    { key: "likes", label: "点赞" },
+                    { key: "comments", label: "评论" },
+                    { key: "shares", label: "分享" },
+                    { key: "saves", label: "收藏" },
+                    { key: "clicks", label: "链接点击" },
+                    { key: "conversions", label: "成交数" },
+                    { key: "revenue", label: "归因收入($)" },
+                  ].map(({ key, label }) => (
+                    <div key={key}>
+                      <label className="text-xs text-gray-500">{label}</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={(metrics as any)[key] || ""}
+                        onChange={(e) => setMetrics({ ...metrics, [key]: parseInt(e.target.value) || 0 })}
+                        placeholder="0"
+                        className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:ring-1 focus:ring-pink-200 outline-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowMetricsForm(false)}
+                    className="flex-1 border border-gray-200 text-gray-500 py-2.5 rounded-xl font-medium text-sm hover:bg-gray-50"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleUpdateMetrics}
+                    disabled={updatingMetrics}
+                    className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 text-white py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50"
+                  >
+                    {updatingMetrics ? "更新中..." : "💾 保存表现数据"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {slotStatus === "completed" && (
+          <div className="bg-green-50 rounded-2xl border border-green-100 p-6 text-center mt-4">
             <div className="text-3xl mb-2">🎉</div>
-            <p className="font-semibold text-green-700 text-lg">任务已提交！</p>
-            <p className="text-sm text-green-600 mt-1">质押退还 5 点（已扣 5 点平台费），佣金走返佣链接</p>
+            <p className="font-semibold text-green-700 text-lg">履约已完成！</p>
+            <p className="text-sm text-green-600 mt-1">质押已退还，信任分已恢复</p>
             {mySlot?.content_urls && (
               <div className="mt-4 space-y-1">
                 {(mySlot.content_urls as string[]).map((url: string, i: number) => (
-                  <a
-                    key={i}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block text-sm text-pink-500 hover:text-pink-600"
-                  >
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                     className="block text-sm text-pink-500 hover:text-pink-600">
+                    🔗 {url}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Submitted state — content pending review */}
+        {slotStatus === "submitted" && !canUpdateMetrics && (
+          <div className="bg-blue-50 rounded-2xl border border-blue-100 p-6 text-center mt-4">
+            <div className="text-3xl mb-2">⏳</div>
+            <p className="font-semibold text-blue-700 text-lg">内容已提交，等待商家审核</p>
+            {mySlot?.content_urls && (
+              <div className="mt-4 space-y-1">
+                {(mySlot.content_urls as string[]).map((url: string, i: number) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                     className="block text-sm text-pink-500 hover:text-pink-600">
                     🔗 {url}
                   </a>
                 ))}

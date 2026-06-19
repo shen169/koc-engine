@@ -375,6 +375,7 @@ def _handle_auto_approve(task, slot_index: int, koc_id: str):
         "status": "approved",
         "reviewed_at": now,
         "review_feedback": "Auto-approved: merchant did not review within SLA",
+        "commission_paid": True,
     })
 
     # 释放 KOC 质押（扣平台费）

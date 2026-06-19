@@ -17,8 +17,9 @@ export default function MerchantTaskDetailPage() {
 
   const [task, setTask] = useState<any>(null);
   const [report, setReport] = useState<any>(null);
+  const [performance, setPerformance] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"progress" | "report">("progress");
+  const [tab, setTab] = useState<"progress" | "report" | "performance">("progress");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [shipping, setShipping] = useState(false);
   const [error, setError] = useState("");
@@ -40,6 +41,16 @@ export default function MerchantTaskDetailPage() {
       console.error("Failed to load task:", e);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadPerformance() {
+    if (performance) return; // already loaded
+    try {
+      const p = await tasks.performance(taskId, token!);
+      setPerformance(p);
+    } catch (e) {
+      console.error("Failed to load performance:", e);
     }
   }
 
@@ -147,6 +158,14 @@ export default function MerchantTaskDetailPage() {
           >
             📈 数据报表
           </button>
+          <button
+            onClick={() => { setTab("performance"); loadPerformance(); }}
+            className={`px-4 py-2 text-sm rounded-lg font-medium transition-all ${
+              tab === "performance" ? "bg-pink-100 text-pink-700" : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            📊 内容表现
+          </button>
         </div>
 
         {/* Tab content */}
@@ -227,6 +246,103 @@ export default function MerchantTaskDetailPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {tab === "performance" && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">📊 内容表现</h2>
+
+            {!performance ? (
+              <div className="text-center py-10 text-gray-400">加载中...</div>
+            ) : performance.summary?.total_views === 0 ? (
+              <div className="text-center py-10 text-gray-400">
+                <p className="text-lg mb-2">暂无表现数据</p>
+                <p className="text-sm">KOC 提交内容后可更新播放量、点赞等指标</p>
+              </div>
+            ) : (
+              <>
+                {/* Summary cards */}
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+                  {[
+                    { label: "总播放", value: (performance.summary?.total_views || 0).toLocaleString(), icon: "👁️" },
+                    { label: "总点赞", value: (performance.summary?.total_likes || 0).toLocaleString(), icon: "❤️" },
+                    { label: "总评论", value: (performance.summary?.total_comments || 0).toLocaleString(), icon: "💬" },
+                    { label: "总分享", value: (performance.summary?.total_shares || 0).toLocaleString(), icon: "🔄" },
+                    { label: "总成交", value: (performance.summary?.total_conversions || 0).toLocaleString(), icon: "💰" },
+                    { label: "平均互动率", value: `${performance.summary?.average_engagement_rate || 0}%`, icon: "📈" },
+                  ].map(({ label, value, icon }) => (
+                    <div key={label} className="bg-gray-50 rounded-xl p-3 text-center">
+                      <div className="text-lg mb-1">{icon}</div>
+                      <div className="text-lg font-bold text-gray-900">{value}</div>
+                      <div className="text-xs text-gray-500">{label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Revenue callout */}
+                {(performance.summary?.total_revenue || 0) > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 text-center">
+                    <span className="text-green-700 font-bold text-lg">
+                      💵 归因收入：${(performance.summary?.total_revenue || 0).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+
+                {/* Per-KOC breakdown */}
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">各 KOC 表现</h3>
+                <div className="space-y-3">
+                  {(performance.slots || []).map((s: any) => (
+                    <div key={s.slot_index} className="border border-gray-100 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="font-mono text-sm font-medium text-gray-700">{s.koc_anon_id}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            s.status === "approved" ? "bg-green-100 text-green-700" :
+                            s.status === "submitted" ? "bg-blue-100 text-blue-600" :
+                            "bg-gray-100 text-gray-500"
+                          }`}>{s.status}</span>
+                          {s.metrics?.engagement_rate > 0 && (
+                            <span className="text-xs font-bold text-pink-600">
+                              {s.metrics.engagement_rate}% 互动率
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {s.metrics?.views > 0 ? (
+                        <div className="grid grid-cols-4 gap-2 mb-2">
+                          {[
+                            { label: "播放", value: s.metrics.views },
+                            { label: "点赞", value: s.metrics.likes },
+                            { label: "评论", value: s.metrics.comments },
+                            { label: "分享", value: s.metrics.shares },
+                          ].map(({ label, value }) => (
+                            <div key={label} className="bg-gray-50 rounded-lg p-2 text-center">
+                              <div className="text-sm font-bold text-gray-800">{(value || 0).toLocaleString()}</div>
+                              <div className="text-xs text-gray-400">{label}</div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 mb-2">暂无表现数据</p>
+                      )}
+
+                      {s.content_urls?.length > 0 && (
+                        <div className="space-y-1 mt-2 pt-2 border-t border-gray-50">
+                          {s.content_urls.map((url: string, i: number) => (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                               className="block text-xs text-pink-500 hover:text-pink-600 truncate">
+                              🔗 {url}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
