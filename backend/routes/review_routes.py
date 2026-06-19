@@ -22,8 +22,8 @@ def create_review(data: dict, current_user: dict = Depends(get_current_user)):
     task = task_store.get(task_id)
     if not task:
         raise HTTPException(404, "Task not found")
-    if not task.delivered:
-        raise HTTPException(400, "Task not yet delivered")
+    if task.task_status not in ("completed", "submitted", "creating"):
+        raise HTTPException(400, f"Task not yet delivered (status: {task.task_status})")
 
     if role == "koc":
         reviewer_id = current_user["sub"]

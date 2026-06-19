@@ -114,8 +114,8 @@ def run_weekly_scan() -> dict:
     for task in all_tasks:
         if not task.due_at:
             continue
-        # 旧版兼容：检查旧字段 delivered
-        if hasattr(task, 'delivered') and task.delivered:
+        # 跳过已完成和争议中的任务（V2 用 task_status 判断）
+        if task.task_status in ("completed", "disputed"):
             continue
         try:
             due = datetime.fromisoformat(str(task.due_at).replace("Z", "+00:00"))
@@ -222,17 +222,18 @@ def _handle_accept_timeout(task, slot_index: int, old_koc_id: str):
         "status": "timed_out",
     })
 
-    # 尝试重新匹配
+    # 尝试重新匹配（用刷新后的 task 读 reject_count）
     refreshed = task_store.get(task.id)
     if refreshed:
         new_match = rematch_slot(refreshed, slot_index)
         if new_match:
             now = datetime.utcnow().isoformat()
+            prev_reject = refreshed.koc_slots[slot_index].get("reject_count", 0)
             task_store.update_slot(task.id, slot_index, {
                 "koc_id": new_match["koc_id"],
                 "status": "assigned",
                 "assigned_at": now,
-                "reject_count": task.koc_slots[slot_index].get("reject_count", 0) + 1,
+                "reject_count": prev_reject + 1,
             })
 
 
@@ -251,8 +252,9 @@ def _handle_long_term_idle(task, slot_index: int):
 
 
 def _handle_merchant_ship_timeout(task):
-    """48h 未发货 → 商家违约 → 退 KOC 质押 + 扣商家点给 KOC"""
-    # 退所有 accepted KOC 的质押（从商家扣）
+    """48h 未发货 → 商家违约 → 退 KOC 质押 + 释放 slot"""
+    now = datetime.utcnow().isoformat()
+    # 退所有 accepted KOC 的质押并释放 slot（不再占用 KOC 的 5 个并行上限）
     for i, slot in enumerate(task.koc_slots):
         if slot.get("status") == "accepted" and slot.get("pledge_paid"):
             koc_id = slot.get("koc_id", "")
@@ -261,7 +263,11 @@ def _handle_merchant_ship_timeout(task):
                 credit_store.add_credits(koc_uid, task.pledge_koc,
                                          "breach_compensation_koc", task.id,
                                          f"Merchant breach compensation: {task.product_name}")
-                task_store.update_slot(task.id, i, {"pledge_paid": False})
+            # 释放 slot：标记为 timed_out，解除 pled_paid
+            task_store.update_slot(task.id, i, {
+                "status": "timed_out",
+                "pledge_paid": False,
+            })
 
     # 商家不退还质押（stays deducted）
     # 扣商家诚信度

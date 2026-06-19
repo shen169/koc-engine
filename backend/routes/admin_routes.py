@@ -40,8 +40,9 @@ def admin_stats(current_user: dict = Depends(require_admin)):
         "products": {"total": len(all_products), "active": len([p for p in all_products if p.status == "active"])},
         "tasks": {
             "total": len(all_tasks),
-            "delivered": len([t for t in all_tasks if t.delivered]),
-            "pending": len([t for t in all_tasks if not t.delivered]),
+            "completed": len([t for t in all_tasks if t.task_status == "completed"]),
+            "active": len([t for t in all_tasks if t.task_status not in ("completed", "disputed")]),
+            "disputed": len([t for t in all_tasks if t.task_status == "disputed"]),
         },
         "applications": {
             "total": len(all_apps),

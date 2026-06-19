@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from services.matcher import match_kocs_for_product, match_products_for_koc
+from routes.interest_routes import auto_assign_koc_to_product
 from stores.product_store import product_store
 from stores.koc_store import koc_store
 from stores.merchant_store import merchant_store
@@ -155,6 +156,7 @@ def auto_express_interest(
 
     created = []
     skipped = []
+    auto_assigned = []
 
     if role == "merchant":
         # 验证产品属于该商家
@@ -187,7 +189,7 @@ def auto_express_interest(
             created.append(koc_id)
 
     elif role == "koc":
-        # KOC 对产品表达意向
+        # KOC 对产品表达意向 → 自动接单
         user = user_store.get_by_id(current_user["sub"])
         koc = koc_store.get_by_email(user.email) if user else None
         if not koc:
@@ -216,12 +218,25 @@ def auto_express_interest(
             interest_store.create(interest)
             created.append(product_id)
 
+            # V2: KOC 对产品表达意向 → 触发自动接单（填空位或创建任务）
+            assign_result = auto_assign_koc_to_product(koc.id, product_id)
+            if assign_result:
+                auto_assigned.append({
+                    "product_id": product_id,
+                    "task_id": assign_result["task_id"],
+                    "slot_index": assign_result["slot_index"],
+                    "action": assign_result["action"],
+                })
+
     else:
         raise HTTPException(403, "Only KOC and merchant can express interest")
 
-    return {
+    result = {
         "created": created,
         "skipped": skipped,
         "total_created": len(created),
         "total_skipped": len(skipped),
     }
+    if auto_assigned:
+        result["auto_assigned"] = auto_assigned
+    return result

@@ -10,8 +10,24 @@ from stores.user_store import user_store
 from stores.task_store import task_store
 from stores.product_store import product_store
 from auth import get_current_user, require_admin
+from config import PLEDGE_PER_SLOT
+import re
 
 router = APIRouter(tags=["interests"])
+
+
+def _parse_commission(value: str) -> int:
+    """从 commission_value 字符串中提取数值。支持格式：'15% off', '$20', '10', '15%'。失败返回 30。"""
+    if not value:
+        return 30
+    # 尝试直接整数解析
+    if value.strip().isdigit():
+        return max(1, int(value.strip()))
+    # 提取第一个数字
+    m = re.search(r'(\d+)', value)
+    if m:
+        return max(1, int(m.group(1)))
+    return 30
 
 
 def _make_slot(koc_id: str, status: str = "accepted") -> dict:
@@ -33,6 +49,49 @@ def _make_slot(koc_id: str, status: str = "accepted") -> dict:
         "reject_count": 0,
         "match_score": 0,
     }
+
+
+def auto_assign_koc_to_product(koc_id: str, product_id: str) -> dict | None:
+    """共享自动接单逻辑：KOC 对产品有意向 → 查找空位/创建任务。
+
+    被 interest_routes.express_interest 和 matching_routes.auto_express_interest 共用。
+
+    Returns: {task_id, slot_index, action: 'filled'|'created'} 或 None
+    """
+    product = product_store.get(product_id)
+    if not product:
+        return None
+
+    # 查找该产品已有任务中的空位
+    existing_tasks = task_store.list_all({"product_id": product_id})
+    for t in existing_tasks:
+        if t.task_status in ("completed", "disputed"):
+            continue
+        for i, slot in enumerate(t.koc_slots):
+            if not slot.get("koc_id"):
+                # 填入已有空位
+                task_store.update_slot(t.id, i, _make_slot(koc_id))
+                return {"task_id": t.id, "slot_index": i, "action": "filled"}
+
+    # 无可用空位 → 自动创建 long_term 任务（含质押）
+    now = datetime.now(timezone.utc).isoformat()
+    parsed_commission = _parse_commission(product.commission_value or "")
+    task = KocTask(
+        merchant_id=product.merchant_id,
+        product_id=product_id,
+        product_name=product.name,
+        product_asin=product.asin,
+        task_type="long_term",
+        task_status="accepted",
+        koc_required=1,
+        koc_slots=[_make_slot(koc_id)],
+        pledge_merchant=PLEDGE_PER_SLOT,
+        pledge_koc=PLEDGE_PER_SLOT,
+        commission=parsed_commission,
+        created_at=now,
+    )
+    task_store.create(task)
+    return {"task_id": task.id, "slot_index": 0, "action": "created"}
 
 
 @router.post("/interests")
@@ -97,50 +156,10 @@ def express_interest(data: dict, current_user: dict = Depends(get_current_user))
     # 自动接单：KOC 对产品感兴趣 → 直接分配任务
     # ═══════════════════════════════════════════
     if role == "koc" and to_type == "product":
-        product = product_store.get(to_id)
-        if not product:
-            raise HTTPException(400, "Product not found")
-
-        # 查找该产品已有任务中的空位
-        existing_tasks = task_store.list_all({"product_id": to_id})
-        available_task = None
-        available_slot_index = -1
-
-        for t in existing_tasks:
-            if t.task_status in ("completed", "disputed"):
-                continue
-            for i, slot in enumerate(t.koc_slots):
-                if not slot.get("koc_id"):
-                    available_task = t
-                    available_slot_index = i
-                    break
-            if available_task:
-                break
-
-        if available_task:
-            # 填入已有空位
-            task_store.update_slot(available_task.id, available_slot_index, _make_slot(from_id))
-            result["task_id"] = available_task.id
-            result["slot_index"] = available_slot_index
-            result["auto_assigned"] = True
-        else:
-            # 无可用空位 → 自动创建 long_term 任务
-            now = datetime.now(timezone.utc).isoformat()
-            task = KocTask(
-                merchant_id=product.merchant_id,
-                product_id=to_id,
-                product_name=product.name,
-                product_asin=product.asin,
-                task_type="long_term",
-                task_status="accepted",
-                koc_required=1,
-                koc_slots=[_make_slot(from_id)],
-                commission=int(product.commission_value) if product.commission_value and product.commission_value.isdigit() else 30,
-                created_at=now,
-            )
-            task_store.create(task)
-            result["task_id"] = task.id
-            result["slot_index"] = 0
+        assign_result = auto_assign_koc_to_product(from_id, to_id)
+        if assign_result:
+            result["task_id"] = assign_result["task_id"]
+            result["slot_index"] = assign_result["slot_index"]
             result["auto_assigned"] = True
 
     return result

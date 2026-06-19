@@ -64,15 +64,6 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
     pledge_merchant = PLEDGE_PER_SLOT * koc_required   # 商家质押 = 10 × KOC人数
     pledge_koc = PLEDGE_PER_SLOT                        # KOC 质押 = 10 点
 
-    # ── 平台服务费：发任务即扣 ──
-    m_uid = _get_merchant_user_id(merchant_id)
-    fee_result = credit_store.deduct_credits(
-        m_uid, PLATFORM_SERVICE_FEE, "platform_fee",
-        "", f"Platform service fee for task: {data.get('product_name', '')}"
-    )
-    if fee_result is None:
-        raise HTTPException(400, f"Insufficient credits for platform fee ({PLATFORM_SERVICE_FEE} pts)")
-
     task = KocTask(
         merchant_id=merchant_id,
         product_id=data.get("product_id", ""),
@@ -88,6 +79,15 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
         due_at=data.get("due_at", ""),
     )
     task_store.create(task)
+
+    # ── 平台服务费：建任务后扣（余额预检 + 实扣）──
+    m_uid = _get_merchant_user_id(merchant_id)
+    fee_result = credit_store.deduct_credits(
+        m_uid, PLATFORM_SERVICE_FEE, "platform_fee",
+        task.id, f"Platform service fee for task: {task.product_name}"
+    )
+    if fee_result is None:
+        raise HTTPException(400, f"Insufficient credits for platform fee ({PLATFORM_SERVICE_FEE} pts)")
 
     # 自动匹配引擎：加急任务预填 slot，长线任务留空由 KOC 广场自主接单
     matched = []

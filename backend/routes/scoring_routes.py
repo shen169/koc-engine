@@ -15,7 +15,9 @@ def evaluate_application(data: dict):
     platform = data.get("platform", "tiktok")
     video_links = data.get("video_links", [])
     niche = data.get("niche", "general")
-    return score_application(handle, platform, video_links, niche)
+    profile_url = data.get("profile_url", "")
+    follower_count = data.get("follower_count", 0)
+    return score_application(handle, platform, video_links, niche, profile_url, follower_count)
 
 
 @router.post("/scoring/evaluate-profile")
@@ -26,4 +28,6 @@ def evaluate_profile(data: dict, current_user: dict = Depends(require_admin)):
         data.get("platform", "tiktok"),
         data.get("video_links", []),
         data.get("niche", "general"),
+        data.get("profile_url", ""),
+        int(data.get("follower_count", 0)),
     )

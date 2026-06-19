@@ -47,10 +47,16 @@ kt = ok(r)["token"]
 app = ok(requests.post(BASE + "/applications", json={
     "handle": "@creator4",
     "platform": "tiktok",
+    "name": "Creator Four",
     "follower_count": 15000,
     "niche_tags": ["electronics", "audio", "tech"],
     "email": "creator4@test.com",
-    "video_links": ["https://tiktok.com/@creator4/video/1"],
+    "region": "US",
+    "profile_url": "https://www.tiktok.com/@creator4",
+    "past_video_urls": [
+        "https://www.tiktok.com/@creator4/video/1",
+        "https://www.tiktok.com/@creator4/video/2",
+    ],
 }))
 app_id = app.get("application_id") or app.get("id")
 print("   Application: score={}, decision={}".format(app.get("ai_score"), app.get("decision")))
@@ -201,10 +207,16 @@ def register_and_approve_koc(email, handle, niche_tags, platform="tiktok", follo
     app = ok(requests.post(BASE + "/applications", json={
         "handle": handle,
         "platform": platform,
+        "name": handle.lstrip("@"),
         "follower_count": follower_count,
         "niche_tags": niche_tags,
         "email": email,
-        "video_links": ["https://tiktok.com/{}/video/1".format(handle)],
+        "region": "US",
+        "profile_url": f"https://www.{platform}.com/{handle}",
+        "past_video_urls": [
+            f"https://{platform}.com/{handle}/video/1",
+            f"https://{platform}.com/{handle}/video/2",
+        ],
     }))
     app_id = app.get("application_id") or app.get("id")
     ok(requests.put(BASE + "/applications/" + app_id + "/decision", json={
