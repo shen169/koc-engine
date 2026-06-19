@@ -311,6 +311,7 @@ def match_kocs_for_product(
     all_kocs: list[dict],
     top_n: int = 10,
     use_ai: bool = False,
+    merchant_id: str = "",
 ) -> list[dict]:
     """为产品找 Top N 最匹配的 KOC。
 
@@ -319,6 +320,7 @@ def match_kocs_for_product(
         all_kocs: list of KOC dicts (from koc_store.list_pool or list_all)
         top_n: 返回前 N 个匹配
         use_ai: 是否启用 AI 精排
+        merchant_id: 产品所属商家 ID，用于计算合作过加成
 
     Returns:
         list of match result dicts，按 match_score 降序
@@ -333,13 +335,57 @@ def match_kocs_for_product(
     if not eligible:
         return []
 
+    # ── 查询合作历史（KOC × 该商家）──
+    past_collab_counts: dict[str, int] = {}
+    past_collab_ratings: dict[str, float] = {}
+    if merchant_id:
+        try:
+            from stores.task_store import task_store
+            from stores.review_store import review_store
+            merchant_tasks = task_store.list_by_merchant(merchant_id)
+            for t in merchant_tasks:
+                for slot in t.koc_slots:
+                    kid = slot.get("koc_id", "")
+                    if not kid:
+                        continue
+                    if slot.get("status") in ("approved", "completed"):
+                        past_collab_counts[kid] = past_collab_counts.get(kid, 0) + 1
+            # 查评价均分
+            for kid in past_collab_counts:
+                reviews = review_store.get_by_target(kid)
+                merchant_reviews = [r for r in reviews if r.reviewer_id == merchant_id]
+                if merchant_reviews:
+                    past_collab_ratings[kid] = sum(r.rating for r in merchant_reviews) / len(merchant_reviews)
+        except Exception:
+            pass
+
     # Tier 1: 规则引擎初筛
     scored = []
     for koc in eligible:
         result = _rule_score(koc, product)
+        koc_id = koc.get("id", "")
+
+        # 合作过加成：同一商家 × 同一 KOC 的历史完成合作
+        past_collabs = past_collab_counts.get(koc_id, 0)
+        past_rating = past_collab_ratings.get(koc_id, 0)
+        collab_bonus = 0.0
+        if past_collabs > 0:
+            # 基础加成：每次合作 +3 分，上限 15 分
+            count_bonus = min(15.0, past_collabs * 3.0)
+            # 评价加成：均分 ≥4.0 额外 +5
+            rating_bonus = 5.0 if past_rating >= 4.0 else (2.0 if past_rating >= 3.0 else 0)
+            collab_bonus = count_bonus + rating_bonus
+            result["dimensions"]["past_collab_bonus"] = round(collab_bonus, 1)
+            result["reasons"].append(f"🤝 合作过 {past_collabs} 次" + (f" (均分 {past_rating:.1f})" if past_rating > 0 else ""))
+        else:
+            result["dimensions"]["past_collab_bonus"] = 0.0
+
+        # 总分 = 规则分 + 合作加成
+        final_score = result["match_score"] + collab_bonus
+
         scored.append({
-            "koc_id": koc.get("id"),
-            "display_name": koc.get("display_name") or f"Creator_{koc.get('id', '')[:6]}",
+            "koc_id": koc_id,
+            "display_name": koc.get("display_name") or f"Creator_{koc_id[:6]}",
             "tier": koc.get("tier", "L1"),
             "niche_tags": koc.get("niche_tags", []),
             "score_total": koc.get("score_total", 0),
@@ -347,7 +393,8 @@ def match_kocs_for_product(
             "region": koc.get("region", ""),
             "avg_rating": koc.get("avg_rating", 0),
             "completed_tasks": koc.get("completed_tasks", 0),
-            "match_score": result["match_score"],
+            "past_collabs_with_merchant": past_collabs,
+            "match_score": round(final_score, 1),
             "match_dimensions": result["dimensions"],
             "match_reasons": result["reasons"],
             "source": "rule",
@@ -462,6 +509,7 @@ def match_kocs_for_task(task, count: int = 1, buffer: int = 3) -> list[dict]:
         all_kocs,
         top_n=count + buffer,
         use_ai=False,
+        merchant_id=task.merchant_id,
     )
 
     return [{"koc_id": m["koc_id"], "score": m["match_score"]} for m in matches]
@@ -501,6 +549,7 @@ def rematch_slot(task, slot_index: int) -> dict | None:
         available_kocs,
         top_n=1,
         use_ai=False,
+        merchant_id=task.merchant_id,
     )
 
     if not matches:

@@ -47,6 +47,7 @@ def find_kocs_for_product(
         all_kocs,
         top_n=top_n,
         use_ai=use_ai,
+        merchant_id=product.merchant_id,
     )
 
     return {

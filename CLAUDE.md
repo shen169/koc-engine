@@ -73,13 +73,13 @@ KOC 落地页 → 申请(严格校验+AI评分) → Admin审核 → 通过(1000p
 商家审核 KOC 提交内容:
     ├─ approve → 退双方质押 + 恢复信任分(+3) + 校准等级 ✅
     ├─ reject → KOC 修改重交（最多3次，超限→违约）
-    └─ 3天未审 → cron 自动通过（保护 KOC 不被恶意拖延）
+    └─ 4天未审 → cron 自动通过（保护 KOC 不被恶意拖延）
 佣金: 走返佣链接(affiliate link) 自动结算，不走平台点数
 双方互评
 
 Cron 周度扫描(每小时执行；物流追踪每24h):
 ├─ 超时检测: 接单12h→重推 | 发货48h→商家违约(退KOC质押+扣商家分) | 提交14d→KOC违约(退商家质押+扣KOC分)
-├─ 审核超时: submitted 3d未审→自动通过 | revision_requested 3d未重交→KOC违约
+├─ 审核超时: submitted 4d未审→自动通过 | revision_requested 3d未重交→KOC违约
 ├─ 物流追踪: 每日查询所有 shipped slot → 送达自动收货
 ├─ 长线空位: 7天无人接→系统自动匹配填槽
 └─ 信任分联动: 完成/违约/举报→信任分变化→等级自动校准(L1⇄L2⇄L3 / M1⇄M2⇄M3)
@@ -174,6 +174,8 @@ koc-engine/
    - KOC 提交 → 退还：KOC 得 (10 - 5) = **5pt**，商家 **全额退还**
    - 佣金不走平台点数，走产品上架的 **返佣链接** (commission_link)
 
+    - 合作过加成：同一商家×KOC 历史完成合作 → 匹配分加权（每次+3，上限15；均分≥4.0额外+5）
+
 6. **双向信任分 + 等级联动**：
    - KOC：trust_score 0-100 → L1/L2/L3 (≥55 + 2单 → L2, ≥75 + 5单 + 4.0均分 → L3)
    - 商家：trust_score 0-100 → M1/M2/M3 (≥55 + 3单 → M2, ≥75 + 10单 + 4.0均分 → M3)
@@ -188,7 +190,7 @@ koc-engine/
    | 商家发货 | 48h | 违约：退 KOC 质押 + 扣商家 20 信任分 |
    | KOC 确认收货 | 7d | 自动确认收货 |
    | KOC 提交内容 | 14d | 违约：退商家质押 + 扣 KOC 15 信任分 |
-	   | 商家审核内容 | 3d | 自动通过（退押金+恢复信任，保护 KOC） |
+	   | 商家审核内容 | 4d | 自动通过（退押金+恢复信任，保护 KOC） |
 	   | KOC 修改重交 | 3d | 超时按 KOC 违约处理 |
    | 长线空位无人接 | 7d | 系统介入自动匹配 |
 
@@ -203,7 +205,7 @@ koc-engine/
     - 商家 `review`（approve）→ slot `approved` → 退押金 + 信任分恢复 + 等级校准
     - 商家 `review`（reject）→ slot `revision_requested` → KOC 修改重交（最多 3 次）
     - 超出修改次数 → KOC 违约（退商家质押 + 扣 KOC 15 信任分）
-    - 商家 3 天未审 → cron 自动 approve（防止商家恶意拖延）
+    - 商家 4 天未审 → cron 自动 approve（防止商家恶意拖延）
     - 发货验证：商家发货需填 `carrier` + `shipping_proof_urls`（凭证照片/截图）
     - 收货验证：KOC 收货可上传 `receipt_photo_urls`（开箱照）+ `receipt_notes`
     - 物流追踪自动化：cron 每日查询所有 shipped slot 的物流状态 → 承运商确认送达 → 自动标记 received。支持 FedEx/DHL/USPS/UPS/SF-Express 等主流承运商，API 查询 + 网页解析双路径兜底，结果缓存避免频繁请求
