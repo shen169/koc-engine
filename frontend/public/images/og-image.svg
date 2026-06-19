@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFF7ED"/>
+      <stop offset="50%" style="stop-color:#FDF2F8"/>
+      <stop offset="100%" style="stop-color:#F5F3FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <text x="600" y="260" text-anchor="middle" font-size="80" font-family="sans-serif" font-weight="bold" fill="#1F2937">KOC Engine</text>
+  <text x="600" y="350" text-anchor="middle" font-size="36" font-family="sans-serif" fill="#6B7280">AI-Powered KOC Matching for Cross-Border E-Commerce</text>
+</svg>

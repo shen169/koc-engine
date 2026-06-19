@@ -1,12 +1,81 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://kocengine.com";
+const SITE_NAME = "KOC Engine";
+const SITE_DESCRIPTION =
+  "AI-powered KOC matching platform for cross-border e-commerce. Connect Amazon sellers and DTC brands with vetted TikTok creators. Free product samples + commission. Dual-pledge escrow protection.";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FDF2F8" },
+    { media: "(prefers-color-scheme: dark)", color: "#1F2937" },
+  ],
+};
+
 export const metadata: Metadata = {
-  title: "KOC Engine — Creator Partnership Platform",
-  description: "Join our creator program. Get free products, earn commissions, and grow with AI-powered video tools.",
-  icons: {
-    icon: "/favicon.ico",
+  title: {
+    default: `${SITE_NAME} — AI KOC Matching for Cross-Border E-Commerce`,
+    template: `%s | ${SITE_NAME}`,
   },
+  description: SITE_DESCRIPTION,
+  metadataBase: new URL(SITE_URL),
+  alternates: {
+    canonical: "/",
+    languages: {
+      "en-US": "/",
+      "zh-CN": "/zh",
+    },
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — AI KOC Matching Platform`,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    images: [
+      {
+        url: "/images/og-image.svg",
+        width: 1200,
+        height: 630,
+        alt: "KOC Engine — AI-Powered Creator Matching",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — AI KOC Matching Platform`,
+    description: SITE_DESCRIPTION,
+    images: ["/images/og-image.svg"],
+    creator: "@kocengine",
+  },
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
+  keywords: [
+    "KOC platform", "influencer marketing", "Amazon influencer alternative",
+    "TikTok creator matching", "UGC creator marketplace", "cross-border ecommerce",
+    "KOC marketing", "creator collaboration platform", "brand deal platform",
+    "Amazon seller marketing", "DTC brand influencer", "Shopify influencer app",
+  ],
+  authors: [{ name: "KOC Engine" }],
+  creator: "KOC Engine",
+  publisher: "KOC Engine",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
