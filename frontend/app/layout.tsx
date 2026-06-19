@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "KOC Engine — Creator Partnership Platform",
   description: "Join our creator program. Get free products, earn commissions, and grow with AI-powered video tools.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/favicon.svg",
   },
 };
 

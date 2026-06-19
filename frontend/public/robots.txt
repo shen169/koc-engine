@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /portal/
+Disallow: /dashboard/
+Disallow: /admin/
+
+Sitemap: https://kocengine.com/sitemap.xml
