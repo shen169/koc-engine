@@ -31,6 +31,39 @@ cd backend && source ../venv/bin/activate && uvicorn main:app --port 8001 --relo
 cd frontend && npm run dev
 ```
 
+## 部署
+
+### 前端 → Vercel
+```bash
+cd frontend
+# 设置环境变量后一键部署
+vercel --prod -e NEXT_PUBLIC_API_URL=https://your-domain.com
+```
+
+### 后端 → VPS（推荐）
+VPS 部署脚本位于 `deploy/` 目录，一键安装：
+```bash
+# VPS 上执行（Ubuntu 22.04/24.04）
+git clone https://github.com/shen169/koc-engine.git
+cd koc-engine && chmod +x deploy/vps-setup.sh
+sudo ./deploy/vps-setup.sh your-domain.com
+```
+脚本自动完成：系统依赖 → 创建用户 → 部署代码 → Python 虚拟环境 → systemd 服务 → nginx 反代 → Let's Encrypt SSL → 防火墙
+
+**部署架构：**
+```
+Vercel (前端) ─→ nginx (VPS) ─→ uvicorn:8001 (systemd)
+                      │
+                      └── Let's Encrypt SSL
+```
+
+**服务管理（VPS 上）：**
+```bash
+systemctl status koc-engine   # 查看状态
+journalctl -u koc-engine -f   # 实时日志
+systemctl restart koc-engine  # 重启
+```
+
 ## 环境变量
 
 后端 `backend/.env`：
