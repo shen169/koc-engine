@@ -1,7 +1,7 @@
 """Cron 周期扫描 V2 — 超时检测 + 自动处理 + 诚信度"""
 
 from datetime import datetime, timedelta, timezone
-from config import GHOSTED_GRACE_DAYS, STALE_DAYS
+from config import GHOSTED_GRACE_DAYS, STALE_DAYS, SLA_CONTENT_REVIEW_DAYS, MAX_REVISIONS, KOC_PLATFORM_FEE
 from stores.koc_store import koc_store
 from stores.task_store import task_store
 from stores.merchant_store import merchant_store
@@ -32,6 +32,7 @@ def run_weekly_scan() -> dict:
         "slot_rematched": 0,
         "merchant_defaulted": 0,
         "auto_received": 0,
+        "auto_review_approved": 0,
         "koc_defaulted": 0,
         "ghosted": 0,
         "stale": 0,
@@ -73,6 +74,20 @@ def run_weekly_scan() -> dict:
                 received_at = _parse_ts(slot.get("received_at", ""))
                 if received_at and (now - received_at).days >= SLA_SUBMIT_DAYS:
                     _handle_submit_timeout(task, i, koc_id)
+                    result["koc_defaulted"] += 1
+
+            # 4b. 内容已提交待商家审核（3d 超时 → 自动通过）
+            if slot_status == "submitted":
+                submitted_at = _parse_ts(slot.get("submitted_at", ""))
+                if submitted_at and (now - submitted_at).days >= SLA_CONTENT_REVIEW_DAYS:
+                    _handle_auto_approve(task, i, koc_id)
+                    result["auto_review_approved"] = result.get("auto_review_approved", 0) + 1
+
+            # 4c. 商家驳回后 KOC 未重新提交（3d 超时 → 视为放弃）
+            if slot_status == "revision_requested":
+                reviewed_at = _parse_ts(slot.get("reviewed_at", ""))
+                if reviewed_at and (now - reviewed_at).days >= SLA_CONTENT_REVIEW_DAYS:
+                    _handle_revision_timeout(task, i, koc_id)
                     result["koc_defaulted"] += 1
 
             # 5. 长线任务空位无人接（7d）→ 系统介入自动匹配
@@ -193,6 +208,37 @@ def check_ghosted_status() -> list[dict]:
                         "days_left": SLA_SUBMIT_DAYS - (now - received_at).days,
                     })
 
+            # 内容已提交待商家审核，还剩不到 1 天提醒商家
+            if slot_status == "submitted":
+                submitted_at = _parse_ts(slot.get("submitted_at", ""))
+                if submitted_at:
+                    days_left = SLA_CONTENT_REVIEW_DAYS - (now - submitted_at).days
+                    if 0 < days_left <= 1:
+                        alerts.append({
+                            "type": "review_due_soon",
+                            "task_id": task.id,
+                            "product_name": task.product_name,
+                            "slot_index": i,
+                            "koc_id": koc_id,
+                            "merchant_id": task.merchant_id,
+                            "days_left": days_left,
+                        })
+
+            # KOC 被驳回后未重新提交
+            if slot_status == "revision_requested":
+                reviewed_at = _parse_ts(slot.get("reviewed_at", ""))
+                if reviewed_at:
+                    days_left = SLA_CONTENT_REVIEW_DAYS - (now - reviewed_at).days
+                    if 0 < days_left <= 1:
+                        alerts.append({
+                            "type": "revision_due_soon",
+                            "task_id": task.id,
+                            "product_name": task.product_name,
+                            "slot_index": i,
+                            "koc_id": koc_id,
+                            "days_left": days_left,
+                        })
+
         # 商家发货超时即将到来
         if task.task_status == "accepted":
             earliest = _get_earliest_accepted(task.koc_slots)
@@ -299,6 +345,78 @@ def _handle_submit_timeout(task, slot_index: int, koc_id: str):
                 "trust_score": max(0, koc.trust_score - 15),
             })
             # 信任分联动降级
+            sync_koc_tier(koc_id)
+
+    task_store.update_slot(task.id, slot_index, {"status": "timed_out"})
+    _sync_task_disputed(task.id)
+
+
+def _handle_auto_approve(task, slot_index: int, koc_id: str):
+    """商家 3 天内未审核 KOC 提交内容 → 自动通过 → 退双方押金 + 恢复信任"""
+    now = datetime.utcnow().isoformat()
+    slot = task.koc_slots[slot_index] if slot_index < len(task.koc_slots) else {}
+
+    task_store.update_slot(task.id, slot_index, {
+        "status": "approved",
+        "reviewed_at": now,
+        "review_feedback": "Auto-approved: merchant did not review within SLA",
+    })
+
+    # 释放 KOC 质押（扣平台费）
+    koc_uid = _get_koc_user_id(koc_id) if koc_id else ""
+    if task.pledge_koc > 0 and slot.get("pledge_paid"):
+        koc_return = task.pledge_koc - KOC_PLATFORM_FEE
+        if koc_return > 0 and koc_uid:
+            credit_store.add_credits(koc_uid, koc_return, "pledge_return_koc",
+                                     task.id, f"Pledge returned (auto-approved): {task.product_name}")
+        credit_store.add_credits("platform", KOC_PLATFORM_FEE, "koc_platform_fee",
+                                 task.id, f"KOC platform fee (auto-approved): {task.product_name}")
+
+    # 退还商家质押（全额）
+    if task.pledge_merchant > 0:
+        m_uid = _get_merchant_user_id(task.merchant_id)
+        credit_store.add_credits(m_uid, task.pledge_merchant, "pledge_return_merchant",
+                                 task.id, f"Pledge returned (auto-approved): {task.product_name}")
+
+    # 恢复 KOC 信任分
+    if koc_id:
+        koc = koc_store.get(koc_id)
+        if koc:
+            new_trust = min(100, koc.trust_score + 3)
+            koc_store.update(koc_id, {
+                "completed_tasks": koc.completed_tasks + 1,
+                "total_collaborations": koc.total_collaborations + 1,
+                "trust_score": new_trust,
+            })
+            sync_koc_tier(koc_id)
+
+    # 恢复商家信任分
+    m = merchant_store.get(task.merchant_id)
+    if m:
+        new_m_trust = min(100, m.trust_score + 3)
+        merchant_store.update(task.merchant_id, {
+            "total_collaborations": m.total_collaborations + 1,
+            "total_tasks_completed": m.total_tasks_completed + 1,
+            "trust_score": new_m_trust,
+        })
+        sync_merchant_tier(task.merchant_id)
+
+
+def _handle_revision_timeout(task, slot_index: int, koc_id: str):
+    """商家驳回后 KOC 3 天内未重新提交 → 按 KOC 违约处理"""
+    # 退商家质押
+    if task.pledge_merchant > 0:
+        m_uid = _get_merchant_user_id(task.merchant_id)
+        credit_store.add_credits(m_uid, task.pledge_merchant, "breach_compensation_merchant",
+                                 task.id, f"KOC revision timeout: {task.product_name}")
+
+    # KOC 质押不退还
+    if koc_id:
+        koc = koc_store.get(koc_id)
+        if koc:
+            koc_store.update(koc_id, {
+                "trust_score": max(0, koc.trust_score - 15),
+            })
             sync_koc_tier(koc_id)
 
     task_store.update_slot(task.id, slot_index, {"status": "timed_out"})

@@ -12,7 +12,7 @@ from stores.product_store import product_store
 from services.matcher import match_kocs_for_task, rematch_slot
 from services.cron import sync_koc_tier, sync_merchant_tier
 from auth import get_current_user, require_admin
-from config import PLATFORM_SERVICE_FEE, KOC_PLATFORM_FEE, PLEDGE_PER_SLOT
+from config import PLATFORM_SERVICE_FEE, KOC_PLATFORM_FEE, PLEDGE_PER_SLOT, MAX_REVISIONS
 
 router = APIRouter(tags=["tasks"])
 
@@ -104,12 +104,19 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
                     "shipped_at": "",
                     "received_at": "",
                     "submitted_at": "",
+                    "reviewed_at": "",
                     "tracking_number": "",
+                    "carrier": "",
+                    "shipping_proof_urls": [],
+                    "receipt_photo_urls": [],
+                    "receipt_notes": "",
                     "content_urls": [],
                     "content_data": {},
                     "pledge_paid": False,
                     "commission_paid": False,
                     "reject_count": 0,
+                    "revision_count": 0,
+                    "review_feedback": "",
                     "match_score": r["score"],
                 })
             task_store.update(task.id, {"koc_slots": slots, "task_status": "assigned"})
@@ -127,12 +134,19 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
                 "shipped_at": "",
                 "received_at": "",
                 "submitted_at": "",
+                "reviewed_at": "",
                 "tracking_number": "",
+                "carrier": "",
+                "shipping_proof_urls": [],
+                "receipt_photo_urls": [],
+                "receipt_notes": "",
                 "content_urls": [],
                 "content_data": {},
                 "pledge_paid": False,
                 "commission_paid": False,
                 "reject_count": 0,
+                "revision_count": 0,
+                "review_feedback": "",
                 "match_score": 0,
             })
         task_store.update(task.id, {"koc_slots": slots})
@@ -437,7 +451,7 @@ def reject_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
 
 @router.put("/tasks/{task_id}/ship")
 def ship_task(task_id: str, data: dict, current_user: dict = Depends(get_current_user)):
-    """商家上传物流单号，扣商家质押点"""
+    """商家发货 → 上传物流单号 + 承运商 + 发货凭证（照片/截图）→ 扣商家质押点"""
     if current_user.get("role") not in ("merchant", "admin"):
         raise HTTPException(403, "Only merchant can ship")
 
@@ -458,6 +472,9 @@ def ship_task(task_id: str, data: dict, current_user: dict = Depends(get_current
     if not tracking_number:
         raise HTTPException(400, "tracking_number is required")
 
+    carrier = data.get("carrier", "")  # FedEx, DHL, USPS, SF-Express, Amazon Logistics, etc.
+    shipping_proof_urls = data.get("shipping_proof_urls", [])  # 发货凭证照片/截图
+
     # 扣商家质押点
     if task.pledge_merchant > 0:
         m_uid = _get_merchant_user_id(task.merchant_id)
@@ -474,12 +491,24 @@ def ship_task(task_id: str, data: dict, current_user: dict = Depends(get_current
         "task_status": "shipped",
     })
 
-    # 更新所有 accepted slot 的 shipped_at
+    # 更新所有 accepted slot 的 shipped_at + carrier + proof
     for i, slot in enumerate(task.koc_slots):
         if slot.get("status") == "accepted":
-            task_store.update_slot(task_id, i, {"status": "shipped", "shipped_at": now})
+            task_store.update_slot(task_id, i, {
+                "status": "shipped",
+                "shipped_at": now,
+                "tracking_number": tracking_number,
+                "carrier": carrier,
+                "shipping_proof_urls": shipping_proof_urls,
+            })
 
-    return {"status": "shipped", "task_id": task_id, "tracking_number": tracking_number, "shipped_at": now}
+    return {
+        "status": "shipped",
+        "task_id": task_id,
+        "tracking_number": tracking_number,
+        "carrier": carrier,
+        "shipped_at": now,
+    }
 
 
 # ═══════════════════════════════════════════
@@ -487,8 +516,8 @@ def ship_task(task_id: str, data: dict, current_user: dict = Depends(get_current
 # ═══════════════════════════════════════════
 
 @router.put("/tasks/{task_id}/receive/{slot_index}")
-def receive_task(task_id: str, slot_index: int, current_user: dict = Depends(get_current_user)):
-    """KOC 确认收到样品"""
+def receive_task(task_id: str, slot_index: int, data: dict, current_user: dict = Depends(get_current_user)):
+    """KOC 确认收到样品 → 可上传收货照片/备注作为凭证"""
     if current_user.get("role") not in ("koc", "admin"):
         raise HTTPException(403, "Only KOC can confirm receipt")
 
@@ -510,22 +539,35 @@ def receive_task(task_id: str, slot_index: int, current_user: dict = Depends(get
     if slot.get("koc_id") != koc_id and current_user.get("role") != "admin":
         raise HTTPException(403, "Not your slot")
 
+    receipt_photo_urls = data.get("receipt_photo_urls", [])  # 收货照片/开箱图
+    receipt_notes = data.get("receipt_notes", "")  # 收货备注（如包装完好/破损等）
+
     now = datetime.utcnow().isoformat()
-    task_store.update_slot(task_id, slot_index, {"status": "received", "received_at": now})
+    task_store.update_slot(task_id, slot_index, {
+        "status": "received",
+        "received_at": now,
+        "receipt_photo_urls": receipt_photo_urls,
+        "receipt_notes": receipt_notes,
+    })
 
     # 如果所有 shipped slot 都已 received → 进入 creating
     _sync_task_status(task_id)
 
-    return {"status": "received", "task_id": task_id, "slot_index": slot_index, "received_at": now}
+    return {
+        "status": "received",
+        "task_id": task_id,
+        "slot_index": slot_index,
+        "received_at": now,
+    }
 
 
 # ═══════════════════════════════════════════
-# KOC 提交内容
+# KOC 提交内容 → 进入待审核状态
 # ═══════════════════════════════════════════
 
 @router.put("/tasks/{task_id}/submit/{slot_index}")
 def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict = Depends(get_current_user)):
-    """KOC 提交内容链接 → 自动完成 → 释放质押 + 结算佣金"""
+    """KOC 提交内容链接 → 进入「待商家审核」状态。商家审核通过后才算完成。"""
     if current_user.get("role") not in ("koc", "admin"):
         raise HTTPException(403, "Only KOC can submit content")
 
@@ -537,7 +579,8 @@ def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict
     if not slot:
         raise HTTPException(404, f"Slot {slot_index} not found")
 
-    if slot.get("status") not in ("received", "creating"):
+    # 允许 received, creating, revision_requested 状态提交
+    if slot.get("status") not in ("received", "creating", "revision_requested"):
         raise HTTPException(400, f"Slot status '{slot.get('status')}' not ready for submission")
 
     # 验证是该 KOC
@@ -553,76 +596,192 @@ def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict
 
     now = datetime.utcnow().isoformat()
 
-    # 更新 slot 为 submitted
+    # 更新 slot 为 submitted（待商家审核）
     task_store.update_slot(task_id, slot_index, {
         "status": "submitted",
         "submitted_at": now,
         "content_urls": content_urls,
     })
 
-    # ── 自动完成：释放质押（KOC 扣平台费）──
-    koc_uid = _get_koc_user_id(koc_id)
+    # 不自动完成！等待商家审核
+    # 不释放质押！商家 approve 后才释放
+    # 不恢复信任分！商家 approve 后才恢复
 
-    # 退 KOC 质押（质押 10 - 平台费 5 = 实际退还 5 点）
-    if task.pledge_koc > 0 and slot.get("pledge_paid"):
-        koc_return = task.pledge_koc - KOC_PLATFORM_FEE
-        if koc_return > 0:
-            credit_store.add_credits(koc_uid, koc_return, "pledge_return_koc",
-                                     task_id, f"Pledge returned (after platform fee): {task.product_name}")
-        credit_store.add_credits("platform", KOC_PLATFORM_FEE, "koc_platform_fee",
-                                 task_id, f"KOC platform fee from: {task.product_name}")
-
-    # 退商家质押（全额退还）
-    if task.pledge_merchant > 0:
-        m_uid = _get_merchant_user_id(task.merchant_id)
-        credit_store.add_credits(m_uid, task.pledge_merchant, "pledge_return_merchant",
-                                 task_id, f"Pledge returned for: {task.product_name}")
-
-    # 佣金由返佣链接（affiliate link）自动结算，平台积分不参与佣金发放
-
-    # 更新 KOC 统计 + 履约奖励（信任回升 + 等级校准）
-    koc = koc_store.get(koc_id)
-    if koc:
-        # 每次成功履约，信任分回升 3 点（上限 100）
-        new_trust = min(100, koc.trust_score + 3)
-        koc_store.update(koc_id, {
-            "completed_tasks": koc.completed_tasks + 1,
-            "total_collaborations": koc.total_collaborations + 1,
-            "trust_score": new_trust,
-        })
-        # 双向校准等级（完成多了可能升级）
-        sync_koc_tier(koc_id)
-
-    # 更新商家统计 + 信任恢复 + 等级校准
-    m = merchant_store.get(task.merchant_id)
-    if m:
-        new_m_trust = min(100, m.trust_score + 3)
-        merchant_store.update(task.merchant_id, {
-            "total_collaborations": m.total_collaborations + 1,
-            "total_tasks_completed": m.total_tasks_completed + 1,
-            "trust_score": new_m_trust,
-        })
-        sync_merchant_tier(task.merchant_id)
-
-    # 同步 task 整体状态
-    _sync_task_status(task_id)
-
-    # 任务下的内容链接追加到 task 级别
+    # 追加 content_urls 到 task 级别
     all_content_urls = list(task.content_urls)
     for url in content_urls:
         if url not in all_content_urls:
             all_content_urls.append(url)
     task_store.update(task_id, {"content_urls": all_content_urls})
 
+    # 同步 task 整体状态
+    _sync_task_status(task_id)
+
     return {
         "status": "submitted",
         "task_id": task_id,
         "slot_index": slot_index,
         "submitted_at": now,
-        "pledge_returned_koc": task.pledge_koc,
-        "pledge_returned_merchant": task.pledge_merchant,
-        "commission_paid": task.commission,
+        "message": "Content submitted, awaiting merchant review",
     }
+
+
+# ═══════════════════════════════════════════
+# 商家审核 KOC 提交内容（核心验证闭环）
+# ═══════════════════════════════════════════
+
+@router.put("/tasks/{task_id}/review/{slot_index}")
+def review_content(task_id: str, slot_index: int, data: dict, current_user: dict = Depends(get_current_user)):
+    """商家审核 KOC 提交的内容 → approve 通过（退押金+恢复信任）或 reject 驳回（KOC 可修改重交）。
+
+    审核决策：
+    - approve → slot approved → 退双方押金 + 恢复信任分 + 校准等级
+    - reject → slot revision_requested → KOC 修改后重新提交（最多 3 次，超限按违约）
+    """
+    if current_user.get("role") not in ("merchant", "admin"):
+        raise HTTPException(403, "Only merchant can review content")
+
+    task = task_store.get(task_id)
+    if not task:
+        raise HTTPException(404, "Task not found")
+
+    slot = task_store.get_slot(task_id, slot_index)
+    if not slot:
+        raise HTTPException(404, f"Slot {slot_index} not found")
+
+    if slot.get("status") != "submitted":
+        raise HTTPException(400, f"Slot status is '{slot.get('status')}', not 'submitted'")
+
+    # 验证是该 task 的商家
+    if current_user.get("role") == "merchant":
+        m = merchant_store.get_by_user_id(current_user["sub"])
+        if not m or m.id != task.merchant_id:
+            raise HTTPException(403, "Not your task")
+
+    action = data.get("action", "")  # "approve" | "reject"
+    feedback = data.get("feedback", "")  # 审核意见（reject 时必填）
+
+    if action not in ("approve", "reject"):
+        raise HTTPException(400, "action must be 'approve' or 'reject'")
+
+    if action == "reject" and not feedback:
+        raise HTTPException(400, "feedback is required when rejecting")
+
+    koc_id = slot.get("koc_id", "")
+    now = datetime.utcnow().isoformat()
+
+    if action == "approve":
+        # ── 审核通过 → 完成履约 ──
+        task_store.update_slot(task_id, slot_index, {
+            "status": "approved",
+            "reviewed_at": now,
+            "review_feedback": feedback or "Approved",
+        })
+
+        # 释放 KOC 质押（扣平台费）
+        koc_uid = _get_koc_user_id(koc_id) if koc_id else ""
+        if task.pledge_koc > 0 and slot.get("pledge_paid"):
+            koc_return = task.pledge_koc - KOC_PLATFORM_FEE
+            if koc_return > 0 and koc_uid:
+                credit_store.add_credits(koc_uid, koc_return, "pledge_return_koc",
+                                         task_id, f"Pledge returned (after platform fee): {task.product_name}")
+            credit_store.add_credits("platform", KOC_PLATFORM_FEE, "koc_platform_fee",
+                                     task_id, f"KOC platform fee from: {task.product_name}")
+
+        # 退还商家质押（全额）
+        if task.pledge_merchant > 0:
+            m_uid = _get_merchant_user_id(task.merchant_id)
+            credit_store.add_credits(m_uid, task.pledge_merchant, "pledge_return_merchant",
+                                     task_id, f"Pledge returned for: {task.product_name}")
+
+        # 恢复 KOC 信任分 + 统计
+        koc = koc_store.get(koc_id) if koc_id else None
+        if koc:
+            new_trust = min(100, koc.trust_score + 3)
+            koc_store.update(koc_id, {
+                "completed_tasks": koc.completed_tasks + 1,
+                "total_collaborations": koc.total_collaborations + 1,
+                "trust_score": new_trust,
+            })
+            sync_koc_tier(koc_id)
+
+        # 恢复商家信任分 + 统计
+        m = merchant_store.get(task.merchant_id)
+        if m:
+            new_m_trust = min(100, m.trust_score + 3)
+            merchant_store.update(task.merchant_id, {
+                "total_collaborations": m.total_collaborations + 1,
+                "total_tasks_completed": m.total_tasks_completed + 1,
+                "trust_score": new_m_trust,
+            })
+            sync_merchant_tier(task.merchant_id)
+
+        # 同步 task 整体状态
+        _sync_task_status(task_id)
+
+        return {
+            "status": "approved",
+            "task_id": task_id,
+            "slot_index": slot_index,
+            "reviewed_at": now,
+            "pledge_returned_koc": task.pledge_koc - KOC_PLATFORM_FEE if task.pledge_koc > 0 else 0,
+            "pledge_returned_merchant": task.pledge_merchant,
+        }
+
+    else:  # reject
+        # ── 驳回 → KOC 修改重交 ──
+        revision_count = slot.get("revision_count", 0) + 1
+
+        if revision_count >= MAX_REVISIONS:
+            # 超出修改次数 → 按 KOC 违约处理
+            task_store.update_slot(task_id, slot_index, {
+                "status": "timed_out",
+                "reviewed_at": now,
+                "review_feedback": feedback,
+                "revision_count": revision_count,
+            })
+
+            # 退商家质押
+            if task.pledge_merchant > 0:
+                m_uid = _get_merchant_user_id(task.merchant_id)
+                credit_store.add_credits(m_uid, task.pledge_merchant, "breach_compensation_merchant",
+                                         task_id, f"KOC max revisions exceeded: {task.product_name}")
+
+            # 扣 KOC 信任分
+            if koc_id:
+                koc = koc_store.get(koc_id)
+                if koc:
+                    koc_store.update(koc_id, {
+                        "trust_score": max(0, koc.trust_score - 15),
+                    })
+                    sync_koc_tier(koc_id)
+
+            _sync_task_disputed(task_id)
+
+            return {
+                "status": "timed_out",
+                "task_id": task_id,
+                "slot_index": slot_index,
+                "reason": f"Max revisions ({MAX_REVISIONS}) exceeded → KOC defaulted",
+                "revision_count": revision_count,
+            }
+
+        # 正常驳回 → KOC 可修改重交
+        task_store.update_slot(task_id, slot_index, {
+            "status": "revision_requested",
+            "reviewed_at": now,
+            "review_feedback": feedback,
+            "revision_count": revision_count,
+        })
+
+        return {
+            "status": "revision_requested",
+            "task_id": task_id,
+            "slot_index": slot_index,
+            "revision_count": revision_count,
+            "revisions_remaining": MAX_REVISIONS - revision_count,
+            "message": f"Revision requested. KOC has {MAX_REVISIONS - revision_count} attempt(s) remaining.",
+        }
 
 
 # ═══════════════════════════════════════════
@@ -732,7 +891,15 @@ def force_rematch(task_id: str, slot_index: int, current_user: dict = Depends(re
 # ═══════════════════════════════════════════
 
 def _sync_task_status(task_id: str):
-    """根据 slot 状态同步 task 整体状态"""
+    """根据 slot 状态同步 task 整体状态。
+
+    V2 状态优先级（从高到低）：
+    - 全部 approved/completed → completed
+    - 有 submitted/approved/revision_requested → creating（内容审核中）
+    - 有 received → creating
+    - 有 shipped → shipped
+    - 有 accepted → accepted
+    """
     task = task_store.get(task_id)
     if not task:
         return
@@ -743,8 +910,12 @@ def _sync_task_status(task_id: str):
 
     statuses = [s.get("status", "unknown") for s in slots]
 
-    if all(s == "submitted" for s in statuses):
+    # 全部 slot 已 approved 或 completed → 任务完成
+    if all(s in ("approved", "completed") for s in statuses):
         task_store.update(task_id, {"task_status": "completed"})
+    # 有内容在审核或创作中
+    elif any(s in ("submitted", "approved", "revision_requested") for s in statuses):
+        task_store.update(task_id, {"task_status": "creating"})
     elif any(s == "received" for s in statuses):
         task_store.update(task_id, {"task_status": "creating"})
     elif any(s == "shipped" for s in statuses):
@@ -768,3 +939,16 @@ def update_sample_status(task_id: str, data: dict, current_user: dict = Depends(
     elif sample_status == "received":
         task_store.update(task_id, {"task_status": "creating"})
     return task_store.get(task_id).model_dump()
+
+
+def _sync_task_disputed(task_id: str):
+    """如果所有 slot 已超时/完成/approved，标记任务为 disputed"""
+    task = task_store.get(task_id)
+    if not task:
+        return
+    slots = task.koc_slots
+    if not slots:
+        return
+    active = sum(1 for s in slots if s.get("status") not in ("completed", "approved", "timed_out", "rejected"))
+    if active == 0:
+        task_store.update(task_id, {"task_status": "disputed"})

@@ -333,4 +333,4 @@ VALID_PRODUCT_STATUSES = ["active", "paused", "archived"]
 # ── V2 任务状态机 ──
 TASK_TYPES = ["urgent", "long_term"]
 TASK_STATUSES = ["pending", "assigned", "accepted", "shipped", "creating", "completed", "disputed"]
-SLOT_STATUSES = ["pending", "assigned", "accepted", "shipped", "received", "creating", "submitted", "completed", "rejected", "timed_out"]
+SLOT_STATUSES = ["pending", "assigned", "accepted", "shipped", "received", "creating", "submitted", "approved", "revision_requested", "completed", "rejected", "timed_out"]

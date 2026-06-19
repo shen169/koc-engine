@@ -50,3 +50,7 @@ PLATFORM_PROFIT_RATE = 0.15       # 平台抽佣率（备用）
 # Cron
 GHOSTED_GRACE_DAYS = 14       # due_at 过期后宽限天数
 STALE_DAYS = 30               # 无活动标记 stale
+
+# SLA: 内容审核超时
+SLA_CONTENT_REVIEW_DAYS = 3   # 商家审核 KOC 提交内容超时 → 自动通过
+MAX_REVISIONS = 3             # KOC 最多修改重提交次数，超出按违约处理

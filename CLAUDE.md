@@ -68,14 +68,18 @@ KOC 落地页 → 申请(严格校验+AI评分) → Admin审核 → 通过(1000p
     ├─ 任务广场接单: 浏览→接受→扣质押(10pt)
     └─ 产品点意向: 自动填已有空槽 或 创建 long_term 任务
 
-双方质押扣点 → 商家发货(上传物流+扣质押10pt×N) → KOC收货 → 创作 → 提交链接
-    ↓ 自动完成
-退还质押: KOC退还(质押10-平台费5=5pt) + 商家全额退还
+双方质押扣点 → 商家发货(上传物流+承运商+凭证照片) → KOC收货(含开箱照) → 创作 → 提交内容链接
+    ↓ 进入待审核状态（不再自动完成！）
+商家审核 KOC 提交内容:
+    ├─ approve → 退双方质押 + 恢复信任分(+3) + 校准等级 ✅
+    ├─ reject → KOC 修改重交（最多3次，超限→违约）
+    └─ 3天未审 → cron 自动通过（保护 KOC 不被恶意拖延）
 佣金: 走返佣链接(affiliate link) 自动结算，不走平台点数
-双方互评 + 信任分恢复(+3) + 等级校准
+双方互评
 
 Cron 周度扫描(每小时执行):
 ├─ 超时检测: 接单12h→重推 | 发货48h→商家违约(退KOC质押+扣商家分) | 提交14d→KOC违约(退商家质押+扣KOC分)
+├─ 审核超时: submitted 3d未审→自动通过 | revision_requested 3d未重交→KOC违约
 ├─ 长线空位: 7天无人接→系统自动匹配填槽
 └─ 信任分联动: 完成/违约/举报→信任分变化→等级自动校准(L1⇄L2⇄L3 / M1⇄M2⇄M3)
 ```
@@ -182,6 +186,8 @@ koc-engine/
    | 商家发货 | 48h | 违约：退 KOC 质押 + 扣商家 20 信任分 |
    | KOC 确认收货 | 7d | 自动确认收货 |
    | KOC 提交内容 | 14d | 违约：退商家质押 + 扣 KOC 15 信任分 |
+	   | 商家审核内容 | 3d | 自动通过（退押金+恢复信任，保护 KOC） |
+	   | KOC 修改重交 | 3d | 超时按 KOC 违约处理 |
    | 长线空位无人接 | 7d | 系统介入自动匹配 |
 
 8. **AI 评分降级**：DeepSeek API 不可用时自动降级为 mock 分数（基于 handle hash + 粉丝数加成），不阻塞申请流程。
@@ -189,6 +195,15 @@ koc-engine/
 9. **存储模式**：每个 Store 用 `threading.Lock() + JSON 文件`，照搬 tvs-video-tool 的 `FileTaskStore` 模式。无数据库依赖。
 
 10. **Brand**：活力社交方向 — Pink→Purple 渐变、Inter 字体、胶囊按钮、火花符号 ✦、四角色分色背景。
+
+11. **内容审核闭环**（V2.1 新增）：KOC 提交内容后**不再自动完成**，必须经过商家审核：
+    - `submit` → slot 进入 `submitted` 状态（待审核），押金/信任暂不释放
+    - 商家 `review`（approve）→ slot `approved` → 退押金 + 信任分恢复 + 等级校准
+    - 商家 `review`（reject）→ slot `revision_requested` → KOC 修改重交（最多 3 次）
+    - 超出修改次数 → KOC 违约（退商家质押 + 扣 KOC 15 信任分）
+    - 商家 3 天未审 → cron 自动 approve（防止商家恶意拖延）
+    - 发货验证：商家发货需填 `carrier` + `shipping_proof_urls`（凭证照片/截图）
+    - 收货验证：KOC 收货可上传 `receipt_photo_urls`（开箱照）+ `receipt_notes`
 
 ## API 端点速查
 
@@ -267,9 +282,10 @@ koc-engine/
 | GET | `/api/tasks/{id}` | ✅ | 任务详情 (补全产品+商家信息) |
 | PUT | `/api/tasks/{id}/accept/{slot}` | ✅ | KOC 接受任务 → 扣质押 10pt |
 | PUT | `/api/tasks/{id}/reject/{slot}` | ✅ | KOC 拒绝 → 扣信任分3 + 自动重推 |
-| PUT | `/api/tasks/{id}/ship` | ✅ | 商家发货 (上传物流+扣质押) |
-| PUT | `/api/tasks/{id}/receive/{slot}` | ✅ | KOC 确认收货 |
-| PUT | `/api/tasks/{id}/submit/{slot}` | ✅ | KOC 提交内容 → 自动完成+退质押+信任恢复 |
+| PUT | `/api/tasks/{id}/ship` | ✅ | 商家发货 (物流+承运商+凭证+扣质押) |
+| PUT | `/api/tasks/{id}/receive/{slot}` | ✅ | KOC 确认收货 (含开箱照片+备注) |
+| PUT | `/api/tasks/{id}/submit/{slot}` | ✅ | KOC 提交内容 → 进入待审核（不自动完成） |
+| PUT | `/api/tasks/{id}/review/{slot}` | ✅ | 商家审核 KOC 内容 (approve→完成/reject→驳回) |
 | GET | `/api/tasks/{id}/report` | ✅ | 商家看任务数据报表 |
 | POST | `/api/tasks/{id}/force-rematch/{slot}` | 🔒 | Admin 强制重推 slot |
 | PUT | `/api/tasks/{id}/sample` | 🔒 | DEPRECATED: 旧版 sample_status 兼容 |

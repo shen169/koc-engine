@@ -122,13 +122,67 @@ if slots and slots[0].get("koc_id"):
     else:
         print("   No assigned slot found for test KOC")
 
-# ── 6. Merchant ships ──
-print("\n6. Merchant ships...")
+# ── 6. Merchant ships + shipping proof ──
+print("\n6. Merchant ships (with carrier + proof)...")
 r = requests.put(BASE + "/tasks/" + tid + "/ship", json={
     "tracking_number": "SF1234567890",
+    "carrier": "SF-Express",
+    "shipping_proof_urls": [
+        "https://img.example.com/ship-proof-1.jpg",
+        "https://img.example.com/ship-label.jpg",
+    ],
 }, headers=auth_headers(mt))
 ship = ok(r)
-print("   Ship: status={}, tracking={}".format(ship["status"], ship["tracking_number"]))
+print("   Ship: status={}, carrier={}, tracking={}".format(ship["status"], ship.get("carrier", ""), ship["tracking_number"]))
+
+# ── 6b. KOC receives product ──
+print("\n6b. KOC receives product...")
+if slot_idx is not None:
+    r = requests.put(BASE + "/tasks/" + tid + "/receive/" + str(slot_idx), json={
+        "receipt_photo_urls": ["https://img.example.com/receipt-1.jpg"],
+        "receipt_notes": "Package received in good condition",
+    }, headers=auth_headers(kt))
+    if r.status_code == 200:
+        print("   Received: status={}".format(ok(r)["status"]))
+    else:
+        print("   Receive error: {}".format(r.text[:200]))
+else:
+    print("   ⚠ No slot to receive (no assigned slot)")
+
+# ── 6c. KOC submits content (now awaits merchant review) ──
+print("\n6c. KOC submits content...")
+if slot_idx is not None:
+    r = requests.put(BASE + "/tasks/" + tid + "/submit/" + str(slot_idx), json={
+        "content_urls": [
+            "https://www.tiktok.com/@creator4/video/1234567890",
+            "https://www.instagram.com/p/abc123def456",
+        ],
+    }, headers=auth_headers(kt))
+    if r.status_code == 200:
+        submit = ok(r)
+        print("   Submit: status={}, message={}".format(submit["status"], submit.get("message", "")))
+    else:
+        print("   Submit error: {}".format(r.text[:200]))
+else:
+    print("   ⚠ No slot to submit")
+
+# ── 6d. Merchant reviews content (the verification loop!) ──
+print("\n6d. Merchant reviews KOC content...")
+if slot_idx is not None:
+    r = requests.put(BASE + "/tasks/" + tid + "/review/" + str(slot_idx), json={
+        "action": "approve",
+        "feedback": "Great video quality! Love the product demonstration.",
+    }, headers=auth_headers(mt))
+    if r.status_code == 200:
+        review = ok(r)
+        print("   Review: status={}, koc_pledge_returned={}, merchant_pledge_returned={}".format(
+            review["status"],
+            review.get("pledge_returned_koc", 0),
+            review.get("pledge_returned_merchant", 0)))
+    else:
+        print("   Review error: {}".format(r.text[:200]))
+else:
+    print("   ⚠ No slot to review")
 
 # ── 7. Task report ──
 print("\n7. Task report...")
@@ -147,9 +201,10 @@ print("   Score: {}/100, level: {}".format(t["trust_score"], t["level"]))
 print("\n9. Cron weekly scan...")
 from services.cron import run_weekly_scan, check_ghosted_status
 result = run_weekly_scan()
-print("   rematched={}, m_defaulted={}, auto_recv={}, koc_defaulted={}".format(
+print("   rematched={}, m_defaulted={}, auto_recv={}, auto_review={}, koc_defaulted={}".format(
     result.get("slot_rematched", 0), result.get("merchant_defaulted", 0),
-    result.get("auto_received", 0), result.get("koc_defaulted", 0)))
+    result.get("auto_received", 0), result.get("auto_review_approved", 0),
+    result.get("koc_defaulted", 0)))
 alerts = check_ghosted_status()
 print("   Alerts: {}".format(len(alerts)))
 
@@ -329,11 +384,14 @@ print("""
   Flow Tested:
   ✅ Merchant register → profile → product
   ✅ KOC register → apply → AI score → admin approve
-  ✅ Task create → auto-match (score=78.72) → KOC assigned
+  ✅ Task create → auto-match → KOC assigned
   ✅ KOC accept slot (pledge deducted)
-  ✅ Merchant ship (tracking number)
+  ✅ Merchant ship (carrier + proof URLs)
+  ✅ KOC receive (receipt photo + notes)
+  ✅ KOC submit content (awaiting review — no auto-complete)
+  ✅ Merchant review & approve (pledges returned + trust restored)
   ✅ Task report (merchant view)
   ✅ Merchant trust score
-  ✅ Cron scan
+  ✅ Cron scan (incl. auto-review approved)
   """)
 print("=" * 60)
