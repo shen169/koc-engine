@@ -205,6 +205,9 @@ print("   rematched={}, m_defaulted={}, auto_recv={}, auto_review={}, koc_defaul
     result.get("slot_rematched", 0), result.get("merchant_defaulted", 0),
     result.get("auto_received", 0), result.get("auto_review_approved", 0),
     result.get("koc_defaulted", 0)))
+print("   Tracking: checked={}, auto_received={}, in_transit={}, exceptions={}".format(
+    result.get("tracking_checked", 0), result.get("auto_received_from_tracking", 0),
+    result.get("tracking_in_transit", 0), result.get("tracking_exceptions", 0)))
 alerts = check_ghosted_status()
 print("   Alerts: {}".format(len(alerts)))
 
@@ -375,6 +378,47 @@ print("      ✅ KOC recommendations work")
 
 print("\n✅ All auto-matching tests passed!")
 
+# ── 11. Tracking Service ──
+print("\n11. Tracking Service...")
+from services.tracking import check_tracking_sync, _build_display_url, _normalize_carrier, _parse_status
+
+# 11a. Normalize carrier names
+print("   11a. Carrier normalization...")
+assert _normalize_carrier("sf") == "sf-express"
+assert _normalize_carrier("SF-Express") == "sf-express"
+assert _normalize_carrier("FedEx") == "fedex"
+assert _normalize_carrier("DHL") == "dhl"
+assert _normalize_carrier("顺丰") == "sf-express"
+print("      ✅ All carrier names normalized correctly")
+
+# 11b. Parse tracking statuses
+print("   11b. Status parsing...")
+assert _parse_status("Delivered - Signed by recipient") == "delivered"
+assert _parse_status("已签收 - 本人签收") == "delivered"
+assert _parse_status("Out for delivery today") == "in_transit"
+assert _parse_status("In transit to destination") == "in_transit"
+assert _parse_status("配送中") == "in_transit"
+assert _parse_status("Shipment exception - address issue") == "exception"
+assert _parse_status("Some random text") == "unknown"
+print("      ✅ All statuses parsed correctly")
+
+# 11c. Display URLs
+print("   11c. Tracking display URLs...")
+assert "SF1234567890" in _build_display_url("SF1234567890", "sf-express")
+assert "TRK123" in _build_display_url("TRK123", "fedex")
+print("      ✅ Display URLs generated")
+
+# 11d. Real tracking check (may not resolve but returns valid structure)
+print("   11d. Real tracking check...")
+result = check_tracking_sync("SF1234567890", "sf-express")
+print(f"      SF-Express SF1234567890: status={result['status']}, url={result.get('display_url', '')[:60]}")
+assert "status" in result
+assert "display_url" in result
+assert "tracking_number" in result
+print("      ✅ Tracking check returns valid structure")
+
+print("\n✅ All tracking tests passed!")
+
 print("\n" + "=" * 60)
 print("ALL V2 E2E TESTS PASSED")
 print("=" * 60)
@@ -392,6 +436,7 @@ print("""
   ✅ Merchant review & approve (pledges returned + trust restored)
   ✅ Task report (merchant view)
   ✅ Merchant trust score
-  ✅ Cron scan (incl. auto-review approved)
+  ✅ Cron scan (incl. auto-review + tracking)
+  ✅ Logistics tracking (carrier normalization + status parsing + API)
   """)
 print("=" * 60)

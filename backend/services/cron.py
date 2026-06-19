@@ -1,4 +1,4 @@
-"""Cron 周期扫描 V2 — 超时检测 + 自动处理 + 诚信度"""
+"""Cron 周期扫描 V2 — 超时检测 + 自动处理 + 诚信度 + 物流追踪"""
 
 from datetime import datetime, timedelta, timezone
 from config import GHOSTED_GRACE_DAYS, STALE_DAYS, SLA_CONTENT_REVIEW_DAYS, MAX_REVISIONS, KOC_PLATFORM_FEE
@@ -38,6 +38,10 @@ def run_weekly_scan() -> dict:
         "stale": 0,
         "trust_updated": 0,
         "trust_threshold_alerts": [],
+        "tracking_checked": 0,
+        "auto_received_from_tracking": 0,
+        "tracking_exceptions": 0,
+        "tracking_in_transit": 0,
     }
 
     # ── V2: 超时检测（每 slot 粒度） ──
@@ -166,6 +170,17 @@ def run_weekly_scan() -> dict:
     for koc in all_kocs:
         koc_store.update(koc.id, {"last_scanned_at": now.isoformat()})
     result["trust_updated"] = len(all_kocs)
+
+    # ── 物流追踪：自动查询所有 shipped slot 的物流状态 ──
+    try:
+        from services.tracking import run_daily_tracking_check_sync
+        tracking_result = run_daily_tracking_check_sync()
+        result["tracking_checked"] = tracking_result.get("total_checked", 0)
+        result["auto_received_from_tracking"] = tracking_result.get("auto_received", 0)
+        result["tracking_exceptions"] = tracking_result.get("exceptions", 0)
+        result["tracking_in_transit"] = tracking_result.get("in_transit", 0)
+    except Exception as e:
+        result["tracking_error"] = str(e)[:200]
 
     return result
 

@@ -68,7 +68,7 @@ KOC 落地页 → 申请(严格校验+AI评分) → Admin审核 → 通过(1000p
     ├─ 任务广场接单: 浏览→接受→扣质押(10pt)
     └─ 产品点意向: 自动填已有空槽 或 创建 long_term 任务
 
-双方质押扣点 → 商家发货(上传物流+承运商+凭证照片) → KOC收货(含开箱照) → 创作 → 提交内容链接
+双方质押扣点 → 商家发货(上传物流+承运商+凭证照片) → 物流追踪(自动查询送达→自动收货) → KOC收货(含开箱照) → 创作 → 提交内容链接
     ↓ 进入待审核状态（不再自动完成！）
 商家审核 KOC 提交内容:
     ├─ approve → 退双方质押 + 恢复信任分(+3) + 校准等级 ✅
@@ -77,9 +77,10 @@ KOC 落地页 → 申请(严格校验+AI评分) → Admin审核 → 通过(1000p
 佣金: 走返佣链接(affiliate link) 自动结算，不走平台点数
 双方互评
 
-Cron 周度扫描(每小时执行):
+Cron 周度扫描(每小时执行；物流追踪每24h):
 ├─ 超时检测: 接单12h→重推 | 发货48h→商家违约(退KOC质押+扣商家分) | 提交14d→KOC违约(退商家质押+扣KOC分)
 ├─ 审核超时: submitted 3d未审→自动通过 | revision_requested 3d未重交→KOC违约
+├─ 物流追踪: 每日查询所有 shipped slot → 送达自动收货
 ├─ 长线空位: 7天无人接→系统自动匹配填槽
 └─ 信任分联动: 完成/违约/举报→信任分变化→等级自动校准(L1⇄L2⇄L3 / M1⇄M2⇄M3)
 ```
@@ -120,6 +121,7 @@ koc-engine/
 │   │   ├── scorer.py          # DeepSeek v4 三维评分 (mock 降级)
 │   │   ├── matcher.py         # 匹配引擎: 规则引擎 (7维加权) + AI 精排
 │   │   ├── cron.py            # 周度扫描: 超时检测 + 自动处理 + 信任分联动 + 等级校准
+│   │   ├── tracking.py        # 物流追踪: 多承运商自动查询 + 送达自动收货
 │   │   ├── email_service.py   # 邮件模板 (占位)
 │   │   └── tvs_client.py      # TVS 集成占位 (P2)
 │   └── requirements.txt
@@ -204,6 +206,7 @@ koc-engine/
     - 商家 3 天未审 → cron 自动 approve（防止商家恶意拖延）
     - 发货验证：商家发货需填 `carrier` + `shipping_proof_urls`（凭证照片/截图）
     - 收货验证：KOC 收货可上传 `receipt_photo_urls`（开箱照）+ `receipt_notes`
+    - 物流追踪自动化：cron 每日查询所有 shipped slot 的物流状态 → 承运商确认送达 → 自动标记 received。支持 FedEx/DHL/USPS/UPS/SF-Express 等主流承运商，API 查询 + 网页解析双路径兜底，结果缓存避免频繁请求
 
 ## API 端点速查
 
