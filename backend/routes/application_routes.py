@@ -1,5 +1,6 @@
 """KOC 申请路由"""
 
+from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException
 from models import Application, KocProfile
 from stores.application_store import application_store
@@ -9,22 +10,73 @@ from stores.credit_store import credit_store
 from stores.referral_store import referral_store
 from auth import get_current_user, require_admin
 from services.scorer import score_application
-from config import DEFAULT_INITIAL_CREDITS, DEFAULT_REFERRAL_REWARD_CREDITS
+from config import DEFAULT_KOC_INITIAL_CREDITS, DEFAULT_REFERRAL_REWARD_CREDITS
 
 router = APIRouter(tags=["applications"])
+
+# 平台 → 允许的 profile URL 域名
+PLATFORM_DOMAINS = {
+    "tiktok": ["tiktok.com", "douyin.com"],
+    "instagram": ["instagram.com"],
+    "xiaohongshu": ["xiaohongshu.com", "xhslink.com"],
+    "youtube": ["youtube.com", "youtu.be"],
+}
 
 
 @router.post("/applications")
 def submit_application(data: dict):
-    """KOC 提交申请 → 自动 AI 评分"""
-    # 提取申请数据
-    handle = data.get("handle", "")
-    platform = data.get("platform", "tiktok")
+    """KOC 提交申请 → 校验 → AI 评分"""
+    # ═══ 必填字段校验 ═══
+    required_fields = {
+        "handle": "handle is required",
+        "platform": "platform is required",
+        "name": "name is required",
+        "email": "email is required",
+        "region": "region is required",
+        "profile_url": "profile_url is required",
+    }
+    for field, msg in required_fields.items():
+        if not data.get(field, "").strip():
+            raise HTTPException(400, msg)
+
+    # ═══ profile_url 格式校验 ═══
+    profile_url = data["profile_url"].strip()
+    parsed = urlparse(profile_url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise HTTPException(400, "profile_url must be a valid HTTP/HTTPS URL")
+
+    # ═══ 平台域名匹配 ═══
+    platform = data.get("platform", "").lower()
+    expected_domains = PLATFORM_DOMAINS.get(platform, [])
+    if expected_domains and not any(d in parsed.netloc for d in expected_domains):
+        raise HTTPException(400,
+            f"profile_url domain doesn't match platform '{platform}'. "
+            f"Expected one of: {', '.join(expected_domains)}")
+
+    # ═══ niche_tags: 至少 1 个 ═══
+    niche_tags = data.get("niche_tags", [])
+    if not niche_tags or len(niche_tags) == 0:
+        raise HTTPException(400, "At least one niche tag is required")
+
+    # ═══ past_video_urls: 至少 2 个 ═══
     video_links = data.get("past_video_urls", [])
-    niche = "general"
+    if not video_links or len(video_links) < 2:
+        raise HTTPException(400, "At least 2 past video/content URLs are required")
+
+    # ═══ follower_count: 非负整数 ═══
+    try:
+        follower_count = int(data.get("follower_count", 0))
+    except (ValueError, TypeError):
+        raise HTTPException(400, "follower_count must be an integer")
+    if follower_count < 0:
+        raise HTTPException(400, "follower_count must be >= 0")
+
+    # 提取申请数据
+    handle = data["handle"].strip()
+    niche = ", ".join(niche_tags) if niche_tags else "general"
 
     # AI 评分
-    scoring = score_application(handle, platform, video_links, niche)
+    scoring = score_application(handle, platform, video_links, niche, profile_url, follower_count)
 
     # 创建申请
     app = Application(
@@ -42,10 +94,11 @@ def submit_application(data: dict):
         platform=platform,
         handle=handle,
         display_name=data.get("name", ""),
-        follower_count=data.get("follower_count", 0),
+        profile_url=profile_url,
+        follower_count=follower_count,
         region=data.get("region", ""),
         email=data.get("email", ""),
-        niche_tags=data.get("niche_tags", []),
+        niche_tags=niche_tags,
         score_authenticity=scoring["authenticity"],
         score_niche=scoring["niche"],
         score_engagement=scoring["engagement"],
@@ -113,7 +166,7 @@ def decide_application(app_id: str, data: dict, current_user: dict = Depends(req
         if email:
             existing_user = user_store.get_by_email(email)
             if existing_user:
-                credit_store.set_initial_balance(existing_user.id, DEFAULT_INITIAL_CREDITS)
+                credit_store.set_initial_balance(existing_user.id, DEFAULT_KOC_INITIAL_CREDITS)
 
         # 裂变奖励：被推荐人审核通过 → 给推荐人奖励
         if app.referral_code:

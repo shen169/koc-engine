@@ -89,16 +89,40 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
     )
     task_store.create(task)
 
-    # 自动运行匹配引擎（所有任务类型）
+    # 自动匹配引擎：加急任务预填 slot，长线任务留空由 KOC 广场自主接单
     matched = []
-    results = match_kocs_for_task(task, count=koc_required, buffer=3)
-    if results:
+    if task_type == "urgent":
+        results = match_kocs_for_task(task, count=koc_required, buffer=3)
+        if results:
+            slots = []
+            for r in results:
+                slots.append({
+                    "koc_id": r["koc_id"],
+                    "status": "assigned",
+                    "assigned_at": datetime.utcnow().isoformat(),
+                    "accepted_at": "",
+                    "shipped_at": "",
+                    "received_at": "",
+                    "submitted_at": "",
+                    "tracking_number": "",
+                    "content_urls": [],
+                    "content_data": {},
+                    "pledge_paid": False,
+                    "commission_paid": False,
+                    "reject_count": 0,
+                    "match_score": r["score"],
+                })
+            task_store.update(task.id, {"koc_slots": slots, "task_status": "assigned"})
+            matched = [{"koc_id": s["koc_id"], "slot_index": i, "match_score": s["match_score"]}
+                        for i, s in enumerate(slots)]
+    else:
+        # 长线任务：创建空 slot，KOC 在任务广场自主浏览接单
         slots = []
-        for r in results:
+        for _ in range(koc_required):
             slots.append({
-                "koc_id": r["koc_id"],
+                "koc_id": "",
                 "status": "assigned",
-                "assigned_at": datetime.utcnow().isoformat(),
+                "assigned_at": "",
                 "accepted_at": "",
                 "shipped_at": "",
                 "received_at": "",
@@ -109,11 +133,9 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
                 "pledge_paid": False,
                 "commission_paid": False,
                 "reject_count": 0,
-                "match_score": r["score"],
+                "match_score": 0,
             })
-        task_store.update(task.id, {"koc_slots": slots, "task_status": "assigned"})
-        matched = [{"koc_id": s["koc_id"], "slot_index": i, "match_score": s["match_score"]}
-                    for i, s in enumerate(slots)]
+        task_store.update(task.id, {"koc_slots": slots})
 
     result = task_store.get(task.id).model_dump()
     result["matched_kocs"] = matched
@@ -130,6 +152,7 @@ def list_task_hall(
     task_type: str = Query(""),
     commission_min: int = Query(0),
     sort_by: str = Query("default"),
+    region: str = Query(""),
     current_user: dict = Depends(get_current_user),
 ):
     """KOC 看到的任务广场"""
@@ -149,6 +172,7 @@ def list_task_hall(
         task_type=task_type,
         commission_min=commission_min,
         sort_by=sort_by,
+        region=region,
     )
 
     # 补全商家诚信度 + 返佣链接
@@ -187,11 +211,44 @@ def list_my_tasks(current_user: dict = Depends(get_current_user)):
         for t in all_tasks:
             for i, slot in enumerate(t.koc_slots):
                 if slot.get("koc_id") == koc_id:
+                    task_dict = t.model_dump()
+                    # ── 补全产品信息 ──
+                    if t.product_id:
+                        product = product_store.get(t.product_id)
+                        if product:
+                            task_dict["product_category"] = product.category
+                            task_dict["product_target_market"] = product.target_market
+                            task_dict["product_commission_type"] = product.commission_type
+                            task_dict["product_commission_value"] = product.commission_value
+                            task_dict["product_commission_link"] = product.commission_link
+                            task_dict["product_asin"] = product.asin
+                            task_dict["product_url"] = f"https://amazon.com/dp/{product.asin}" if product.asin else ""
+                            task_dict["product_description"] = (product.description or "")[:200]
+                    # ── 补全商家信息 ──
+                    if t.merchant_id:
+                        merchant = merchant_store.get(t.merchant_id)
+                        if merchant:
+                            task_dict["merchant_company"] = merchant.company_name or "Brand"
+                            task_dict["merchant_trust_score"] = merchant.trust_score
+                            task_dict["merchant_tier"] = merchant.tier
+                            task_dict["merchant_avg_rating"] = merchant.avg_rating
                     result.append({
-                        "task": t.model_dump(),
+                        "task": task_dict,
                         "my_slot_index": i,
                         "my_slot": slot,
                     })
+
+        # 排序：进行中优先 → 加急优先 → 佣金高 → 商家等级高
+        def _sort_key(item):
+            slot = item["my_slot"]
+            task = item["task"]
+            is_active = 0 if slot.get("status") in ("completed", "submitted", "rejected", "timed_out") else 1
+            is_urgent = 1 if task.get("task_type") == "urgent" else 0
+            commission = task.get("commission", 0)
+            merchant_tier_score = {"M3": 3, "M2": 2, "M1": 1}.get(task.get("merchant_tier", "M1"), 0)
+            return (is_active, is_urgent, commission, merchant_tier_score)
+
+        result.sort(key=_sort_key, reverse=True)
         return result
 
     elif role == "merchant":
@@ -218,13 +275,25 @@ def get_task(task_id: str, current_user: dict = Depends(get_current_user)):
     if not task:
         raise HTTPException(404, "Task not found")
     result = task.model_dump()
-    # 补全产品的返佣链接
+    # 补全产品信息
     if task.product_id:
         product = product_store.get(task.product_id)
         if product:
+            result["product_category"] = product.category
+            result["product_target_market"] = product.target_market
+            result["product_description"] = product.description
+            result["product_asin"] = product.asin
             result["commission_link"] = product.commission_link
             result["commission_type"] = product.commission_type
             result["commission_value"] = product.commission_value
+    # 补全商家信息
+    if task.merchant_id:
+        merchant = merchant_store.get(task.merchant_id)
+        if merchant:
+            result["merchant_company"] = merchant.company_name or "Brand"
+            result["merchant_trust_score"] = merchant.trust_score
+            result["merchant_tier"] = merchant.tier
+            result["merchant_avg_rating"] = merchant.avg_rating
     return result
 
 

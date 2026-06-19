@@ -53,6 +53,18 @@ class InterestStore:
             self._save(data)
             return Interest(**data[interest_id])
 
+    def get_by_ids(self, from_id: str, to_id: str, from_role: str) -> Interest | None:
+        """查找是否已存在 from→to 的意向"""
+        with self._lock:
+            data = self._load()
+        for i in data.values():
+            if (i.get("from_id") == from_id and
+                    i.get("to_id") == to_id and
+                    i.get("from_role") == from_role and
+                    i.get("status") == "expressed"):
+                return Interest(**i)
+        return None
+
     def list_by_from(self, from_id: str, from_role: str = None) -> list[Interest]:
         with self._lock:
             data = self._load()

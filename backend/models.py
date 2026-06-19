@@ -87,6 +87,7 @@ class Merchant(BaseModel):
     tier: str = "M1"                 # M1｜M2｜M3（商家诚信等级）
     total_tasks_completed: int = 0   # 累计完成（恢复诚信度用）
     total_tasks_disputed: int = 0    # 累计争议数
+    target_markets: List[str] = Field(default_factory=list)  # 商家经营的目标市场
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
 
@@ -105,6 +106,7 @@ class Product(BaseModel):
     commission_value: str = ""  # 如 "15% off"
     commission_link: str = ""  # 返佣链接（Amazon联盟/独立站分佣链接），KOC 拿这个去推广
     description: str = ""
+    target_market: str = ""  # 目标市场（US/UK/CA/AU/EU/JP/KR/SEA/CN），与 KOC.region 匹配
     status: str = "active"  # active | paused | archived
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
@@ -291,6 +293,24 @@ class ScoringResult(BaseModel):
     total: int
     tier: str
     reason: str
+
+
+# ═══════════════════════════════════════════
+# 举报
+# ═══════════════════════════════════════════
+
+class Report(BaseModel):
+    id: str = Field(default_factory=_uid)
+    reported_entity_type: str  # "merchant" | "koc"
+    reported_entity_id: str
+    reporter_user_id: str
+    reporter_role: str  # "koc" | "merchant"
+    task_id: str = ""
+    reason: str = ""
+    status: str = "pending"  # pending | approved | rejected
+    reviewed_by: str = ""
+    reviewed_at: str = ""
+    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
 
 # ═══════════════════════════════════════════

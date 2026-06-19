@@ -58,6 +58,11 @@ export default function RegisterPage() {
             className="w-full rounded-xl border-2 border-zinc-200 px-4 py-2.5 text-base focus:border-pink-400 focus:ring-4 focus:ring-pink-500/10 outline-none transition" />
           <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password"
             className="w-full rounded-xl border-2 border-zinc-200 px-4 py-2.5 text-base focus:border-pink-400 focus:ring-4 focus:ring-pink-500/10 outline-none transition" />
+          {role === "koc" && (
+            <p className="text-xs text-zinc-400 text-center -mb-2">
+              After registering, you&apos;ll fill out your creator profile for AI review
+            </p>
+          )}
           {error && <p className="text-rose-500 text-sm">{error}</p>}
           <button type="submit" disabled={loading} className="btn-brand w-full py-3 text-base">
             {loading ? "Creating..." : "Create Account"}

@@ -114,11 +114,15 @@ class TaskStore:
                     })
         return active
 
+    def count_active_for_koc(self, koc_id: str) -> int:
+        """KOC 当前进行中任务数（上限 5）"""
+        return len(self.get_koc_active_tasks(koc_id))
+
     # ── V2 新增：任务广场 ──
 
     def list_for_hall(self, koc_id: str = None, category: str = "",
                       task_type: str = "", commission_min: int = 0,
-                      sort_by: str = "default") -> list[dict]:
+                      sort_by: str = "default", region: str = "") -> list[dict]:
         """KOC 视角的任务广场 — 过滤 + 排序"""
         with self._lock:
             data = self._load()
@@ -166,6 +170,26 @@ class TaskStore:
             if filled >= task.koc_required:
                 continue  # 已满
 
+            # Resolve product target_market for region display/filtering
+            product_target_market = ""
+            if task.product_id:
+                from stores.product_store import product_store
+                prod = product_store.get(task.product_id)
+                if prod:
+                    product_target_market = prod.target_market
+
+            # Soft region filter: if region provided, skip tasks with non-matching target_market
+            if region and product_target_market and region.lower() != product_target_market.lower():
+                continue
+
+            # Resolve merchant tier for sorting
+            merchant_tier = "M1"
+            if task.merchant_id:
+                from stores.merchant_store import merchant_store
+                m = merchant_store.get(task.merchant_id)
+                if m:
+                    merchant_tier = m.tier
+
             tasks.append({
                 "task_id": task.id,
                 "product_id": task.product_id,
@@ -178,6 +202,8 @@ class TaskStore:
                 "koc_filled": filled,
                 "pledge_koc": task.pledge_koc,
                 "merchant_id": task.merchant_id,
+                "merchant_tier": merchant_tier,
+                "target_market": product_target_market,
                 "created_at": task.created_at,
             })
 
@@ -187,18 +213,36 @@ class TaskStore:
         elif sort_by == "commission":
             tasks.sort(key=lambda t: t["commission"], reverse=True)
         elif sort_by == "urgency":
-            tasks.sort(key=lambda t: (0 if t["task_type"] == "urgent" else 1, -t["commission"]))
+            tasks.sort(key=lambda t: (
+                0 if t["task_type"] == "urgent" else 1,
+                -t["commission"],
+                -{"M3": 3, "M2": 2, "M1": 1}.get(t.get("merchant_tier", "M1"), 0),
+            ))
         else:
-            # default: 发布时间 ×0.30 + 紧急度 ×0.25 + 佣金 ×0.20 + 剩余名额 ×0.25
+            # default: 加急 0.30 + 新发布 0.25 + 佣金 0.20 + 商家等级 0.15 + 剩余名额 0.10
             max_commission = max((t["commission"] for t in tasks), default=1)
             now_ts = __import__("time").time()
 
             def _default_score(t):
-                recency = 1.0  # simplified
+                # recency: 24h 内 = 100，线性衰减到 7 天 = 0
+                created_str = t.get("created_at", "")
+                created_ts = 0
+                if created_str:
+                    try:
+                        dt = __import__("datetime").datetime.fromisoformat(created_str)
+                        created_ts = dt.timestamp()
+                    except (ValueError, AttributeError, OSError):
+                        pass
+                age_hours = (now_ts - created_ts) / 3600 if created_ts else 168
+                recency = max(0, 100 * (1 - age_hours / 168))
+
                 urgency = 100.0 if t["task_type"] == "urgent" else 0.0
                 commission_norm = t["commission"] / max_commission * 100 if max_commission > 0 else 0
+                merchant_tier = t.get("merchant_tier", "M1")
+                merchant_tier_score = {"M3": 100, "M2": 50}.get(merchant_tier, 0)
                 slots_remaining = 1 - (t["koc_filled"] / t["koc_required"]) if t["koc_required"] > 0 else 1
-                return (recency * 0.30 + urgency * 0.25 + commission_norm * 0.20 + slots_remaining * 100 * 0.25)
+                return (urgency * 0.30 + recency * 0.25 + commission_norm * 0.20
+                        + merchant_tier_score * 0.15 + slots_remaining * 100 * 0.10)
 
             tasks.sort(key=_default_score, reverse=True)
 

@@ -10,23 +10,91 @@ function ApplyForm() {
   const refCode = searchParams.get("ref") || "";
   const router = useRouter();
 
-  const [form, setForm] = useState({ name: "", platform: "tiktok", handle: "", follower_count: "", region: "US", email: "", shipping_address: "", why_join: "" });
+  const [form, setForm] = useState({
+    name: "",
+    platform: "tiktok",
+    handle: "",
+    profile_url: "",
+    follower_count: "",
+    region: "US",
+    email: "",
+    shipping_address: "",
+    why_join: "",
+    niche_tags: [] as string[],
+    past_video_urls: "",
+  });
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [scoreStep, setScoreStep] = useState(0); // 0=submitting, 1=auth, 2=niche, 3=engagement, 4=total
 
   function update(f: string, v: string) { setForm((p) => ({ ...p, [f]: v })); }
+  function toggleTag(tag: string) {
+    setForm((p) => ({
+      ...p,
+      niche_tags: p.niche_tags.includes(tag)
+        ? p.niche_tags.filter((t) => t !== tag)
+        : [...p.niche_tags, tag],
+    }));
+  }
+
+  function validate(): boolean {
+    const errs: Record<string, string> = {};
+
+    if (!form.name.trim()) errs.name = "Name is required";
+    if (!form.handle.trim()) errs.handle = "Handle is required";
+    if (!form.profile_url.trim()) errs.profile_url = "Profile URL is required";
+    if (!form.email.trim()) errs.email = "Email is required";
+    if (!form.region.trim()) errs.region = "Region is required";
+
+    const fc = parseInt(form.follower_count);
+    if (!form.follower_count.trim() || isNaN(fc) || fc < 0) {
+      errs.follower_count = "Valid follower count is required";
+    }
+
+    if (form.niche_tags.length === 0) {
+      errs.niche_tags = "Please select at least one niche tag";
+    }
+
+    const pastUrls = form.past_video_urls
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (pastUrls.length < 2) {
+      errs.past_video_urls = "Please provide at least 2 content links";
+    }
+
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault(); setError(""); setLoading(true); setScoreStep(0);
+    e.preventDefault(); setError(""); setFieldErrors({});
+
+    if (!validate()) return;
+
+    setLoading(true); setScoreStep(0);
 
     // Simulate staged reveal while waiting for API
     const delays = [400, 700, 1000, 1300];
     delays.forEach((d, i) => setTimeout(() => setScoreStep(i + 1), d));
 
     try {
-      const data = { ...form, follower_count: parseInt(form.follower_count) || 0, past_video_urls: [] as string[], campaign: "baby_products", referral_code: refCode };
+      const pastUrls = form.past_video_urls
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const data = {
+        ...form,
+        follower_count: parseInt(form.follower_count) || 0,
+        niche_tags: form.niche_tags,
+        profile_url: form.profile_url.trim(),
+        past_video_urls: pastUrls,
+        campaign: "baby_products",
+        referral_code: refCode,
+      };
       const res = await applications.submit(data);
       setTimeout(() => { setResult(res); setLoading(false); }, 1500);
     } catch (err: unknown) {
@@ -75,6 +143,11 @@ function ApplyForm() {
     );
   }
 
+  const inputClass = (field: string) =>
+    `w-full rounded-xl border-2 px-4 py-2.5 text-base focus:border-pink-400 focus:ring-4 focus:ring-pink-500/10 outline-none transition ${
+      fieldErrors[field] ? "border-red-300 bg-red-50" : "border-zinc-200"
+    }`;
+
   // ── Form ──
   return (
     <div className="min-h-screen py-12 px-4" style={{ background: "linear-gradient(135deg, #FFF7ED, #FDF2F8, #F5F3FF)" }}>
@@ -84,30 +157,113 @@ function ApplyForm() {
         {refCode && <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4 text-sm text-emerald-800">🎉 Referred by a friend!</div>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input required value={form.name} onChange={(e) => update("name", e.target.value)} placeholder="Your name"
-            className="w-full rounded-xl border-2 border-zinc-200 px-4 py-2.5 text-base focus:border-pink-400 focus:ring-4 focus:ring-pink-500/10 outline-none transition" />
-          <div className="grid grid-cols-2 gap-3">
-            <select value={form.platform} onChange={(e) => update("platform", e.target.value)}
-              className="rounded-xl border-2 border-zinc-200 px-4 py-2.5 text-base focus:border-pink-400 focus:ring-4 focus:ring-pink-500/10 outline-none">
-              <option value="tiktok">TikTok</option><option value="instagram">Instagram</option><option value="xiaohongshu">Xiaohongshu</option>
-            </select>
-            <input required value={form.handle} onChange={(e) => update("handle", e.target.value)} placeholder="@username"
-              className="rounded-xl border-2 border-zinc-200 px-4 py-2.5 text-base focus:border-pink-400 focus:ring-4 focus:ring-pink-500/10 outline-none" />
+          {/* Name */}
+          <div>
+            <input required value={form.name} onChange={(e) => update("name", e.target.value)} placeholder="Your name *"
+              className={inputClass("name")} />
+            {fieldErrors.name && <p className="text-red-500 text-xs mt-1">{fieldErrors.name}</p>}
           </div>
+
+          {/* Platform + Handle */}
           <div className="grid grid-cols-2 gap-3">
-            <input type="number" value={form.follower_count} onChange={(e) => update("follower_count", e.target.value)} placeholder="Followers"
-              className="rounded-xl border-2 border-zinc-200 px-4 py-2.5 text-base focus:border-pink-400 focus:ring-4 focus:ring-pink-500/10 outline-none" />
-            <select value={form.region} onChange={(e) => update("region", e.target.value)}
-              className="rounded-xl border-2 border-zinc-200 px-4 py-2.5 text-base focus:border-pink-400 focus:ring-4 focus:ring-pink-500/10 outline-none">
-              <option value="US">US</option><option value="UK">UK</option><option value="CA">Canada</option><option value="AU">Australia</option>
-            </select>
+            <div>
+              <select value={form.platform} onChange={(e) => update("platform", e.target.value)}
+                className={inputClass("platform")}>
+                <option value="tiktok">TikTok</option><option value="instagram">Instagram</option><option value="xiaohongshu">Xiaohongshu</option>
+              </select>
+            </div>
+            <div>
+              <input required value={form.handle} onChange={(e) => update("handle", e.target.value)} placeholder="@username *"
+                className={inputClass("handle")} />
+              {fieldErrors.handle && <p className="text-red-500 text-xs mt-1">{fieldErrors.handle}</p>}
+            </div>
           </div>
-          <input type="email" required value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="Email"
-            className="w-full rounded-xl border-2 border-zinc-200 px-4 py-2.5 text-base focus:border-pink-400 focus:ring-4 focus:ring-pink-500/10 outline-none" />
+
+          {/* Profile URL */}
+          <div>
+            <input
+              type="url"
+              required
+              value={form.profile_url}
+              onChange={(e) => update("profile_url", e.target.value)}
+              placeholder="https://www.tiktok.com/@yourhandle *"
+              className={inputClass("profile_url")}
+            />
+            {fieldErrors.profile_url && <p className="text-red-500 text-xs mt-1">{fieldErrors.profile_url}</p>}
+            <p className="text-xs text-zinc-400 mt-1">Your social media profile URL — proves your account is real</p>
+          </div>
+
+          {/* Follower count + Region */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <input
+                type="number"
+                required
+                min="0"
+                value={form.follower_count}
+                onChange={(e) => update("follower_count", e.target.value)}
+                placeholder="Follower count *"
+                className={inputClass("follower_count")}
+              />
+              {fieldErrors.follower_count && <p className="text-red-500 text-xs mt-1">{fieldErrors.follower_count}</p>}
+            </div>
+            <div>
+              <select value={form.region} onChange={(e) => update("region", e.target.value)}
+                className={inputClass("region")}>
+                <option value="US">US 🇺🇸</option><option value="UK">UK 🇬🇧</option><option value="CA">Canada 🇨🇦</option><option value="AU">Australia 🇦🇺</option><option value="EU">EU 🇪🇺</option><option value="JP">Japan 🇯🇵</option><option value="KR">Korea 🇰🇷</option><option value="SEA">Southeast Asia 🌏</option><option value="CN">China 🇨🇳</option>
+              </select>
+              {fieldErrors.region && <p className="text-red-500 text-xs mt-1">{fieldErrors.region}</p>}
+            </div>
+          </div>
+
+          {/* Email */}
+          <div>
+            <input type="email" required value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="Email *"
+              className={inputClass("email")} />
+            {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
+          </div>
+
           <input value={form.shipping_address} onChange={(e) => update("shipping_address", e.target.value)} placeholder="Shipping address"
-            className="w-full rounded-xl border-2 border-zinc-200 px-4 py-2.5 text-base focus:border-pink-400 focus:ring-4 focus:ring-pink-500/10 outline-none" />
+            className="w-full rounded-xl border-2 border-zinc-200 px-4 py-2.5 text-base focus:border-pink-400 focus:ring-4 focus:ring-pink-500/10 outline-none transition" />
+
           <textarea rows={3} value={form.why_join} onChange={(e) => update("why_join", e.target.value)} placeholder="Why do you want to join?"
             className="w-full rounded-xl border-2 border-zinc-200 px-4 py-2.5 text-base focus:border-pink-400 focus:ring-4 focus:ring-pink-500/10 outline-none resize-none" />
+
+          {/* Niche Tags */}
+          <div>
+            <label className="block text-sm font-semibold text-zinc-600 mb-2">Content Niche (select at least one) *</label>
+            <div className="flex flex-wrap gap-2">
+              {["skincare", "beauty", "fashion", "fitness", "electronics", "home", "lifestyle", "food", "baby", "pet", "travel", "tech"].map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleTag(tag)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+                    form.niche_tags.includes(tag)
+                      ? "btn-brand"
+                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+            {fieldErrors.niche_tags && <p className="text-red-500 text-xs mt-1">{fieldErrors.niche_tags}</p>}
+          </div>
+
+          {/* Past Video URLs */}
+          <div>
+            <textarea
+              rows={4}
+              required
+              value={form.past_video_urls}
+              onChange={(e) => update("past_video_urls", e.target.value)}
+              placeholder={"Paste 2+ video/content links (one per line) *\n\nhttps://www.tiktok.com/@you/video/123\nhttps://www.instagram.com/p/abc"}
+              className={inputClass("past_video_urls") + " resize-y"}
+            />
+            {fieldErrors.past_video_urls && <p className="text-red-500 text-xs mt-1">{fieldErrors.past_video_urls}</p>}
+            <p className="text-xs text-zinc-400 mt-1">At least 2 content links — helps our AI evaluate your style</p>
+          </div>
 
           {loading && (
             <div className="bg-zinc-50 rounded-2xl p-4 text-center animate-fade-in-up">
@@ -118,7 +274,7 @@ function ApplyForm() {
             </div>
           )}
 
-          {error && <p className="text-rose-500 text-sm">{error}</p>}
+          {error && <p className="text-rose-500 text-sm text-center">{error}</p>}
           <button type="submit" disabled={loading}
             className="btn-brand w-full py-3.5 text-lg disabled:opacity-50 disabled:shadow-none">
             {loading ? "Analyzing..." : "Submit Application"}

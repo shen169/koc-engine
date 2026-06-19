@@ -24,6 +24,7 @@ def create_product(data: dict, current_user: dict = Depends(require_merchant)):
         commission_value=data.get("commission_value", ""),
         commission_link=data.get("commission_link", ""),
         description=data.get("description", ""),
+        target_market=data.get("target_market", ""),
     )
     product_store.create(product)
     return product.model_dump()
@@ -38,8 +39,18 @@ def list_products(current_user: dict = Depends(get_current_user)):
             return []
         return [p.model_dump() for p in product_store.list_by_merchant(m.id)]
     elif role == "koc":
-        # KOC 只能看 active 产品
-        return [p.model_dump() for p in product_store.list_active()]
+        # KOC 只能看 active 产品，补上商家信息方便决策
+        result = []
+        for p in product_store.list_active():
+            d = p.model_dump()
+            if p.merchant_id:
+                m = merchant_store.get(p.merchant_id)
+                if m:
+                    d["merchant_company"] = m.company_name
+                    d["merchant_trust_score"] = m.trust_score
+                    d["merchant_tier"] = m.tier
+            result.append(d)
+        return result
     elif role == "admin":
         return [p.model_dump() for p in product_store.list_all()]
     return []
@@ -62,7 +73,7 @@ def update_product(product_id: str, updates: dict, current_user: dict = Depends(
     if not m or p.merchant_id != m.id:
         if current_user.get("role") != "admin":
             raise HTTPException(403, "Not your product")
-    allowed = {"name", "image_url", "category", "commission_type", "commission_value", "commission_link", "description", "status"}
+    allowed = {"name", "image_url", "category", "commission_type", "commission_value", "commission_link", "description", "target_market", "status"}
     safe = {k: v for k, v in updates.items() if k in allowed}
     updated = product_store.update(product_id, safe)
     return updated.model_dump()

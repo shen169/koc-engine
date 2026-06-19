@@ -7,23 +7,25 @@ import NavBar from "@/components/NavBar";
 
 export default function KocMyTasksPage() {
   const router = useRouter();
-  const token = getToken();
-  const role = getRole();
-  if (!token) { router.push("/login"); return null; }
-  if (role && role !== "koc") { router.push(getConsolePath(role || "")); return null; }
 
+  const [authorized, setAuthorized] = useState(false);
   const [myTasks, setMyTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("active");
 
   useEffect(() => {
+    const t = getToken();
+    const r = getRole();
+    if (!t) { router.push("/login"); return; }
+    if (r && r !== "koc") { router.push(getConsolePath(r || "")); return; }
+    setAuthorized(true);
     loadMyTasks();
   }, []);
 
   async function loadMyTasks() {
     setLoading(true);
     try {
-      const data = await tasks.mine(token!);
+      const data = await tasks.mine(getToken()!);
       setMyTasks(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error("Failed to load tasks:", e);
@@ -85,7 +87,7 @@ export default function KocMyTasksPage() {
           ))}
         </div>
 
-        {loading ? (
+        {!authorized || loading ? (
           <div className="text-center py-20 text-gray-400">加载中...</div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20">
@@ -109,22 +111,103 @@ export default function KocMyTasksPage() {
                 <div
                   key={idx}
                   onClick={() => router.push(`/portal/tasks/${task.id || task.task_id}`)}
-                  className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:border-pink-200 transition-all cursor-pointer"
+                  className="bg-white rounded-2xl border border-gray-100 hover:shadow-md hover:border-pink-200 transition-all cursor-pointer group overflow-hidden"
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-gray-900">{task.product_name}</h3>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${st.color}`}>
+                  <div className="p-5">
+                    {/* Top row: Product name + status */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        <h3 className="font-bold text-gray-900 group-hover:text-pink-600 transition-colors truncate text-lg">
+                          {task.product_name || "未命名产品"}
+                        </h3>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${st.color}`}>
                           {st.label}
                         </span>
+                        {task.task_type === "urgent" && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 font-medium shrink-0">⚡ 加急</span>
+                        )}
                       </div>
-                      <p className="text-sm text-gray-500">
-                        佣金 {task.commission || 0} 点 · 质押 {task.pledge_koc || 0} 点
-                        {slot.accepted_at && ` · ${new Date(slot.accepted_at).toLocaleDateString()} 接单`}
-                      </p>
+                      <span className="text-gray-300 group-hover:text-pink-400 transition-colors shrink-0 ml-2 text-lg">→</span>
                     </div>
-                    <span className="text-gray-300">→</span>
+
+                    {/* Description */}
+                    {task.product_description && (
+                      <p className="text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                        {(task.product_description as string)}
+                      </p>
+                    )}
+
+                    {/* Info badges */}
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {task.product_target_market && (
+                        <span className="text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-semibold border border-emerald-100">
+                          🌍 {task.product_target_market}
+                        </span>
+                      )}
+                      {task.product_category && (
+                        <span className="text-xs px-2.5 py-1 rounded-lg bg-purple-50 text-purple-600 font-medium">
+                          {task.product_category}
+                        </span>
+                      )}
+                      {task.merchant_company && (
+                        <span className="text-xs px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 font-medium">
+                          🏢 {task.merchant_company}
+                        </span>
+                      )}
+                      {task.merchant_avg_rating > 0 && (
+                        <span className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 font-medium">
+                          ⭐ {Number(task.merchant_avg_rating).toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Commission & Pledge row */}
+                    <div className="flex items-center gap-4 text-sm mb-3">
+                      <span className="font-bold text-pink-600 text-lg">${task.commission || 0}</span>
+                      <span className="text-gray-400 text-xs">返佣佣金</span>
+                      <span className="text-gray-300">|</span>
+                      <span className="text-gray-700 font-medium">{task.pledge_koc || 0} 点</span>
+                      <span className="text-gray-400 text-xs">质押</span>
+                      {task.product_commission_type && (
+                        <>
+                          <span className="text-gray-300">|</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 font-medium">
+                            {task.product_commission_type === "affiliate" ? "🔗 联盟佣金" : "🏷 折扣码"}
+                          </span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Links */}
+                    <div className="flex flex-wrap gap-3 pt-3 border-t border-gray-100">
+                      {task.product_id && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/portal/products/${task.product_id}`);
+                          }}
+                          className="text-xs text-pink-500 hover:text-pink-600 font-medium underline underline-offset-2"
+                        >
+                          📦 产品详情 →
+                        </button>
+                      )}
+                      {task.product_commission_link && (
+                        <a
+                          href={task.product_commission_link as string}
+                          target="_blank"
+                          rel="noopener"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs text-emerald-500 hover:text-emerald-600 font-medium underline underline-offset-2"
+                        >
+                          💰 返佣链接 ↗
+                        </a>
+                      )}
+                      {slot.accepted_at && (
+                        <span className="text-xs text-gray-400 ml-auto">
+                          {new Date(slot.accepted_at).toLocaleDateString()} 接单
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Spark from "@/components/Spark";
@@ -11,17 +11,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
   const router = useRouter();
 
-  // Already logged in → go to console
-  if (typeof window !== "undefined") {
+  // Auth guard — redirect if already logged in
+  useEffect(() => {
     const token = getToken();
     if (token) {
       const role = getRole() || "koc";
       router.push(getConsolePath(role));
-      return null;
+      return;
     }
-  }
+    setAuthorized(true);
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setError(""); setLoading(true);
@@ -29,12 +31,30 @@ export default function LoginPage() {
       const res = await auth.login(email, password);
       setToken(res.token);
       localStorage.setItem("koc_role", res.user.role);
-      if (res.user.role === "admin") router.push("/admin");
-      else if (res.user.role === "merchant") router.push("/dashboard");
-      else router.push("/portal");
+      if (res.user.role === "admin") { router.push("/admin"); return; }
+      if (res.user.role === "merchant") { router.push("/dashboard"); return; }
+      // KOC: check if profile exists
+      try {
+        const me = await auth.me(res.token);
+        if (!(me as any).koc_profile) {
+          router.push("/koc/apply");
+        } else {
+          router.push("/portal");
+        }
+      } catch {
+        router.push("/koc/apply");
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally { setLoading(false); }
+  }
+
+  if (!authorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "linear-gradient(135deg, #FFF7ED, #FDF2F8, #F5F3FF)" }}>
+        <div className="text-zinc-400 text-sm">Loading...</div>
+      </div>
+    );
   }
 
   return (

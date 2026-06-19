@@ -31,7 +31,8 @@ ADMIN_EMAIL = "admin@koc-engine.internal"
 ADMIN_PASSWORD = os.getenv("ACCESS_PASSWORD", "admin123")
 
 # 点数
-DEFAULT_INITIAL_CREDITS = 50       # KOC 注册初始点数（够接 3 单：每单 15 点=5平台费+10质押）
+DEFAULT_KOC_INITIAL_CREDITS = 100      # KOC 注册初始点数
+DEFAULT_MERCHANT_INITIAL_CREDITS = 500  # 商家注册初始点数
 DEFAULT_TASK_REWARD_CREDITS = 30   # 完成一次履约奖励
 DEFAULT_REFERRAL_REWARD_CREDITS = 10  # 推荐成功奖励
 

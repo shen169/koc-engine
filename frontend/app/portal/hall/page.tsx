@@ -36,20 +36,38 @@ export default function TaskHallPage() {
   const [sortBy, setSortBy] = useState("default");
   const [category, setCategory] = useState("");
   const [commissionMin, setCommissionMin] = useState(0);
+  const [region, setRegion] = useState("");
+
+  const [regionReady, setRegionReady] = useState(false);
 
   useEffect(() => {
-    auth.me(token!).then(setUser).catch(() => {});
+    auth.me(token!).then((u) => {
+      setUser(u);
+      // Default to KOC's own region
+      const kp = (u as any).koc_profile;
+      if (kp?.region) {
+        setRegion(kp.region);
+      }
+      setRegionReady(true);
+    }).catch(() => {
+      setRegionReady(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!regionReady) return;
     loadTasks();
-  }, [activeTab, sortBy]);
+  }, [activeTab, sortBy, region, regionReady]);
 
   async function loadTasks() {
     setLoading(true);
     try {
       const params: Record<string, string> = {};
-      if (activeTab) params.task_type = activeTab;
+      if (activeTab && activeTab !== "recommended") params.task_type = activeTab;
       if (sortBy !== "default") params.sort_by = sortBy;
       if (category) params.category = category;
       if (commissionMin > 0) params.commission_min = String(commissionMin);
+      if (region) params.region = region;
 
       const data = await tasks.hall(token!, params);
       setTaskList(Array.isArray(data) ? data : []);
@@ -119,6 +137,24 @@ export default function TaskHallPage() {
               onKeyDown={(e) => e.key === "Enter" && loadTasks()}
               className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 w-36"
             />
+
+            {/* Region filter */}
+            <select
+              value={region}
+              onChange={(e) => setRegion(e.target.value)}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700"
+            >
+              <option value="">🌍 全部区域</option>
+              <option value="US">🇺🇸 US</option>
+              <option value="UK">🇬🇧 UK</option>
+              <option value="CA">🇨🇦 CA</option>
+              <option value="AU">🇦🇺 AU</option>
+              <option value="EU">🇪🇺 EU</option>
+              <option value="JP">🇯🇵 JP</option>
+              <option value="KR">🇰🇷 KR</option>
+              <option value="SEA">🌏 SEA</option>
+              <option value="CN">🇨🇳 CN</option>
+            </select>
 
             {/* Commission min */}
             <select

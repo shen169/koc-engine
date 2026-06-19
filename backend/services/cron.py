@@ -18,6 +18,7 @@ SLA_ACCEPT_HOURS = 12        # KOC 接单超时
 SLA_SHIP_HOURS = 48          # 商家发货超时
 SLA_RECEIVE_DAYS = 7         # KOC 确认收货超时
 SLA_SUBMIT_DAYS = 14         # KOC 提交内容超时
+SLA_LONG_TERM_IDLE_DAYS = 7  # 长线任务空位无人接 → 系统介入匹配
 
 
 # ═══════════════════════════════════════════
@@ -73,6 +74,15 @@ def run_weekly_scan() -> dict:
                 if received_at and (now - received_at).days >= SLA_SUBMIT_DAYS:
                     _handle_submit_timeout(task, i, koc_id)
                     result["koc_defaulted"] += 1
+
+            # 5. 长线任务空位无人接（7d）→ 系统介入自动匹配
+            if (task.task_type == "long_term"
+                    and not koc_id
+                    and slot_status in ("assigned", "pending")):
+                task_created = _parse_ts(task.created_at)
+                if task_created and (now - task_created).days >= SLA_LONG_TERM_IDLE_DAYS:
+                    _handle_long_term_idle(task, i)
+                    result["slot_rematched"] += 1
 
         # ── 商家发货超时检测（48h from earliest accepted slot） ──
         if task.task_status == "accepted":
@@ -223,6 +233,20 @@ def _handle_accept_timeout(task, slot_index: int, old_koc_id: str):
                 "status": "assigned",
                 "assigned_at": now,
                 "reject_count": task.koc_slots[slot_index].get("reject_count", 0) + 1,
+            })
+
+
+def _handle_long_term_idle(task, slot_index: int):
+    """长线任务空位 7 天无人接 → 系统介入自动匹配 KOC"""
+    refreshed = task_store.get(task.id)
+    if refreshed:
+        new_match = rematch_slot(refreshed, slot_index)
+        if new_match:
+            now = datetime.utcnow().isoformat()
+            task_store.update_slot(task.id, slot_index, {
+                "koc_id": new_match["koc_id"],
+                "status": "assigned",
+                "assigned_at": now,
             })
 
 

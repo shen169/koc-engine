@@ -1,19 +1,44 @@
-"""意向表达 + 匹配路由"""
+"""意向表达 + 匹配路由 — V2：KOC 感兴趣 → 自动接单"""
 
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
-from models import Interest
+from models import Interest, KocTask
 from stores.interest_store import interest_store
 from stores.merchant_store import merchant_store
 from stores.koc_store import koc_store
 from stores.user_store import user_store
+from stores.task_store import task_store
+from stores.product_store import product_store
 from auth import get_current_user, require_admin
 
 router = APIRouter(tags=["interests"])
 
 
+def _make_slot(koc_id: str, status: str = "accepted") -> dict:
+    """创建标准 KOC slot"""
+    now = datetime.now(timezone.utc).isoformat()
+    return {
+        "koc_id": koc_id,
+        "status": status,
+        "assigned_at": now,
+        "accepted_at": now if status == "accepted" else "",
+        "shipped_at": "",
+        "received_at": "",
+        "submitted_at": "",
+        "tracking_number": "",
+        "content_urls": [],
+        "content_data": {},
+        "pledge_paid": False,
+        "commission_paid": False,
+        "reject_count": 0,
+        "match_score": 0,
+    }
+
+
 @router.post("/interests")
 def express_interest(data: dict, current_user: dict = Depends(get_current_user)):
-    """KOC 对产品 / 商家对 KOC 表达意向"""
+    """KOC 对产品 / 商家对 KOC 表达意向。
+    KOC 对产品表达意向 → 自动接单（创建任务 or 填入空位），不再等待商家审核。"""
     role = current_user.get("role")
     to_type = data.get("to_type")  # product | koc
     to_id = data["to_id"]
@@ -27,6 +52,11 @@ def express_interest(data: dict, current_user: dict = Depends(get_current_user))
         if not koc:
             raise HTTPException(404, "KOC profile not found — apply first")
         from_id = koc.id
+
+        # 每个 KOC 最多 5 个进行中任务
+        active_count = task_store.count_active_for_koc(from_id)
+        if active_count >= 5:
+            raise HTTPException(400, f"You already have {active_count} active tasks (max 5). Complete some first.")
     elif role == "merchant":
         if to_type != "koc":
             raise HTTPException(400, "Merchant can only express interest in KOCs")
@@ -37,6 +67,23 @@ def express_interest(data: dict, current_user: dict = Depends(get_current_user))
     else:
         raise HTTPException(403, "Only KOC and merchant can express interest")
 
+    # 检查是否已表达过意向
+    existing = interest_store.get_by_ids(from_id, to_id, role)
+    if existing:
+        # 返回已有记录（可能已附带 task 信息）
+        result = existing.model_dump()
+        if role == "koc":
+            # 查找已有任务中的 slot
+            for t in task_store.list_all({"product_id": to_id}):
+                for si, slot in enumerate(t.koc_slots):
+                    if slot.get("koc_id") == from_id:
+                        result["task_id"] = t.id
+                        result["slot_index"] = si
+                        result["auto_assigned"] = True
+                        break
+        return result
+
+    # 创建意向记录
     interest = Interest(
         from_role=role,
         from_id=from_id,
@@ -44,7 +91,59 @@ def express_interest(data: dict, current_user: dict = Depends(get_current_user))
         to_type=to_type,
     )
     interest_store.create(interest)
-    return interest.model_dump()
+    result = interest.model_dump()
+
+    # ═══════════════════════════════════════════
+    # 自动接单：KOC 对产品感兴趣 → 直接分配任务
+    # ═══════════════════════════════════════════
+    if role == "koc" and to_type == "product":
+        product = product_store.get(to_id)
+        if not product:
+            raise HTTPException(400, "Product not found")
+
+        # 查找该产品已有任务中的空位
+        existing_tasks = task_store.list_all({"product_id": to_id})
+        available_task = None
+        available_slot_index = -1
+
+        for t in existing_tasks:
+            if t.task_status in ("completed", "disputed"):
+                continue
+            for i, slot in enumerate(t.koc_slots):
+                if not slot.get("koc_id"):
+                    available_task = t
+                    available_slot_index = i
+                    break
+            if available_task:
+                break
+
+        if available_task:
+            # 填入已有空位
+            task_store.update_slot(available_task.id, available_slot_index, _make_slot(from_id))
+            result["task_id"] = available_task.id
+            result["slot_index"] = available_slot_index
+            result["auto_assigned"] = True
+        else:
+            # 无可用空位 → 自动创建 long_term 任务
+            now = datetime.now(timezone.utc).isoformat()
+            task = KocTask(
+                merchant_id=product.merchant_id,
+                product_id=to_id,
+                product_name=product.name,
+                product_asin=product.asin,
+                task_type="long_term",
+                task_status="accepted",
+                koc_required=1,
+                koc_slots=[_make_slot(from_id)],
+                commission=int(product.commission_value) if product.commission_value and product.commission_value.isdigit() else 30,
+                created_at=now,
+            )
+            task_store.create(task)
+            result["task_id"] = task.id
+            result["slot_index"] = 0
+            result["auto_assigned"] = True
+
+    return result
 
 
 @router.get("/interests")

@@ -17,6 +17,7 @@ interface TaskCardProps {
     merchant_company?: string;
     merchant_trust_score?: number;
     merchant_avg_rating?: number;
+    target_market?: string;
     created_at: string;
   };
   mode: "hall" | "merchant";
@@ -40,7 +41,7 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
         }
       }}
     >
-      {/* Top row: type badge + urgency */}
+      {/* Top row: type badge + urgency + region */}
       <div className="flex items-center gap-2 mb-3">
         {isUrgent ? (
           <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
@@ -49,6 +50,11 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
         ) : (
           <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-600">
             🌊 长线
+          </span>
+        )}
+        {task.target_market && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+            🌍 {task.target_market}
           </span>
         )}
         {mode === "hall" && task.merchant_trust_score !== undefined && task.merchant_trust_score < 60 && (
@@ -95,7 +101,7 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
       {mode === "hall" && (
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
           <span className="text-xs text-gray-400">
-            {isUrgent ? `⏰ 12h 内接单` : "🌊 长期有效"}
+            {isUrgent ? `⏰ 12h 内接单` : "⏰ 7 天内接单"}
           </span>
           <span className="text-xs font-semibold text-pink-500 opacity-0 group-hover:opacity-100 transition-opacity">
             {isUrgent ? "接单 →" : "查看 →"}

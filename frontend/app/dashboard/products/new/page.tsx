@@ -12,7 +12,7 @@ export default function NewProduct() {
   if (!token) { router.push("/login"); return null; }
   if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return null; }
 
-  const [form, setForm] = useState({ name: "", asin: "", category: "baby", commission_type: "discount_code", commission_value: "", commission_link: "", description: "", image_url: "" });
+  const [form, setForm] = useState({ name: "", asin: "", category: "baby", target_market: "US", commission_type: "discount_code", commission_value: "", commission_link: "", description: "", image_url: "" });
   const [loading, setLoading] = useState(false);
   const [linkWarning, setLinkWarning] = useState("");
 
@@ -82,6 +82,15 @@ export default function NewProduct() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Target Market</label>
+                <select value={form.target_market} onChange={(e) => update("target_market", e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900">
+                  <option value="US">US 🇺🇸</option><option value="UK">UK 🇬🇧</option><option value="CA">CA 🇨🇦</option>
+                  <option value="AU">AU 🇦🇺</option><option value="EU">EU 🇪🇺</option><option value="JP">JP 🇯🇵</option>
+                  <option value="KR">KR 🇰🇷</option><option value="SEA">SEA 🌏</option><option value="CN">CN 🇨🇳</option>
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Commission Type</label>
                 <select value={form.commission_type} onChange={(e) => update("commission_type", e.target.value)}

@@ -32,12 +32,7 @@ function TrustLevelBadge({ score, tier }: { score: number; tier: string }) {
 export default function PortalDashboard() {
   const router = useRouter();
 
-  // Role guard — redirect non-KOC users
-  const token = getToken();
-  const role = getRole();
-  if (!token) { router.push("/login"); return null; }
-  if (role && role !== "koc") { router.push(getConsolePath(role || "")); return null; }
-
+  const [authorized, setAuthorized] = useState(false);
   const [user, setUser] = useState<Record<string, unknown> | null>(null);
   const [balance, setBalance] = useState(0);
   const [taskList, setTaskList] = useState<Array<Record<string, unknown>>>([]);
@@ -45,18 +40,31 @@ export default function PortalDashboard() {
 
   useEffect(() => {
     const token = getToken();
+    const role = getRole();
     if (!token) { router.push("/login"); return; }
+    if (role && role !== "koc") { router.push(getConsolePath(role || "")); return; }
+
     auth.me(token).then((u) => {
       setUser(u);
       if ((u as any).koc_profile) {
         setKocProfile((u as any).koc_profile);
+        setAuthorized(true);
+      } else {
+        // No KOC profile yet — redirect to application
+        router.push("/koc/apply");
       }
     }).catch(() => { clearToken(); router.push("/login"); });
     credits.balance(token).then((r) => setBalance(r.balance)).catch(() => {});
-    tasks.list(token).then(setTaskList).catch(() => {});
+    tasks.mine(token).then(setTaskList).catch(() => {});
   }, [router]);
 
-  if (!user) return <div className="flex items-center justify-center min-h-screen bg-orange-50 text-zinc-400">Loading...</div>;
+  if (!authorized || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-orange-50 text-zinc-400">
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-orange-50">
@@ -93,7 +101,7 @@ export default function PortalDashboard() {
           {[
             { href: "/portal/hall", label: "🏪 Task Hall", desc: "Discover new tasks" },
             { href: "/portal/products", label: "🛍 Browse Products", desc: "Find products to promote" },
-            { href: "/portal/tasks", label: "📋 My Tasks", desc: `${taskList.length} active` },
+            { href: "/portal/tasks", label: "📋 My Tasks", desc: `${taskList.length}/5 active` },
             { href: "/portal/credits", label: "💰 Credits", desc: `${balance} points` },
             { href: "/portal/coupons", label: "🏷 Coupons", desc: "Your discount codes" },
           ].map((item) => (
@@ -114,19 +122,46 @@ export default function PortalDashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {taskList.slice(0, 5).map((t) => (
-                <Link key={t.id as string} href={`/portal/tasks/${t.id}`} className="block p-4 bg-zinc-50 rounded-xl hover:bg-pink-50 transition">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <span className="font-semibold text-zinc-900">{t.product_name as string || "Task"}</span>
-                      <span className={`ml-3 text-xs px-2 py-0.5 rounded-full font-semibold ${t.delivered ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                        {t.delivered ? "Delivered" : t.sample_status === "sent" ? "Sample Sent" : "Pending"}
-                      </span>
+              {taskList.slice(0, 5).map((t) => {
+                const task = (t.task || t) as Record<string, unknown>;
+                const slot = t.my_slot as Record<string, unknown> | undefined;
+                const status = slot?.status || task.task_status || "pending";
+                const statusColors: Record<string, string> = {
+                  submitted: "bg-emerald-50 text-emerald-700",
+                  received: "bg-blue-50 text-blue-700",
+                  shipped: "bg-purple-50 text-purple-700",
+                  accepted: "bg-amber-50 text-amber-700",
+                  assigned: "bg-pink-50 text-pink-700",
+                };
+                const statusLabels: Record<string, string> = {
+                  submitted: "Submitted",
+                  received: "Received",
+                  shipped: "Shipped",
+                  accepted: "Accepted",
+                  assigned: "Assigned",
+                  pending: "Pending",
+                };
+                return (
+                <Link key={task.id as string} href={`/portal/tasks/${task.id}`} className="block p-4 bg-zinc-50 rounded-xl hover:bg-pink-50 transition">
+                  <div className="flex justify-between items-start">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-zinc-900 truncate">{task.product_name as string || "Task"}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${statusColors[status as string] || "bg-zinc-100 text-zinc-500"}`}>
+                          {statusLabels[status as string] || (status as string)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-zinc-400">
+                        {(task.product_category as string) ? <span>📂 {task.product_category as string}</span> : null}
+                        {(task.product_target_market as string) ? <span>🌍 {task.product_target_market as string}</span> : null}
+                        {(task.merchant_company as string) ? <span>🏢 {task.merchant_company as string}</span> : null}
+                      </div>
                     </div>
-                    <span className="text-sm font-bold brand-gradient-text">+{t.credits_reward as number} pts</span>
+                    <span className="text-sm font-bold text-pink-600 shrink-0 ml-3">+{task.commission as number || 0} pts</span>
                   </div>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

@@ -54,30 +54,32 @@ def _tier_bonus(tier: str) -> float:
     return {"L3": 100, "L2": 70, "L1": 50}.get(tier, 30)
 
 
-def _region_match(product_category: str, koc_region: str) -> float:
-    """地区模糊匹配。检查 product.category 与 KOC.region 的关联度。"""
-    if not koc_region or not product_category:
+def _region_match(product_target_market: str, koc_region: str) -> float:
+    """地区模糊匹配。检查 product.target_market 与 KOC.region 的关联度。"""
+    if not koc_region or not product_target_market:
         return 0.0
-    cat_lower = product_category.lower()
+    pm_lower = product_target_market.lower()
     region_lower = koc_region.lower()
 
     # 直接包含
-    if region_lower in cat_lower or cat_lower in region_lower:
+    if region_lower in pm_lower or pm_lower in region_lower:
         return 100.0
 
     # 地区关键词映射
     region_keywords = {
         "us": ["us", "usa", "america", "american", "united states"],
         "uk": ["uk", "britain", "british", "england", "united kingdom"],
-        "eu": ["eu", "europe", "european", "germany", "france", "italy", "spain"],
+        "ca": ["ca", "canada", "canadian"],
+        "au": ["au", "australia", "australian"],
+        "eu": ["eu", "europe", "european", "germany", "france", "italy", "spain", "netherlands"],
         "jp": ["jp", "japan", "japanese"],
-        "kr": ["kr", "korea", "korean"],
+        "kr": ["kr", "korea", "korean", "south korea"],
         "cn": ["cn", "china", "chinese"],
-        "sea": ["sea", "southeast asia", "thailand", "vietnam", "indonesia", "philippines"],
+        "sea": ["sea", "southeast asia", "thailand", "vietnam", "indonesia", "philippines", "malaysia", "singapore"],
     }
     for _region, keywords in region_keywords.items():
         if any(kw in region_lower for kw in keywords):
-            if any(kw in cat_lower for kw in keywords):
+            if any(kw in pm_lower for kw in keywords):
                 return 100.0
     return 0.0
 
@@ -121,8 +123,8 @@ def _rule_score(koc: dict, product: dict) -> dict:
     dimensions["score_normalized"] = round(dim_score, 1)
     reasons.append(f"综合分 {score_total}/100")
 
-    # 4. 地区匹配 (10%)
-    dim_region = _region_match(product.get("category", ""), koc.get("region", ""))
+    # 4. 地区匹配 (15%)
+    dim_region = _region_match(product.get("target_market", ""), koc.get("region", ""))
     dimensions["region_match"] = round(dim_region, 1)
     if dim_region > 50:
         reasons.append(f"地区匹配({koc.get('region')})")
@@ -146,14 +148,33 @@ def _rule_score(koc: dict, product: dict) -> dict:
     elif trust >= 90:
         reasons.append(f"信任分优秀({trust})")
 
-    # 加权总分（信任分占 5%，从 tier_bonus 挤出）
+    # 7. 新品时效 (10%) — 24h 内上架 = 100，线性衰减到 7 天 = 0
+    created_at = product.get("created_at", "")
+    dim_recency = 0
+    if created_at:
+        try:
+            from datetime import datetime, timezone
+            now = datetime.utcnow()
+            created_dt = datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
+            age_hours = (now - created_dt.replace(tzinfo=None)).total_seconds() / 3600
+            dim_recency = max(0, 100 * (1 - age_hours / 168))
+        except (ValueError, AttributeError, TypeError):
+            pass
+    dimensions["recency"] = round(dim_recency, 1)
+    if dim_recency >= 70:
+        reasons.append(f"🆕 新品上架({round(age_hours)}h)")
+    elif dim_recency >= 30:
+        reasons.append(f"近期上架")
+
+    # 加权总分（新品时效 10%，从品类匹配挤出）
     weights = {
-        "niche_match": 0.50,
-        "tier_bonus": 0.15,
+        "niche_match": 0.40,
+        "tier_bonus": 0.10,
         "score_normalized": 0.15,
-        "region_match": 0.10,
+        "region_match": 0.15,
         "history": 0.05,
         "trust_score": 0.05,
+        "recency": 0.10,
     }
     total = sum(dimensions[k] * weights[k] for k in weights)
 

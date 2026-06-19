@@ -61,6 +61,17 @@ decision = ok(requests.put(BASE + "/applications/" + app_id + "/decision", json=
 }, headers=auth_headers(at)))
 print("   Decision: {}".format(decision.get("decision")))
 
+# ── 2b. Give merchant credits for platform fee + pledge ──
+print("\n2b. Add merchant credits...")
+m_user_id = requests.get(BASE + "/auth/me", headers=auth_headers(mt)).json()["id"]
+cr = ok(requests.post(BASE + "/credits/reward", json={
+    "user_id": m_user_id,
+    "amount": 200,
+    "type": "admin_adjust",
+    "note": "Test credits for platform fee + pledge",
+}, headers=auth_headers(at)))
+print("   Merchant credits added: {}".format(cr.get("amount")))
+
 # ── 3. Create urgent task (should match KOC now) ──
 print("\n3. Create urgent task (3 KOCs)...")
 task = ok(requests.post(BASE + "/tasks", json={
@@ -104,18 +115,6 @@ if slots and slots[0].get("koc_id"):
             print("   Error: {}".format(r.text[:200]))
     else:
         print("   No assigned slot found for test KOC")
-
-# ── 5b. Give merchant credits for pledge ──
-print("\n5b. Add merchant credits...")
-# Admin gives merchant credits
-m_user_id = requests.get(BASE + "/auth/me", headers=auth_headers(mt)).json()["id"]
-cr = ok(requests.post(BASE + "/credits/reward", json={
-    "user_id": m_user_id,
-    "amount": 200,
-    "type": "admin_adjust",
-    "note": "Test credits for pledge",
-}, headers=auth_headers(at)))
-print("   Merchant credits added: {}".format(cr.get("amount")))
 
 # ── 6. Merchant ships ──
 print("\n6. Merchant ships...")

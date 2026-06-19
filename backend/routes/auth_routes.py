@@ -6,7 +6,7 @@ from models import User, UserRegister, UserLogin
 from stores.user_store import user_store
 from stores.credit_store import credit_store
 from auth import create_token, get_current_user
-from config import DEFAULT_INITIAL_CREDITS
+from config import DEFAULT_KOC_INITIAL_CREDITS, DEFAULT_MERCHANT_INITIAL_CREDITS
 
 router = APIRouter(tags=["auth"])
 
@@ -26,9 +26,11 @@ def register(data: UserRegister):
     )
     user_store.create(user)
 
-    # KOC 注册给初始点数
+    # KOC 注册给 100 点，商家注册给 500 点
     if data.role == "koc":
-        credit_store.set_initial_balance(user.id, DEFAULT_INITIAL_CREDITS)
+        credit_store.set_initial_balance(user.id, DEFAULT_KOC_INITIAL_CREDITS)
+    elif data.role == "merchant":
+        credit_store.set_initial_balance(user.id, DEFAULT_MERCHANT_INITIAL_CREDITS)
 
     token = create_token(user.id, user.email, user.role)
     return {"token": token, "user": {"id": user.id, "email": user.email, "role": user.role}}
@@ -67,6 +69,8 @@ def me(current_user: dict = Depends(get_current_user)):
                 "tier": koc.tier,
                 "completed_tasks": koc.completed_tasks,
                 "avg_rating": koc.avg_rating,
+                "region": koc.region,
+                "niche_tags": koc.niche_tags,
             }
     elif user.role == "merchant":
         from stores.merchant_store import merchant_store as ms

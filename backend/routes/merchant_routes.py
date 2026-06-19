@@ -93,7 +93,7 @@ def adjust_merchant_trust(merchant_id: str, data: dict, current_user: dict = Dep
 
 @router.post("/merchants/{merchant_id}/report-fake-link")
 def report_fake_commission_link(merchant_id: str, data: dict, current_user: dict = Depends(get_current_user)):
-    """KOC 举报商家的返佣链接无效 → 诚信度直接降到 0"""
+    """KOC 举报商家的返佣链接无效 → 创建举报工单，平台审核后决定"""
     if current_user.get("role") not in ("koc", "admin"):
         raise HTTPException(403, "Only KOC can report fake links")
 
@@ -102,32 +102,36 @@ def report_fake_commission_link(merchant_id: str, data: dict, current_user: dict
         raise HTTPException(404, "Merchant not found")
 
     task_id = data.get("task_id", "")
-    reason = data.get("reason", "")
+    reason = data.get("reason", "返佣链接无效")
 
-    # 直接降到 0
-    updated = merchant_store.update(merchant_id, {
-        "trust_score": 0,
-        "total_tasks_disputed": m.total_tasks_disputed + 1,
-    })
+    from stores.report_store import report_store
+    from models import Report
 
-    # 联动等级（信任归零 → 必然降级）
-    from services.cron import sync_merchant_tier
-    sync_merchant_tier(merchant_id)
+    # 检查是否已有 pending 举报
+    existing = report_store.list_by_entity(merchant_id)
+    for r in existing:
+        if r.status == "pending" and r.reporter_user_id == current_user["sub"] and r.task_id == task_id:
+            return {
+                "status": "duplicate",
+                "report_id": r.id,
+                "message": "你已提交过举报，平台正在审核中",
+            }
 
-    # 记录投诉
-    from stores.user_store import user_store
-    user = user_store.get_by_id(current_user["sub"])
-    reporter_email = user.email if user else "unknown"
+    report = Report(
+        reported_entity_type="merchant",
+        reported_entity_id=merchant_id,
+        reporter_user_id=current_user["sub"],
+        reporter_role=current_user.get("role", "koc"),
+        task_id=task_id,
+        reason=reason,
+        status="pending",
+    )
+    report_store.create(report)
 
     return {
-        "status": "reported",
-        "merchant_id": merchant_id,
-        "new_trust_score": 0,
-        "tier": updated.get("tier", "M1") if updated else "M1",
-        "level": _trust_level(0),
-        "task_id": task_id,
-        "reported_by": reporter_email,
-        "message": "Merchant trust score set to 0. KOC投诉返佣链接无效，诚信度归零。",
+        "status": "pending_review",
+        "report_id": report.id,
+        "message": "举报已提交，平台将在 24 小时内审核处理",
     }
 
 
