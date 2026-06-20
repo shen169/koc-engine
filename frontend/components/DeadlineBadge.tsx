@@ -39,7 +39,7 @@ function calcUrgency(deadline: string): { urgency: Urgency; hoursLeft: number; d
     };
   }
 
-  if (daysLeft < 7) {
+  if (daysLeft <= 7) {
     return {
       urgency: "warning",
       hoursLeft,
@@ -77,7 +77,7 @@ export default function DeadlineBadge({ deadline, label, penalty, size = "md", c
   if (size === "sm") {
     return (
       <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border ${style.badge} ${style.pulse ? "animate-pulse" : ""} ${className}`}>
-        {style.icon} {text}
+        {style.icon} {label}：{text}
       </span>
     );
   }
