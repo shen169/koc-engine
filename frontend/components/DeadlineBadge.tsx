@@ -35,7 +35,7 @@ function calcUrgency(deadline: string): { urgency: Urgency; hoursLeft: number; d
       urgency: "urgent",
       hoursLeft,
       daysLeft,
-      text: h <= 24 ? `仅剩 ${h} 小时` : `仅剩 ${Math.ceil(daysLeft)} 天`,
+      text: h <= 24 ? (h < 1 ? "不足 1 小时" : `仅剩 ${h} 小时`) : `仅剩 ${Math.floor(daysLeft)} 天`,
     };
   }
 
@@ -44,7 +44,7 @@ function calcUrgency(deadline: string): { urgency: Urgency; hoursLeft: number; d
       urgency: "warning",
       hoursLeft,
       daysLeft,
-      text: `还剩 ${Math.ceil(daysLeft)} 天`,
+      text: `还剩 ${Math.floor(daysLeft)} 天`,
     };
   }
 
@@ -52,7 +52,7 @@ function calcUrgency(deadline: string): { urgency: Urgency; hoursLeft: number; d
     urgency: "normal",
     hoursLeft,
     daysLeft,
-    text: `还剩 ${Math.ceil(daysLeft)} 天`,
+    text: `还剩 ${Math.floor(daysLeft)} 天`,
   };
 }
 
@@ -76,14 +76,14 @@ export default function DeadlineBadge({ deadline, label, penalty, size = "md", c
 
   if (size === "sm") {
     return (
-      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border ${style.badge} ${style.pulse ? "animate-pulse" : ""} ${className}`}>
+      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border ${style.badge} ${style.pulse ? "animate-pulse motion-reduce:animate-none" : ""} ${className}`}>
         {style.icon} {label}：{text}
       </span>
     );
   }
 
   return (
-    <div className={`rounded-xl border px-4 py-3 ${style.badge} ${style.pulse ? "animate-pulse" : ""} ${className}`}>
+    <div className={`rounded-xl border px-4 py-3 ${style.badge} ${style.pulse ? "animate-pulse motion-reduce:animate-none" : ""} ${className}`}>
       <div className="flex items-center gap-2">
         <span className="text-lg">{style.icon}</span>
         <div>
