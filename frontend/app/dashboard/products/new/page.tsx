@@ -76,8 +76,40 @@ export default function NewProduct() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
                 <select value={form.category} onChange={(e) => update("category", e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900">
-                  <option value="baby">Baby</option><option value="wedding">Wedding</option><option value="home">Home</option>
-                  <option value="beauty">Beauty</option><option value="fashion">Fashion</option>
+                  <option value="" disabled>-- Select Category --</option>
+                  <option value="baby">Baby & Childcare</option>
+                  <option value="beauty">Beauty & Personal Care</option>
+                  <option value="fashion">Fashion & Apparel</option>
+                  <option value="electronics">Electronics & Gadgets</option>
+                  <option value="home">Home & Kitchen</option>
+                  <option value="health">Health & Wellness</option>
+                  <option value="sports">Sports & Outdoors</option>
+                  <option value="toys">Toys & Games</option>
+                  <option value="pets">Pet Supplies</option>
+                  <option value="office">Office & Stationery</option>
+                  <option value="auto">Automotive & Accessories</option>
+                  <option value="jewelry">Jewelry & Watches</option>
+                  <option value="garden">Garden & Outdoor</option>
+                  <option value="tools">Tools & Home Improvement</option>
+                  <option value="grocery">Grocery & Food</option>
+                  <option value="furniture">Furniture & Decor</option>
+                  <option value="luggage">Luggage & Travel</option>
+                  <option value="party">Party & Events</option>
+                  <option value="crafts">Arts, Crafts & Sewing</option>
+                  <option value="musical">Musical Instruments</option>
+                  <option value="books">Books & Media</option>
+                  <option value="software">Software & Apps</option>
+                  <option value="gaming">Video Games & Consoles</option>
+                  <option value="appliances">Home Appliances</option>
+                  <option value="lighting">Lighting & Lamps</option>
+                  <option value="bedding">Bedding & Bath</option>
+                  <option value="kitchen">Kitchen & Dining</option>
+                  <option value="wedding">Wedding & Registry</option>
+                  <option value="fitness">Fitness & Exercise</option>
+                  <option value="baby_gear">Baby Gear & Strollers</option>
+                  <option value="outdoor">Camping & Hiking</option>
+                  <option value="smart_home">Smart Home & IoT</option>
+                  <option value="wearable">Wearable Tech</option>
                 </select>
               </div>
             </div>
