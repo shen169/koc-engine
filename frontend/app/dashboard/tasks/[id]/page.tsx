@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { tasks, getToken, getRole, getConsolePath } from "@/lib/api";
 import NavBar from "@/components/NavBar";
 import TaskProgress from "@/components/TaskProgress";
+import DeadlineBadge from "@/components/DeadlineBadge";
 
 export default function MerchantTaskDetailPage() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function MerchantTaskDetailPage() {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [shipping, setShipping] = useState(false);
   const [error, setError] = useState("");
+  const [reviewing, setReviewing] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     loadTask();
@@ -71,6 +73,27 @@ export default function MerchantTaskDetailPage() {
     }
   }
 
+  async function handleReview(slotIndex: number, action: "approve" | "reject") {
+    let feedback = "Approved";
+    if (action === "reject") {
+      feedback = prompt("请输入驳回理由（KOC 将看到此反馈）：") || "";
+      if (!feedback.trim()) {
+        setError("请填写驳回理由");
+        return;
+      }
+    }
+    setReviewing((prev) => ({ ...prev, [slotIndex]: true }));
+    setError("");
+    try {
+      await tasks.review(taskId, slotIndex, action, feedback, token!);
+      await loadTask();
+    } catch (e: any) {
+      setError(e.message || "审核失败");
+    } finally {
+      setReviewing((prev) => ({ ...prev, [slotIndex]: false }));
+    }
+  }
+
   if (loading) return <div className="text-center py-20 text-gray-400">加载中...</div>;
   if (!task) return <div className="text-center py-20 text-gray-400">任务不存在</div>;
 
@@ -113,6 +136,16 @@ export default function MerchantTaskDetailPage() {
             {/* Ship button */}
             {["accepted"].includes(task.task_status) && (
               <div className="flex flex-col gap-2 w-64">
+                {kocSlots.some((s: any) => s.status === "accepted" && s.accepted_at) && (
+                  <DeadlineBadge
+                    deadline={new Date(new Date(
+                      kocSlots.find((s: any) => s.status === "accepted" && s.accepted_at)!.accepted_at
+                    ).getTime() + 48 * 60 * 60 * 1000).toISOString()}
+                    label="发货截止"
+                    penalty="逾期未发货将退 KOC 质押 + 扣 20 信任分"
+                    size="sm"
+                  />
+                )}
                 <input
                   type="text"
                   placeholder="物流单号"
@@ -170,19 +203,123 @@ export default function MerchantTaskDetailPage() {
 
         {/* Tab content */}
         {tab === "progress" && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <TaskProgress
-              slots={kocSlots.map((s: any, i: number) => ({
-                slot_index: i,
-                koc_anon_id: s.koc_id ? `KOC-${s.koc_id.slice(0, 4).toUpperCase()}` : "-",
-                status: s.status || "unknown",
-                accepted_at: s.accepted_at || "",
-                shipped_at: s.shipped_at || "",
-                received_at: s.received_at || "",
-                submitted_at: s.submitted_at || "",
-                content_urls: s.content_urls || [],
-              }))}
-            />
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+              <TaskProgress
+                slots={kocSlots.map((s: any, i: number) => ({
+                  slot_index: i,
+                  koc_anon_id: s.koc_id ? `KOC-${s.koc_id.slice(0, 4).toUpperCase()}` : "-",
+                  status: s.status || "unknown",
+                  accepted_at: s.accepted_at || "",
+                  shipped_at: s.shipped_at || "",
+                  received_at: s.received_at || "",
+                  submitted_at: s.submitted_at || "",
+                  content_urls: s.content_urls || [],
+                  created_at: task.created_at || "",
+                  task_type: task.task_type || "",
+                  revision_count: s.revision_count,
+                  max_revisions: s.max_revisions,
+                }))}
+              />
+            </div>
+
+            {/* Review section for submitted/revision_requested/approved slots */}
+            {kocSlots.filter((s: any) =>
+              s.status === "submitted" || s.status === "revision_requested" || s.status === "approved"
+            ).length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                <h2 className="font-semibold text-gray-900 mb-4 text-lg">📋 内容审核</h2>
+                <div className="space-y-4">
+                  {kocSlots.map((s: any, i: number) => {
+                    if (!["submitted", "revision_requested", "approved"].includes(s.status)) return null;
+                    const isReviewing = reviewing[i] || false;
+                    const dl = s.submitted_at
+                      ? new Date(new Date(s.submitted_at).getTime() + 4 * 24 * 60 * 60 * 1000).toISOString()
+                      : null;
+
+                    return (
+                      <div key={i} className={`border rounded-xl p-4 ${
+                        s.status === "approved" ? "border-green-200 bg-green-50/30" :
+                        s.status === "revision_requested" ? "border-orange-200 bg-orange-50/30" :
+                        "border-gray-200"
+                      }`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-mono text-sm font-medium text-gray-700">
+                            KOC-{(s.koc_id || "----").slice(0, 4).toUpperCase()}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              s.status === "approved" ? "bg-green-100 text-green-700" :
+                              s.status === "revision_requested" ? "bg-orange-100 text-orange-600" :
+                              "bg-blue-100 text-blue-600"
+                            }`}>
+                              {s.status === "approved" ? "✅ 已通过" :
+                               s.status === "revision_requested" ? "✏️ 已驳回" :
+                               "📩 待审核"}
+                            </span>
+                            {dl && s.status !== "approved" && (
+                              <DeadlineBadge
+                                deadline={dl}
+                                label="审核截止"
+                                penalty="4 天未审将自动通过"
+                                size="sm"
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Content URLs */}
+                        {s.content_urls && s.content_urls.length > 0 && (
+                          <div className="space-y-1 mb-3">
+                            {s.content_urls.map((url: string, j: number) => (
+                              <a key={j} href={url} target="_blank" rel="noopener noreferrer"
+                                 className="block text-sm text-pink-500 hover:text-pink-600 truncate">
+                                🔗 {url}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Rejection feedback */}
+                        {s.status === "revision_requested" && s.review_feedback && (
+                          <div className="mb-3 p-3 bg-white rounded-lg text-sm">
+                            <span className="text-xs text-gray-400">驳回理由：</span>
+                            <span className="text-gray-700">{s.review_feedback}</span>
+                          </div>
+                        )}
+
+                        {/* Approve / Reject buttons */}
+                        {(s.status === "submitted" || s.status === "revision_requested") && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleReview(i, "approve")}
+                              disabled={isReviewing}
+                              className="flex-1 bg-green-500 text-white py-2 rounded-lg font-semibold text-sm hover:bg-green-600 transition-colors disabled:opacity-50"
+                            >
+                              {isReviewing ? "处理中..." : "✅ 通过"}
+                            </button>
+                            <button
+                              onClick={() => handleReview(i, "reject")}
+                              disabled={isReviewing}
+                              className="flex-1 bg-red-500 text-white py-2 rounded-lg font-semibold text-sm hover:bg-red-600 transition-colors disabled:opacity-50"
+                            >
+                              {isReviewing ? "处理中..." : "❌ 驳回"}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Auto-approved note */}
+                        {s.status === "approved" && (s as any).auto_approved && (
+                          <p className="text-xs text-gray-400 mt-2">
+                            ⚠️ 系统自动通过（商家超时未审）
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
