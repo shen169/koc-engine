@@ -93,16 +93,16 @@ def adjust_merchant_trust(merchant_id: str, data: dict, current_user: dict = Dep
 
 @router.post("/merchants/{merchant_id}/report-fake-link")
 def report_fake_commission_link(merchant_id: str, data: dict, current_user: dict = Depends(get_current_user)):
-    """KOC 举报商家的返佣链接无效 → 创建举报工单，平台审核后决定"""
+    """KOC reports broken product link → creates report ticket for admin review"""
     if current_user.get("role") not in ("koc", "admin"):
-        raise HTTPException(403, "Only KOC can report fake links")
+        raise HTTPException(403, "Only KOC can report broken links")
 
     m = merchant_store.get(merchant_id)
     if not m:
         raise HTTPException(404, "Merchant not found")
 
     task_id = data.get("task_id", "")
-    reason = data.get("reason", "返佣链接无效")
+    reason = data.get("reason", "Broken Link")
 
     from stores.report_store import report_store
     from models import Report

@@ -199,7 +199,7 @@ export default function KocMyTasksPage() {
                           onClick={(e) => e.stopPropagation()}
                           className="text-xs text-emerald-500 hover:text-emerald-600 font-medium underline underline-offset-2"
                         >
-                          💰 Commission Link ↗
+                          🔗 Product URL ↗
                         </a>
                       )}
                       {slot.accepted_at && (

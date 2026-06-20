@@ -166,7 +166,7 @@ export default function ProductDetail() {
 
             {/* Commission Info */}
             <div className="bg-zinc-50 rounded-2xl p-4 space-y-3">
-              <h3 className="text-sm font-semibold text-zinc-600">💰 Commission Info</h3>
+              <h3 className="text-sm font-semibold text-zinc-600">🔗 Product URL</h3>
 
               {product.commission_link ? (
                 <a
@@ -175,7 +175,7 @@ export default function ProductDetail() {
                   rel="noopener"
                   className="flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700 font-medium break-all"
                 >
-                  💰 {product.commission_link as string} ↗
+                  🔗 Product Page ↗
                 </a>
               ) : (
                 <p className="text-xs text-zinc-400">Merchant has not provided a commission link yet</p>

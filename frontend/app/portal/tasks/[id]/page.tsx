@@ -291,7 +291,7 @@ export default function KocTaskDetailPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 mb-4 text-sm text-emerald-600 hover:text-emerald-700 font-medium underline underline-offset-2"
             >
-              💰 Commission Link: {(task.commission_link as string).slice(0, 50)}... ↗
+              🔗 Product URL: {(task.commission_link as string).slice(0, 50)}... ↗
             </a>
           )}
 
@@ -320,7 +320,7 @@ export default function KocTaskDetailPage() {
               <button
                 onClick={async (e) => {
                   e.preventDefault();
-                  if (!confirm("Confirm reporting this commission link as invalid? The merchant's Trust will be reset to zero.")) return;
+                  if (!confirm("Confirm reporting this product link as broken? The merchant's Trust will be reset to zero.")) return;
                   try {
                     await fetch(
                       `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}/api/merchants/${task.merchant_id}/report-fake-link`,
@@ -330,7 +330,7 @@ export default function KocTaskDetailPage() {
                           "Content-Type": "application/json",
                           Authorization: `Bearer ${getToken()}`,
                         },
-                        body: JSON.stringify({ task_id: taskId, reason: "Invalid Commission Link" }),
+                        body: JSON.stringify({ task_id: taskId, reason: "Broken Link" }),
                       }
                     );
                     alert("Report submitted. Platform will review within 24 hours.");
@@ -338,7 +338,7 @@ export default function KocTaskDetailPage() {
                 }}
                 className="text-xs text-red-400 hover:text-red-500 underline underline-offset-2"
               >
-                🚩 Report Invalid Link
+                🚩 Report Broken Link
               </button>
             </div>
           )}

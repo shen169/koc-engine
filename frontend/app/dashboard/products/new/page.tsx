@@ -12,7 +12,7 @@ const FIELD_LABELS: Record<string, string> = {
   product_id: "Product ID",
   category: "Category",
   commission_value: "Commission Value",
-  commission_link: "Commission Link",
+  commission_link: "Product URL",
 };
 
 export default function NewProduct() {
@@ -35,42 +35,15 @@ export default function NewProduct() {
     image_url: "",
   });
   const [loading, setLoading] = useState(false);
-  const [linkWarning, setLinkWarning] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState("");
 
-  const AFFILIATE_PARAMS = ["tag", "aff", "ref", "affiliate", "utm_source", "pid", "campaign", "tracking", "coupon", "code"];
-
-  function detectAffiliateLink(url: string): boolean {
-    if (!url) return false;
-    try {
-      const u = new URL(url);
-      return AFFILIATE_PARAMS.some((p) => u.searchParams.has(p));
-    } catch {
-      return false;
-    }
-  }
-
   function update(field: string, value: string) {
     setForm((p) => ({ ...p, [field]: value }));
-    // Clear error on change
     if (errors[field]) {
       setErrors((p) => { const n = { ...p }; delete n[field]; return n; });
     }
     if (submitError) setSubmitError("");
-
-    if (field === "commission_link") {
-      if (!value) {
-        setLinkWarning("");
-      } else {
-        try {
-          new URL(value);
-          setLinkWarning(detectAffiliateLink(value) ? "" : "⚠️ No affiliate parameters detected (tag/aff/ref, etc.). Please verify this is a valid commission link.");
-        } catch {
-          setLinkWarning("⚠️ Please enter a valid URL (starting with http:// or https://)");
-        }
-      }
-    }
   }
 
   function validate(): boolean {
@@ -83,7 +56,7 @@ export default function NewProduct() {
       }
     }
 
-    // Commission link URL validation (if provided)
+    // URL format validation
     if (form.commission_link.trim()) {
       try {
         new URL(form.commission_link.trim());
@@ -101,7 +74,6 @@ export default function NewProduct() {
     setSubmitError("");
 
     if (!validate()) return;
-    if (linkWarning && linkWarning.includes("valid URL")) return;
 
     setLoading(true);
     try {
@@ -268,45 +240,16 @@ export default function NewProduct() {
               </div>
             </div>
 
-            {/* 5. Commission Link — REQUIRED */}
+            {/* 5. Product URL — REQUIRED */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                🔗 Commission Link <span className="text-red-400">*</span>
-                <span className="text-slate-400 font-normal"> (KOCs use this link to promote and earn commissions)</span>
+                🔗 Product URL <span className="text-red-400">*</span>
+                <span className="text-slate-400 font-normal"> (link to the product page — KOC will use their own affiliate ID to track commissions)</span>
               </label>
               <input value={form.commission_link} onChange={(e) => update("commission_link", e.target.value)}
-                placeholder="https://amazon.com/dp/B0XXX?tag=youraff-20"
+                placeholder="https://amazon.com/dp/B0DKDSZBN4"
                 className={inputClass("commission_link")} />
               {errors.commission_link && <p className="text-xs text-red-500 mt-1">{errors.commission_link}</p>}
-              {linkWarning && (
-                <p className={`text-xs mt-1 ${linkWarning.startsWith("✅") ? "text-green-600" : "text-amber-600"}`}>
-                  {linkWarning}
-                </p>
-              )}
-
-              {/* Platform-specific commission guidance */}
-              {form.commission_link.trim() && !errors.commission_link && (
-                <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-700 mt-2">
-                  {form.sales_platform === "amazon" && (
-                    <p>💡 Amazon Associates link. Ensure your affiliate tag is included (e.g., <code className="bg-blue-100 px-1 rounded">?tag=your-id-20</code>). Commissions tracked by Amazon.</p>
-                  )}
-                  {(form.sales_platform === "shopify" || form.sales_platform === "independent") && (
-                    <p>💡 For Shopify / independent stores, use a third-party affiliate network: ShareASale, CJ, Impact, Refersion, UpPromote, Affiliatly, or your store's affiliate app link.</p>
-                  )}
-                  {form.sales_platform === "walmart" && (
-                    <p>💡 Walmart Affiliate Program link. Commissions tracked by Walmart.</p>
-                  )}
-                  {form.sales_platform === "ebay" && (
-                    <p>💡 eBay Partner Network (EPN) link. Commissions tracked by eBay.</p>
-                  )}
-                  {(form.sales_platform === "etsy" || form.sales_platform === "shopee" || form.sales_platform === "temu" || form.sales_platform === "aliexpress") && (
-                    <p>💡 Use the platform's affiliate program link or a third-party tracking link. Verify the platform supports affiliate tracking before publishing.</p>
-                  )}
-                  {form.sales_platform === "other" && (
-                    <p>💡 Paste your affiliate/tracking link from any network: ShareASale, CJ, Impact, Rakuten, or a custom UTM-tracked URL.</p>
-                  )}
-                </div>
-              )}
             </div>
 
             {/* 6. Image URL (optional) */}

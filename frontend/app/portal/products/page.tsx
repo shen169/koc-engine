@@ -127,7 +127,7 @@ export default function BrowseProducts() {
                             onClick={(e) => e.stopPropagation()}
                             className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium underline underline-offset-2"
                           >
-                            💰 Commission Link: {(fullProduct.commission_link as string).slice(0, 30)}... ↗
+                            🔗 Product URL: {(fullProduct.commission_link as string).slice(0, 30)}... ↗
                           </a>
                         )}
                         <div className="flex flex-wrap gap-1 mt-1.5">
@@ -202,7 +202,7 @@ export default function BrowseProducts() {
                         onClick={(e) => e.stopPropagation()}
                         className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium underline underline-offset-2"
                       >
-                        💰 Commission Link: {(p.commission_link as string).slice(0, 40)}... ↗
+                        🔗 Product URL: {(p.commission_link as string).slice(0, 40)}... ↗
                       </a>
                     )}
                   </div>
