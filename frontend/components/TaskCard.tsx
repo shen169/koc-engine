@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import DeadlineBadge from "@/components/DeadlineBadge";
 
 interface TaskCardProps {
   task: {
@@ -19,6 +20,11 @@ interface TaskCardProps {
     merchant_avg_rating?: number;
     target_market?: string;
     created_at: string;
+    // KOC's own slot info (for hall mode)
+    my_slot_status?: string;       // "accepted" | "shipped" | "received" | "submitted" | "timed_out" | ...
+    my_slot_deadline?: string;     // ISO timestamp of deadline
+    my_slot_deadline_label?: string;
+    my_slot_deadline_penalty?: string;
   };
   mode: "hall" | "merchant";
   token: string;
@@ -32,7 +38,9 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
 
   return (
     <div
-      className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:border-pink-200 transition-all duration-200 cursor-pointer group"
+      className={`bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:border-pink-200 transition-all duration-200 cursor-pointer group ${
+        task.my_slot_status === "timed_out" ? "opacity-60" : ""
+      }`}
       onClick={() => {
         if (mode === "hall") {
           router.push(`/portal/tasks/${task.task_id}`);
@@ -60,6 +68,23 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
         {mode === "hall" && task.merchant_trust_score !== undefined && task.merchant_trust_score < 60 && (
           <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
             🛡️ 低信
+          </span>
+        )}
+
+        {/* Deadline badge for tasks the KOC has accepted */}
+        {mode === "hall" && task.my_slot_deadline && (
+          <DeadlineBadge
+            deadline={task.my_slot_deadline}
+            label={task.my_slot_deadline_label || ""}
+            penalty={task.my_slot_deadline_penalty}
+            size="sm"
+          />
+        )}
+
+        {/* Timed out label */}
+        {mode === "hall" && task.my_slot_status === "timed_out" && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">
+            ⛔ 已逾期
           </span>
         )}
       </div>
