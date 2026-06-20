@@ -4,6 +4,20 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getToken } from "@/lib/api";
 
+const PLATFORM_EMOJI: Record<string, string> = {
+  amazon: "🏪", shopify: "🛒", walmart: "🏬", ebay: "📦",
+  etsy: "🎨", shopee: "🛍", temu: "📱", aliexpress: "🌏",
+  independent: "🏗", other: "📋",
+};
+const PLATFORM_LABEL: Record<string, string> = {
+  amazon: "Amazon", shopify: "Shopify", walmart: "Walmart", ebay: "eBay",
+  etsy: "Etsy", shopee: "Shopee", temu: "Temu", aliexpress: "AliExpress",
+  independent: "Independent", other: "Other",
+};
+function platformBadge(sp: string): string {
+  return sp ? `${PLATFORM_EMOJI[sp] || "📋"} ${PLATFORM_LABEL[sp] || sp}` : "";
+}
+
 export default function AdminProducts() {
   const [list, setList] = useState<Array<Record<string, unknown>>>([]);
 
@@ -29,7 +43,7 @@ export default function AdminProducts() {
                   <span className="font-bold text-zinc-900">{p.name as string}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${p.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-zinc-50 text-zinc-500"}`}>{p.status as string}</span>
                 </div>
-                <p className="text-xs text-zinc-400">ASIN: {p.asin as string || "—"} &middot; {p.category as string} &middot; {p.commission_value as string}</p>
+                <p className="text-xs text-zinc-400">{p.sales_platform ? `${platformBadge(p.sales_platform as string)} &middot; ` : ""}{p.product_id || p.asin ? `${p.product_id || p.asin} &middot; ` : ""}{p.category as string} &middot; {p.commission_value as string}</p>
               </div>
               <span className="text-xs text-zinc-400">Merchant: {(p.merchant_id as string)?.slice(0, 8)}</span>
             </div>

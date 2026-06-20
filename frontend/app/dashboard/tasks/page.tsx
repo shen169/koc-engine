@@ -116,6 +116,8 @@ export default function MerchantTasksPage() {
                   task_id: t.id || t.task_id,
                   product_name: t.product_name,
                   product_asin: t.product_asin || "",
+                  product_id: t.product_id || "",
+                  sales_platform: t.sales_platform || "",
                   task_type: t.task_type || "long_term",
                   task_status: t.task_status || "pending",
                   commission: t.commission || 0,

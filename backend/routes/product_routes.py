@@ -14,16 +14,28 @@ def create_product(data: dict, current_user: dict = Depends(require_merchant)):
     m = merchant_store.get_by_user_id(current_user["sub"])
     if not m:
         raise HTTPException(404, "Create merchant profile first")
+    # Basic validation
+    if not data.get("name", "").strip():
+        raise HTTPException(400, "Product name is required")
+    if not data.get("category", "").strip():
+        raise HTTPException(400, "Category is required")
+    if not data.get("commission_value", "").strip():
+        raise HTTPException(400, "Commission value is required (e.g. '15% off')")
+    if not data.get("commission_link", "").strip():
+        raise HTTPException(400, "Commission link is required")
+
     product = Product(
         merchant_id=m.id,
-        asin=data.get("asin", ""),
-        name=data["name"],
-        image_url=data.get("image_url", ""),
-        category=data.get("category", ""),
+        asin=data.get("asin", data.get("product_id", "")),  # backward compat
+        product_id=data.get("product_id", data.get("asin", "")),
+        sales_platform=data.get("sales_platform", ""),
+        name=data["name"].strip(),
+        image_url=data.get("image_url", "").strip(),
+        category=data.get("category", "").strip(),
         commission_type=data.get("commission_type", "discount_code"),
-        commission_value=data.get("commission_value", ""),
-        commission_link=data.get("commission_link", ""),
-        description=data.get("description", ""),
+        commission_value=data.get("commission_value", "").strip(),
+        commission_link=data.get("commission_link", "").strip(),
+        description=data.get("description", "").strip(),
         target_market=data.get("target_market", ""),
     )
     product_store.create(product)

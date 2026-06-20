@@ -7,7 +7,7 @@ import { tasks, getToken } from "@/lib/api";
 export default function AdminTasks() {
   const [list, setList] = useState<Array<Record<string, unknown>>>([]);
   const [showNew, setShowNew] = useState(false);
-  const [newTask, setNewTask] = useState({ koc_id: "", product_name: "", product_asin: "", credits_reward: 30, due_at: "" });
+  const [newTask, setNewTask] = useState({ koc_id: "", product_name: "", product_id: "", credits_reward: 30, due_at: "" });
 
   useEffect(() => {
     const token = getToken();
@@ -51,7 +51,7 @@ export default function AdminTasks() {
                 className="px-3 py-2 border rounded-lg text-sm" />
               <input placeholder="Product Name" value={newTask.product_name} onChange={(e) => setNewTask({...newTask, product_name: e.target.value})}
                 className="px-3 py-2 border rounded-lg text-sm" />
-              <input placeholder="ASIN" value={newTask.product_asin} onChange={(e) => setNewTask({...newTask, product_asin: e.target.value})}
+              <input placeholder="Product ID" value={newTask.product_id} onChange={(e) => setNewTask({...newTask, product_id: e.target.value})}
                 className="px-3 py-2 border rounded-lg text-sm" />
               <input type="number" placeholder="Credits Reward" value={newTask.credits_reward} onChange={(e) => setNewTask({...newTask, credits_reward: parseInt(e.target.value)})}
                 className="px-3 py-2 border rounded-lg text-sm" />

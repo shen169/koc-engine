@@ -102,15 +102,17 @@ class Merchant(BaseModel):
 class Product(BaseModel):
     id: str = Field(default_factory=_uid)
     merchant_id: str
-    asin: str = ""
+    asin: str = ""  # legacy: Amazon ASIN (kept for backward compat)
+    product_id: str = ""  # generic product identifier (ASIN, SKU, Handle, URL)
+    sales_platform: str = ""  # amazon | shopify | walmart | ebay | etsy | shopee | temu | aliexpress | independent | other
     name: str
     image_url: str = ""
     category: str = ""
     commission_type: str = "discount_code"  # discount_code | affiliate
-    commission_value: str = ""  # 如 "15% off"
-    commission_link: str = ""  # 返佣链接（Amazon联盟/独立站分佣链接），KOC 拿这个去推广
+    commission_value: str = ""  # e.g. "15% off"
+    commission_link: str = ""  # affiliate / tracking link — Amazon Associates, ShareASale, CJ, Impact, Refersion, etc.
     description: str = ""
-    target_market: str = ""  # 目标市场（US/UK/CA/AU/EU/JP/KR/SEA/CN），与 KOC.region 匹配
+    target_market: str = ""  # target market (US/UK/CA/AU/EU/JP/KR/SEA/CN), matched with KOC.region
     status: str = "active"  # active | paused | archived
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 

@@ -8,6 +8,8 @@ interface TaskCardProps {
     task_id: string;
     product_name: string;
     product_asin: string;
+    product_id?: string;
+    sales_platform?: string;
     task_type: string;
     task_status: string;
     commission: number;

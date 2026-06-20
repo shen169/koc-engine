@@ -17,6 +17,17 @@ interface ProductMatch {
   source: string;
 }
 
+const PLATFORM_EMOJI: Record<string, string> = {
+  amazon: "🏪", shopify: "🛒", walmart: "🏬", ebay: "📦",
+  etsy: "🎨", shopee: "🛍", temu: "📱", aliexpress: "🌏",
+  independent: "🏗", other: "📋",
+};
+const PLATFORM_LABEL: Record<string, string> = {
+  amazon: "Amazon", shopify: "Shopify", walmart: "Walmart", ebay: "eBay",
+  etsy: "Etsy", shopee: "Shopee", temu: "Temu", aliexpress: "AliExpress",
+  independent: "Independent", other: "Other",
+};
+
 export default function BrowseProducts() {
   const router = useRouter();
 
@@ -102,6 +113,7 @@ export default function BrowseProducts() {
                           )}
                         </div>
                         <p className="text-xs text-zinc-400 mb-1">📂 {m.product_category} · 💰 {m.commission_value || "15% off"}</p>
+                        {fullProduct.sales_platform ? <span className="text-xs text-zinc-400">{PLATFORM_EMOJI[fullProduct.sales_platform as string]} {PLATFORM_LABEL[fullProduct.sales_platform as string]}</span> : null}
                         {(fullProduct.description as string) && (
                           <p className="text-xs text-gray-400 leading-relaxed line-clamp-1 mb-1">
                             {(fullProduct.description as string).slice(0, 120)}
@@ -176,6 +188,7 @@ export default function BrowseProducts() {
                     <p className="text-xs text-zinc-500 mb-1">
                       📂 {p.category as string} · 💰 {p.commission_value as string || "15% off"}
                     </p>
+                    {p.sales_platform ? <span className="text-xs text-zinc-400">{PLATFORM_EMOJI[p.sales_platform as string]} {PLATFORM_LABEL[p.sales_platform as string]}</span> : null}
                     {(p.description as string) && (
                       <p className="text-sm text-gray-500 leading-relaxed line-clamp-2 mb-2">
                         {(p.description as string).slice(0, 150)}

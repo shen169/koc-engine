@@ -5,6 +5,20 @@ import { useRouter, useParams } from "next/navigation";
 import { products, interests, matching, getToken, getRole, getConsolePath } from "@/lib/api";
 import NavBar from "@/components/NavBar";
 
+const PLATFORM_EMOJI: Record<string, string> = {
+  amazon: "🏪", shopify: "🛒", walmart: "🏬", ebay: "📦",
+  etsy: "🎨", shopee: "🛍", temu: "📱", aliexpress: "🌏",
+  independent: "🏗", other: "📋",
+};
+const PLATFORM_LABEL: Record<string, string> = {
+  amazon: "Amazon", shopify: "Shopify", walmart: "Walmart", ebay: "eBay",
+  etsy: "Etsy", shopee: "Shopee", temu: "Temu", aliexpress: "AliExpress",
+  independent: "Independent", other: "Other",
+};
+function platformBadge(sp: string): string {
+  return sp ? `${PLATFORM_EMOJI[sp] || "📋"} ${PLATFORM_LABEL[sp] || sp}` : "";
+}
+
 export default function ProductDetail() {
   const router = useRouter();
   const params = useParams();
@@ -121,6 +135,10 @@ export default function ProductDetail() {
               }`}>
                 {product.status === "active" ? "🟢 Active" : "⏸ Paused"}
               </span>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              {(product.sales_platform as string) && <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full">{platformBadge(product.sales_platform as string)}</span>}
+              {(product.product_id as string) && <span className="text-xs text-white/60">ID: {product.product_id as string}</span>}
             </div>
           </div>
 
