@@ -5,6 +5,8 @@ import { useRouter, useParams } from "next/navigation";
 import { tasks, auth, interests, getToken, getRole, getConsolePath } from "@/lib/api";
 import IntegrityBadge from "@/components/IntegrityBadge";
 import NavBar from "@/components/NavBar";
+import DeadlineBadge from "@/components/DeadlineBadge";
+import CommitmentConfirm from "@/components/CommitmentConfirm";
 
 export default function KocTaskDetailPage() {
   const router = useRouter();
@@ -28,6 +30,8 @@ export default function KocTaskDetailPage() {
   const [showMetricsForm, setShowMetricsForm] = useState(false);
   const [metrics, setMetrics] = useState({ views: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, conversions: 0, revenue: 0 });
   const [updatingMetrics, setUpdatingMetrics] = useState(false);
+  const [showCommitment, setShowCommitment] = useState(false);
+  const [showClaimCommitment, setShowClaimCommitment] = useState(false);
 
   useEffect(() => {
     const t = getToken();
@@ -89,6 +93,36 @@ export default function KocTaskDetailPage() {
     setError("");
     try {
       await tasks.accept(taskId, mySlotIndex, getToken()!);
+      await loadTask();
+    } catch (e: any) {
+      setError(e.message || "接单失败");
+    } finally {
+      setAccepting(false);
+    }
+  }
+
+  // Called after user agrees to commitment terms
+  async function handleConfirmAccept() {
+    setShowCommitment(false);
+    setAccepting(true);
+    setError("");
+    try {
+      await tasks.accept(taskId, mySlotIndex, getToken()!);
+      await loadTask();
+    } catch (e: any) {
+      setError(e.message || "接单失败");
+    } finally {
+      setAccepting(false);
+    }
+  }
+
+  // Called after user agrees to commitment terms (claim empty slot path)
+  async function handleConfirmClaim() {
+    setShowClaimCommitment(false);
+    setAccepting(true);
+    setError("");
+    try {
+      await tasks.accept(taskId, firstEmptySlotIndex, getToken()!);
       await loadTask();
     } catch (e: any) {
       setError(e.message || "接单失败");
@@ -329,19 +363,30 @@ export default function KocTaskDetailPage() {
           <h2 className="font-semibold text-gray-900 mb-4">📌 任务进度</h2>
           <div className="space-y-3">
             {[
-              { key: "assigned", label: "待接单", done: ["assigned", "accepted", "shipped", "received", "creating", "submitted"].includes(slotStatus) },
-              { key: "accepted", label: "已接单", done: ["accepted", "shipped", "received", "creating", "submitted"].includes(slotStatus) },
-              { key: "shipped", label: "商家已发货", done: ["shipped", "received", "creating", "submitted"].includes(slotStatus) },
-              { key: "received", label: "已收货", done: ["received", "creating", "submitted"].includes(slotStatus) },
-              { key: "submitted", label: "已提交内容", done: ["submitted"].includes(slotStatus) },
+              { key: "assigned", label: "待接单", done: ["assigned", "accepted", "shipped", "received", "creating", "submitted", "approved", "completed"].includes(slotStatus) },
+              { key: "accepted", label: "已接单", done: ["accepted", "shipped", "received", "creating", "submitted", "approved", "completed"].includes(slotStatus) },
+              { key: "shipped", label: "商家已发货", done: ["shipped", "received", "creating", "submitted", "approved", "completed"].includes(slotStatus) },
+              { key: "received", label: "已收货", done: ["received", "creating", "submitted", "approved", "completed"].includes(slotStatus) },
+              { key: "submitted", label: "已提交内容", done: ["submitted", "approved", "completed"].includes(slotStatus) },
+              { key: "approved", label: "商家审核通过", done: ["approved", "completed"].includes(slotStatus) },
+              // Conditional abnormal states
+              ...(slotStatus === "revision_requested" ? [{ key: "revision_requested", label: "需修改重交", done: false }] : []),
+              ...(slotStatus === "timed_out" ? [{ key: "timed_out", label: "已逾期", done: false }] : []),
             ].map((step) => (
               <div key={step.key} className="flex items-center gap-3">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                  step.done ? "bg-green-500 text-white" : "bg-gray-200 text-gray-400"
+                  step.done ? "bg-green-500 text-white" :
+                  step.key === "revision_requested" ? "bg-orange-500 text-white" :
+                  step.key === "timed_out" ? "bg-red-500 text-white" :
+                  "bg-gray-200 text-gray-400"
                 }`}>
-                  {step.done ? "✓" : ""}
+                  {step.done ? "✓" : step.key === "timed_out" ? "✗" : ""}
                 </div>
-                <span className={`text-sm ${step.done ? "text-gray-900 font-medium" : "text-gray-400"}`}>
+                <span className={`text-sm ${
+                  step.done ? "text-gray-900 font-medium" :
+                  step.key === "timed_out" ? "text-red-600 font-medium" :
+                  "text-gray-400"
+                }`}>
                   {step.label}
                 </span>
               </div>
@@ -360,12 +405,39 @@ export default function KocTaskDetailPage() {
             {isAssignedToMe && (
               <div className="space-y-2">
                 <button
-                  onClick={handleAccept}
+                  onClick={() => setShowCommitment(true)}
                   disabled={accepting}
                   className="w-full btn-brand text-white py-3.5 rounded-xl font-semibold text-lg disabled:opacity-50"
                 >
                   {accepting ? "接单中..." : "✅ 接单（质押 10 点）"}
                 </button>
+
+                {/* Commitment confirm modal */}
+                <CommitmentConfirm
+                  open={showCommitment}
+                  title="⚠️ 确认接单前，请知悉"
+                  commitments={[
+                    { icon: "📦", text: "收到商家寄出的样品后开始创作" },
+                    { icon: "📹", text: "14 天内提交原创内容（视频/图文）" },
+                    { icon: "🔗", text: "内容发布后提交链接到平台" },
+                    { icon: "📊", text: "提交后可在平台更新内容表现数据" },
+                  ]}
+                  pledge={[
+                    { icon: "🔒", text: "接单冻结 10 点质押" },
+                    { icon: "💵", text: "完成后退还 5 点（平台扣 5 点服务费）" },
+                    { icon: "💰", text: "佣金走产品返佣链接，平台点数不参与佣金发放" },
+                  ]}
+                  redlines={[
+                    { icon: "⏰", text: "14 天内未提交内容 → 没收 10pt 质押 + 扣 15 信任分 + 可能降级" },
+                    { icon: "🚫", text: "拒绝接单 → 扣 3 信任分" },
+                    { icon: "📋", text: "最多同时进行 5 个任务" },
+                    { icon: "🛡️", text: "商家 48h 不发货 → 退你质押 + 商家扣 20 分" },
+                  ]}
+                  confirmLabel="确认接单"
+                  onConfirm={handleConfirmAccept}
+                  onCancel={() => setShowCommitment(false)}
+                />
+
                 <button
                   onClick={handleReject}
                   disabled={rejecting}
@@ -388,12 +460,39 @@ export default function KocTaskDetailPage() {
                       🎯 该任务还有 <strong>{allSlots.filter((s: any) => !s.koc_id).length}</strong> 个空位，你可以直接接单
                     </p>
                     <button
-                      onClick={handleClaim}
+                      onClick={() => setShowClaimCommitment(true)}
                       disabled={accepting}
                       className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3.5 rounded-xl font-semibold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 shadow-md shadow-pink-200"
                     >
                       {accepting ? "接单中..." : "🚀 接单（质押 10 点）"}
                     </button>
+
+                    {/* Commitment confirm modal for claim path */}
+                    <CommitmentConfirm
+                      open={showClaimCommitment}
+                      title="⚠️ 确认接单前，请知悉"
+                      commitments={[
+                        { icon: "📦", text: "收到商家寄出的样品后开始创作" },
+                        { icon: "📹", text: "14 天内提交原创内容（视频/图文）" },
+                        { icon: "🔗", text: "内容发布后提交链接到平台" },
+                        { icon: "📊", text: "提交后可在平台更新内容表现数据" },
+                      ]}
+                      pledge={[
+                        { icon: "🔒", text: "接单冻结 10 点质押" },
+                        { icon: "💵", text: "完成后退还 5 点（平台扣 5 点服务费）" },
+                        { icon: "💰", text: "佣金走产品返佣链接，平台点数不参与佣金发放" },
+                      ]}
+                      redlines={[
+                        { icon: "⏰", text: "14 天内未提交内容 → 没收 10pt 质押 + 扣 15 信任分 + 可能降级" },
+                        { icon: "🚫", text: "拒绝接单 → 扣 3 信任分" },
+                        { icon: "📋", text: "最多同时进行 5 个任务" },
+                        { icon: "🛡️", text: "商家 48h 不发货 → 退你质押 + 商家扣 20 分" },
+                      ]}
+                      confirmLabel="确认接单"
+                      onConfirm={handleConfirmClaim}
+                      onCancel={() => setShowClaimCommitment(false)}
+                    />
+
                     <p className="text-xs text-gray-400 text-center">
                       接单冻结 10 点质押，完成后退还 5 点（平台扣 5 点服务费）
                     </p>
@@ -432,6 +531,27 @@ export default function KocTaskDetailPage() {
 
             {canSubmit && (
               <div className="space-y-3">
+                {/* Countdown for 14-day submission deadline */}
+                {mySlot?.received_at && slotStatus !== "revision_requested" && (
+                  <DeadlineBadge
+                    deadline={new Date(new Date(mySlot.received_at).getTime() + 14 * 24 * 60 * 60 * 1000).toISOString()}
+                    label="提交内容截止"
+                    penalty="逾期未提交将扣除 15 信任分 + 没收 10pt 质押"
+                    size="md"
+                  />
+                )}
+
+                {slotStatus === "revision_requested" && (
+                  <DeadlineBadge
+                    deadline={new Date(new Date(
+                      (mySlot as any).rejected_at || mySlot.submitted_at
+                    ).getTime() + 3 * 24 * 60 * 60 * 1000).toISOString()}
+                    label="修改重交截止"
+                    penalty={`逾期未重交将按违约处理：扣 15 信任分 + 没收质押（已修改 ${(mySlot as any).revision_count || 0}/${(mySlot as any).max_revisions || 3} 次）`}
+                    size="md"
+                  />
+                )}
+
                 <label className="block text-sm font-semibold text-gray-700">
                   提交内容链接（每行一个）
                 </label>
@@ -547,6 +667,28 @@ export default function KocTaskDetailPage() {
           </div>
         )}
 
+        {slotStatus === "timed_out" && (
+          <div className="bg-red-50 rounded-2xl border-2 border-red-200 p-6 text-center mt-4">
+            <div className="text-3xl mb-2">⛔</div>
+            <p className="font-bold text-red-700 text-lg">该任务已逾期</p>
+            <div className="mt-4 space-y-2 text-left max-w-xs mx-auto">
+              <div className="flex items-center gap-2 text-sm text-red-600">
+                <span>💸</span>
+                <span>质押 10pt 已退还商家</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-red-600">
+                <span>📉</span>
+                <span>信任分 -15</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-red-600">
+                <span>⚠️</span>
+                <span>等级可能已降级</span>
+              </div>
+            </div>
+            <p className="text-xs text-red-400 mt-4">请遵守平台规则，避免再次逾期</p>
+          </div>
+        )}
+
         {slotStatus === "completed" && (
           <div className="bg-green-50 rounded-2xl border border-green-100 p-6 text-center mt-4">
             <div className="text-3xl mb-2">🎉</div>
@@ -554,6 +696,32 @@ export default function KocTaskDetailPage() {
             <p className="text-sm text-green-600 mt-1">质押已退还，信任分已恢复</p>
             {mySlot?.content_urls && (
               <div className="mt-4 space-y-1">
+                {(mySlot.content_urls as string[]).map((url: string, i: number) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                     className="block text-sm text-pink-500 hover:text-pink-600">
+                    🔗 {url}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {slotStatus === "revision_requested" && (
+          <div className="bg-orange-50 rounded-2xl border border-orange-200 p-6 text-center mt-4">
+            <div className="text-3xl mb-2">✏️</div>
+            <p className="font-semibold text-orange-700 text-lg">商家要求修改内容</p>
+            {(mySlot as any)?.review_feedback && (
+              <div className="mt-3 bg-white rounded-xl p-4 text-left">
+                <p className="text-xs text-gray-400 mb-1">商家反馈：</p>
+                <p className="text-sm text-gray-700">{(mySlot as any).review_feedback}</p>
+              </div>
+            )}
+            <p className="text-xs text-orange-500 mt-3">
+              请在 3 天内修改并重新提交（已修改 {(mySlot as any)?.revision_count || 0}/{(mySlot as any)?.max_revisions || 3} 次）
+            </p>
+            {mySlot?.content_urls && (
+              <div className="mt-3 space-y-1">
                 {(mySlot.content_urls as string[]).map((url: string, i: number) => (
                   <a key={i} href={url} target="_blank" rel="noopener noreferrer"
                      className="block text-sm text-pink-500 hover:text-pink-600">
