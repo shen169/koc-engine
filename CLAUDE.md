@@ -1,410 +1,418 @@
 # CLAUDE.md — KOC Engine
 
-## 项目
+## Project
 
-跨境电商 KOC 双边撮合平台 V2。
+Cross-border e-commerce KOC bilateral matching platform V2.
 
-**核心变化（V1→V2）：** 从 Admin 手动匹配 → **自动接单 + 任务广场 + 质押经济**。
-- 商家发布任务（加急自动匹配 / 长线进广场）
-- KOC 在任务广场接单 或 对产品点意向自动分配
-- 双方质押扣点 → 履约完成退还（扣 5pt 平台费）
-- 佣金走返佣链接（affiliate link），平台点数不参与佣金发放
+**Core change (V1→V2):** From Admin manual matching → **auto-accept + Task Hall + pledge economy**.
+- Merchants publish tasks (Urgent = auto-match / Long-term = enter Task Hall)
+- KOCs browse and accept tasks in Task Hall, or express interest in products for auto-assignment
+- Both sides pledge pt → refunded on fulfillment (platform deducts 5pt service fee)
+- Commission via affiliate link; platform points are not used for commission payouts
 
-核心规则：**双方互不可见联系方式**，平台是唯一中间人，代理全部沟通和履约管理。
+Core rule: **Both sides cannot see each other's contact info**. The platform is the sole intermediary, managing all communication and fulfillment.
 
-## 技术栈
+## Tech Stack
 
-- 后端：Python 3.12 + FastAPI + uvicorn + httpx
-- 前端：Next.js 16 (App Router) + React 19 + Tailwind CSS 4
-- AI：DeepSeek v4 (`deepseek-chat`，OpenAI 兼容 API)
-- 存储：JSON 文件 + threading.Lock（`output/` 目录，与 TVS 模式一致）
-- 认证：bcrypt + PyJWT（3 角色：koc / merchant / admin）
-- 字体：Inter + JetBrains Mono (Google Fonts)
+- Backend: Python 3.12 + FastAPI + uvicorn + httpx
+- Frontend: Next.js 16 (App Router) + React 19 + Tailwind CSS 4
+- AI: DeepSeek v4 (`deepseek-chat`, OpenAI-compatible API)
+- Storage: JSON files + threading.Lock (`output/` directory, same pattern as TVS)
+- Auth: bcrypt + PyJWT (3 roles: koc / merchant / admin)
+- Fonts: Inter + JetBrains Mono (Google Fonts)
 
-## 启动
+## Start
 
 ```bash
-# 后端（必须从 backend/ 目录启动，否则相对导入失败）
+# Backend (MUST start from backend/ directory, otherwise relative imports fail)
 cd backend && source ../venv/bin/activate && uvicorn main:app --port 8001 --reload
 
-# 前端
+# Frontend
 cd frontend && npm run dev
 ```
 
-## 部署
+## Deploy
 
-### 前端 → Vercel
+### Frontend → Vercel
 ```bash
 cd frontend
-# 设置环境变量后一键部署
+# Set env vars then one-click deploy
 vercel --prod -e NEXT_PUBLIC_API_URL=https://your-domain.com
 ```
 
-### 后端 → VPS（推荐）
-VPS 部署脚本位于 `deploy/` 目录，一键安装：
+### Backend → VPS (Recommended)
+VPS deploy scripts in `deploy/` directory, one-click setup:
 ```bash
-# VPS 上执行（Ubuntu 22.04/24.04）
+# Run on VPS (Ubuntu 22.04/24.04)
 git clone https://github.com/shen169/koc-engine.git
 cd koc-engine && chmod +x deploy/vps-setup.sh
 sudo ./deploy/vps-setup.sh your-domain.com
 ```
-脚本自动完成：系统依赖 → 创建用户 → 部署代码 → Python 虚拟环境 → systemd 服务 → nginx 反代 → Let's Encrypt SSL → 防火墙
+Script automates: system deps → create user → deploy code → Python venv → systemd service → nginx reverse proxy → Let's Encrypt SSL → firewall
 
-**部署架构：**
+**Deploy architecture:**
 ```
-Vercel (前端) ─→ nginx (VPS) ─→ uvicorn:8001 (systemd)
-                      │
-                      └── Let's Encrypt SSL
+Vercel (Frontend) ─→ nginx (VPS) ─→ uvicorn:8001 (systemd)
+                         │
+                         └── Let's Encrypt SSL
 ```
 
-**服务管理（VPS 上）：**
+**Service management (on VPS):**
 ```bash
-systemctl status koc-engine   # 查看状态
-journalctl -u koc-engine -f   # 实时日志
-systemctl restart koc-engine  # 重启
+systemctl status koc-engine   # check status
+journalctl -u koc-engine -f   # live logs
+systemctl restart koc-engine  # restart
 ```
 
-## 环境变量
+## Environment Variables
 
-后端 `backend/.env`：
+Backend `backend/.env`:
 
-| 变量 | 说明 | 必需 |
+| Variable | Description | Required |
 |------|------|:--:|
-| `DEEPSEEK_API_KEY` | DeepSeek API Key（AI 评分 + 匹配精排） | ✅ |
-| `JWT_SECRET` | JWT 签名密钥 | ❌（默认 dev key） |
-| `ACCESS_PASSWORD` | Admin 密码 | ❌（默认 admin123） |
+| `DEEPSEEK_API_KEY` | DeepSeek API Key (AI scoring + matching re-rank) | ✅ |
+| `JWT_SECRET` | JWT signing key | ❌ (default dev key) |
+| `ACCESS_PASSWORD` | Admin password | ❌ (default admin123) |
 
-## 三方角色
+## Three Roles
 
-| | KOC | 商家 | Admin |
+| | KOC | Merchant | Admin |
 |------|:--:|:--:|:--:|
-| 注册 | ✅ 需申请 | ✅ 开放 | 系统创建 |
-| 浏览 KOC 池 | ✗ | ✅（匿名） | ✅ |
-| 浏览任务广场 | ✅ | ✗ | ✅ |
-| 浏览产品池 | ✅ | 自己的 | ✅ |
-| 发布任务 | ✗ | ✅（信任≥40） | ✅ |
-| 接受任务 | ✅（上限5个） | ✗ | ✅ |
-| 表达意向 | ✅ → 自动接单 | ✅ 对 KOC | ✗ |
-| 查看联系方式 | ✗ | ✗ | ✅ |
-| 双向互评 | ✅ 评商家 | ✅ 评 KOC | ✗ |
-| 举报 | ✅ 举报商家 | ✗ | ✅ 审核举报 |
-| 黑名单 | ✅ | ✅ | ✅ |
+| Register | ✅ requires application | ✅ open | system-created |
+| Browse KOC Pool | ✗ | ✅ (anonymous) | ✅ |
+| Browse Task Hall | ✅ | ✗ | ✅ |
+| Browse Product Pool | ✅ | own only | ✅ |
+| Publish Tasks | ✗ | ✅ (Trust ≥40) | ✅ |
+| Accept Tasks | ✅ (max 5) | ✗ | ✅ |
+| Express Interest | ✅ → auto-accept | ✅ on KOC | ✗ |
+| View Contact Info | ✗ | ✗ | ✅ |
+| Mutual Reviews | ✅ rate merchant | ✅ rate KOC | ✗ |
+| Report | ✅ report merchant | ✗ | ✅ review reports |
+| Blacklist | ✅ | ✅ | ✅ |
 
-## 完整工作流（V2）
+## Full Workflow (V2)
 
 ```
-商家注册(5000pt) → 创建profile → 上架产品(含返佣链接) → 发布任务
-    ├─ 加急(urgent): 自动匹配引擎填充 KOC slot → assigned
-    └─ 长线(long_term): 创建空槽 → 进入任务广场等待 KOC 浏览接单
+Merchant registers (5000pt) → creates profile → lists products (with commission link) → publishes task
+    ├─ Urgent: auto-matching engine fills KOC slots → assigned
+    └─ Long-term: creates empty slots → enters Task Hall for KOCs to browse and accept
 
-KOC 落地页 → 申请(严格校验+AI评分) → Admin审核 → 通过(1000pt) → 浏览任务广场+产品池
-    ├─ 任务广场接单: 浏览→接受→扣质押(10pt)
-    └─ 产品点意向: 自动填已有空槽 或 创建 long_term 任务
+KOC landing page → applies (strict validation + AI scoring) → Admin reviews → approved (1000pt) → browses Task Hall + Product Pool
+    ├─ Task Hall accept: browse → accept → deduct pledge (10pt)
+    └─ Product interest: auto-fills existing empty slots OR creates long_term task
 
-双方质押扣点 → 商家发货(上传物流+承运商+凭证照片) → 物流追踪(自动查询送达→自动收货) → KOC收货(含开箱照) → 创作 → 提交内容链接
-    ↓ 进入待审核状态（不再自动完成！）
-商家审核 KOC 提交内容:
-    ├─ approve → 退双方质押 + 恢复信任分(+3) + 校准等级 ✅
-    ├─ reject → KOC 修改重交（最多3次，超限→违约）
-    └─ 4天未审 → cron 自动通过（保护 KOC 不被恶意拖延）
-佣金: 走返佣链接(affiliate link) 自动结算，不走平台点数
-双方互评
+Both sides pledge deducted → Merchant ships (tracking + carrier + proof photos) → Tracking (auto-query delivery → auto-receive) → KOC receives (with unboxing photos) → creates content → submits content links
+    ↓ enters pending review status (no longer auto-completes!)
+Merchant reviews KOC submission:
+    ├─ approve → return both pledges + restore Trust Score (+3) + calibrate tier ✅
+    ├─ reject → KOC revises and resubmits (max 3 times, exceeded → violation)
+    └─ 4 days no review → cron auto-approves (protects KOC from malicious delays)
+Commission: via affiliate link, auto-settled; does NOT go through platform points
+Mutual reviews
 
-Cron 周度扫描(每小时执行；物流追踪每24h):
-├─ 超时检测: 接单12h→重推 | 发货48h→商家违约(退KOC质押+扣商家分) | 提交14d→KOC违约(退商家质押+扣KOC分)
-├─ 审核超时: submitted 4d未审→自动通过 | revision_requested 3d未重交→KOC违约
-├─ 物流追踪: 每日查询所有 shipped slot → 送达自动收货
-├─ 长线空位: 7天无人接→系统自动匹配填槽
-└─ 信任分联动: 完成/违约/举报→信任分变化→等级自动校准(L1⇄L2⇄L3 / M1⇄M2⇄M3)
+Cron periodic scan (every hour; tracking every 24h):
+├─ Timeout detection: accept 12h→redistribute | ship 48h→merchant violation (return KOC pledge + deduct merchant Trust) | submit 14d→KOC violation (return merchant pledge + deduct KOC Trust)
+├─ Review timeout: submitted 4d no review→auto-approve | revision_requested 3d no resubmit→KOC violation
+├─ Tracking: daily query all shipped slots → carrier confirms delivery → auto-mark received
+├─ Long-term empty slots: 7 days unclaimed→system auto-match fills slots
+└─ Trust Score linkage: complete/violate/report→Trust Score changes→tier auto-calibration (L1⇄L2⇄L3 / M1⇄M2⇄M3)
 ```
 
-## 项目结构
+## Project Structure
 
 ```
 koc-engine/
 ├── backend/
-│   ├── main.py                # FastAPI 入口 + CORS + 路由注册 + cron loop
-│   ├── models.py              # 全部 Pydantic 模型 (12 实体 + 状态机常量)
-│   ├── config.py              # 配置/常量/点数/质押/费用/SLA (.env 手动加载)
-│   ├── auth.py                # JWT 认证 + 角色依赖 (require_koc/merchant/admin)
-│   ├── routes/                # 16 个路由模块
-│   │   ├── auth_routes.py         # 注册/登录/me (返回信任分+等级+点数)
-│   │   ├── landing_routes.py      # 落地页数据 (公开)
-│   │   ├── application_routes.py  # KOC 申请 + AI评分 + 严格校验 + 裂变
-│   │   ├── koc_routes.py          # KOC 档案 + 匿名池 (商家视角)
-│   │   ├── merchant_routes.py     # 商家档案 + 诚信度查询 + 举报返佣链接
-│   │   ├── product_routes.py      # 产品 CRUD + 角色视图 (KOC看active+商家信息)
-│   │   ├── interest_routes.py     # 意向表达 → 自动接单 (核心流转)
-│   │   ├── matching_routes.py     # 智能匹配: 为产品找KOC / 为KOC找产品 / 批量意向
-│   │   ├── task_routes.py         # 任务V2: 发布/广场/接单/拒绝/发货/收货/提交/报表/重推
-│   │   ├── credit_routes.py       # 点数余额/流水/Admin发点
-│   │   ├── coupon_routes.py       # 折扣码 + CSV批量导入订单
-│   │   ├── referral_routes.py     # KOC 裂变推荐码/统计
-│   │   ├── review_routes.py       # 双向互评 (履约后)
-│   │   ├── blacklist_routes.py    # 双向黑名单
-│   │   ├── scoring_routes.py      # AI 评分独立调用
-│   │   └── admin_routes.py        # 统计/Cron/举报审核/用户列表
-│   ├── stores/                # JSON 文件存储层 (14 个 store)
+│   ├── main.py                # FastAPI entry + CORS + route registration + cron loop
+│   ├── models.py              # All Pydantic models (12 entities + state machine constants)
+│   ├── config.py              # Config/constants/points/pledge/fees/SLA (.env manual load)
+│   ├── auth.py                # JWT auth + role dependencies (require_koc/merchant/admin)
+│   ├── routes/                # 16 route modules
+│   │   ├── auth_routes.py         # Register/login/me (returns Trust Score + tier + points)
+│   │   ├── landing_routes.py      # Landing page data (public)
+│   │   ├── application_routes.py  # KOC application + AI scoring + strict validation + referral
+│   │   ├── koc_routes.py          # KOC profiles + anonymous pool (merchant view)
+│   │   ├── merchant_routes.py     # Merchant profiles + trust lookup + report fake commission link
+│   │   ├── product_routes.py      # Product CRUD + role views (KOC sees active + merchant info)
+│   │   ├── interest_routes.py     # Interest expression → auto-accept (core flow)
+│   │   ├── matching_routes.py     # Smart matching: find KOCs for product / find products for KOC / batch interest
+│   │   ├── task_routes.py         # Tasks V2: publish/hall/accept/reject/ship/receive/submit/report/rematch
+│   │   ├── credit_routes.py       # Credit balance/history/Admin reward
+│   │   ├── coupon_routes.py       # Discount codes + CSV batch import orders
+│   │   ├── referral_routes.py     # KOC referral codes/stats
+│   │   ├── review_routes.py       # Mutual reviews (post-fulfillment)
+│   │   ├── blacklist_routes.py    # Bidirectional blacklist
+│   │   ├── scoring_routes.py      # AI scoring standalone call
+│   │   └── admin_routes.py        # Stats/Cron/Report review/User list
+│   ├── stores/                # JSON file storage layer (14 stores)
 │   │   ├── user_store.py / koc_store.py / merchant_store.py
 │   │   ├── product_store.py / task_store.py / application_store.py
 │   │   ├── interest_store.py / credit_store.py / coupon_store.py
 │   │   ├── referral_store.py / review_store.py / blacklist_store.py
-│   │   └── report_store.py   # 举报工单存储
+│   │   └── report_store.py   # Report ticket storage
 │   ├── services/
-│   │   ├── scorer.py          # DeepSeek v4 三维评分 (mock 降级)
-│   │   ├── matcher.py         # 匹配引擎: 规则引擎 (7维加权) + AI 精排
-│   │   ├── cron.py            # 周度扫描: 超时检测 + 自动处理 + 信任分联动 + 等级校准
-│   │   ├── tracking.py        # 物流追踪: 多承运商自动查询 + 送达自动收货
-│   │   ├── email_service.py   # 邮件模板 (占位)
-│   │   └── tvs_client.py      # TVS 集成占位 (P2)
+│   │   ├── scorer.py          # DeepSeek v4 3D scoring (mock fallback)
+│   │   ├── matcher.py         # Matching engine: rule engine (7-dim weighted) + AI re-rank
+│   │   ├── cron.py            # Periodic scan: timeout detection + auto-processing + Trust Score linkage + tier calibration
+│   │   ├── tracking.py        # Shipment tracking: multi-carrier auto-query + delivery auto-receive
+│   │   ├── email_service.py   # Email templates (placeholder)
+│   │   └── tvs_client.py      # TVS integration placeholder (P2)
 │   └── requirements.txt
 ├── frontend/
 │   ├── app/
-│   │   ├── page.tsx               # 公开首页 (火花动画 + 三色渐变)
-│   │   ├── koc/apply/page.tsx     # KOC 申请 + AI评分结算动画
+│   │   ├── page.tsx               # Public landing (spark animation + tri-color gradient)
+│   │   ├── koc/apply/page.tsx     # KOC application + AI scoring animation
 │   │   ├── login/page.tsx / register/page.tsx
-│   │   ├── portal/                # KOC 门户 (暖橙背景)
+│   │   ├── portal/                # KOC Portal (warm orange background)
 │   │   │   ├── page.tsx / products/ / products/[id]/
-│   │   │   ├── hall/              # 任务广场 (浏览+筛选+排序+接单)
+│   │   │   ├── hall/              # Task Hall (browse + filter + sort + accept)
 │   │   │   ├── tasks/ / tasks/[id]/
 │   │   │   ├── credits/ / coupons/ / referrals/
-│   │   ├── dashboard/             # 商家门户 (浅紫背景)
+│   │   ├── dashboard/             # Merchant Dashboard (light purple background)
 │   │   │   ├── page.tsx / products/ / products/new/ / koc-pool/
 │   │   │   ├── tasks/ / tasks/new/ / tasks/[id]/
-│   │   └── admin/                 # 管理后台 (中性灰背景)
+│   │   └── admin/                 # Admin Panel (neutral gray background)
 │   │       ├── page.tsx / applications/ / koc/ / merchants/
 │   │       ├── products/ / interests/ / tasks/ / credits/
 │   ├── components/
-│   │   ├── Spark.tsx           # 火花符号 (呼吸 + 弹入 + 匹配粒子)
-│   │   ├── MatchModal.tsx      # 匹配成功弹窗
-│   │   ├── CoinDrop.tsx        # 点数到账动画
-│   │   ├── TaskCard.tsx        # 任务卡片 (广场/列表复用)
-│   │   ├── TaskProgress.tsx    # 任务状态进度条
-│   │   ├── IntegrityBadge.tsx  # 诚信度徽章 (M1/M2/M3 + L1/L2/L3)
-│   │   └── NavBar.tsx          # 全局导航栏
-│   ├── lib/api.ts              # API 客户端 (fetch 封装 + auth helpers)
-│   └── middleware.ts            # Next.js 路由保护
-├── output/                    # 运行时数据 (gitignore)
-├── docs/superpowers/specs/    # 设计文档
+│   │   ├── Spark.tsx              # Spark symbol (breathe + bounce-in + match particles)
+│   │   ├── MatchModal.tsx         # Match success modal
+│   │   ├── CoinDrop.tsx           # Credit arrival animation
+│   │   ├── TaskCard.tsx           # Task card (hall/list reusable)
+│   │   ├── TaskProgress.tsx       # Task status progress bar
+│   │   ├── IntegrityBadge.tsx     # Trust badge (M1/M2/M3 + L1/L2/L3)
+│   │   ├── DeadlineBadge.tsx      # SLA countdown timer (4-states: green/amber/red/expired)
+│   │   ├── CommitmentConfirm.tsx  # Pre-action confirmation modal with mandatory checkbox
+│   │   └── NavBar.tsx             # Global navigation bar
+│   ├── lib/api.ts                 # API client (fetch wrapper + auth helpers)
+│   └── middleware.ts              # Next.js route protection
+├── output/                    # Runtime data (gitignored)
+├── docs/superpowers/specs/    # Design specs
 │   └── 2026-06-15-brand-brief.md
-├── render.yaml                # Render 部署 (Backend only)
+├── render.yaml                # Render deploy (Backend only)
 └── CLAUDE.md
 ```
 
-## 关键设计决策
+## Key Design Decisions
 
-1. **user_id ≠ koc_profile_id**：KOC 注册 (users 表) 和 KOC 档案 (koc_profiles 表) 是两个独立实体。关联方式：email。task slot 里存的是 koc profile id，鉴权和点数发放需通过 email 桥接到 user_id。`task_routes.py` 和 `cron.py` 中的 `_get_koc_user_id()` 做这个桥接。
+1. **user_id ≠ koc_profile_id**: KOC registration (users table) and KOC profile (koc_profiles table) are two separate entities. Linked by: email. Task slots store the koc profile id; auth and credit issuance must bridge to user_id via email. `_get_koc_user_id()` in `task_routes.py` and `cron.py` handles this bridge.
 
-2. **KOC 意向 = 自动接单**（V2 核心变化）：`POST /api/interests` → KOC 对产品点意向时，系统自动查找该产品已有任务的空 slot 填入；若无空位则自动创建 long_term 任务。**不再等待商家表态或 Admin 手动匹配**。商家对 KOC 点意向仅作为匹配信号，不触发自动操作。
+2. **KOC Interest = Auto-Accept** (V2 core change): `POST /api/interests` → when a KOC expresses interest in a product, the system auto-finds an empty slot in that product's existing task and fills it; if no empty slot exists, it auto-creates a long_term task. **No longer waits for merchant response or Admin manual matching**. Merchant interest on a KOC is a signal only, does not trigger auto-action.
 
-3. **任务广场 (Task Hall)**：KOC 浏览可接任务的核心界面。`GET /api/tasks/hall` 只展示有空位且不重复接单的任务。排序维度：加急优先 (0.30) + 新发布 (0.25) + 佣金 (0.20) + 商家等级 (0.15) + 剩余名额 (0.10)。支持品类/类型/佣金/地区筛选。
+3. **Task Hall**: Core interface for KOCs to browse available tasks. `GET /api/tasks/hall` only shows tasks with open slots that the KOC hasn't already joined. Sort dimensions: urgency first (0.30) + recency (0.25) + commission (0.20) + merchant tier (0.15) + remaining slots (0.10). Supports category/type/commission/region filters.
 
-4. **加急 vs 长线**：`task_type=urgent` → 发布时自动触发 `match_kocs_for_task()` 填充 slot；`task_type=long_term` → 创建空 slot 进广场，KOC 自主浏览接单，7 天无人接则 cron 介入自动匹配。
+4. **Urgent vs Long-term**: `task_type=urgent` → auto-triggers `match_kocs_for_task()` on publish to fill slots; `task_type=long_term` → creates empty slots for Task Hall, KOCs browse and accept independently, cron intervenes after 7 days if slots remain empty.
 
-5. **质押经济**：
-   - 商家每发一个任务：扣平台服务费 **5pt**（不可退）
-   - 双方每 slot 质押：各 **10pt**（KOC 接单时扣，商家发货时扣）
-   - KOC 提交 → 退还：KOC 得 (10 - 5) = **5pt**，商家 **全额退还**
-   - 佣金不走平台点数，走产品上架的 **返佣链接** (commission_link)
+5. **Pledge Economy**:
+   - Merchant per task publish: deduct **5pt** platform service fee (non-refundable)
+   - Both sides per slot pledge: **10pt** each (KOC deducted on accept, merchant deducted on ship)
+   - KOC submits → refund: KOC gets (10 - 5) = **5pt**, merchant gets **full refund**
+   - Commission via product's **commission_link** (affiliate link), not via platform points
 
-    - 合作过加成：同一商家×KOC 历史完成合作 → 匹配分加权（每次+3，上限15；均分≥4.0额外+5）
+   - Repeat collaboration bonus: same merchant×KOC history → match score boost (+3 each time, max 15; avg rating ≥4.0 → extra +5)
 
-6. **双向信任分 + 等级联动**：
-   - KOC：trust_score 0-100 → L1/L2/L3 (≥55 + 2单 → L2, ≥75 + 5单 + 4.0均分 → L3)
-   - 商家：trust_score 0-100 → M1/M2/M3 (≥55 + 3单 → M2, ≥75 + 10单 + 4.0均分 → M3)
-   - 信任 <40：商家不可发布新任务；信任 <30：KOC 不参与匹配
-   - 完成履约 +3，Ghosted -20，违约 -15，举报成立 -30，主动拒绝 -3
-   - 每次信任分变化 → 自动调用 sync_koc_tier/sync_merchant_tier 校准等级（可升可降）
+6. **Bidirectional Trust Score + Tier Linkage**:
+   - KOC: trust_score 0-100 → L1/L2/L3 (≥55 + 2 completed → L2, ≥75 + 5 completed + 4.0 avg rating → L3)
+   - Merchant: trust_score 0-100 → M1/M2/M3 (≥55 + 3 completed → M2, ≥75 + 10 completed + 4.0 avg rating → M3)
+   - Trust <40: merchant cannot publish new tasks; Trust <30: KOC excluded from matching
+   - Complete fulfillment +3, Ghosted -20, Violation -15, Report upheld -30, Active rejection -3
+   - Every Trust Score change → auto-calls sync_koc_tier/sync_merchant_tier to calibrate tier (can go up or down)
 
-7. **SLA 超时系统**（cron 每小时扫描）：
-   | 阶段 | 时限 | 超时动作 |
+7. **SLA Timeout System** (cron scans every hour):
+   | Stage | Deadline | Timeout Action |
    |------|------|---------|
-   | KOC 接单 | 12h | 自动重推（不扣分） |
-   | 商家发货 | 48h | 违约：退 KOC 质押 + 扣商家 20 信任分 |
-   | KOC 确认收货 | 7d | 自动确认收货 |
-   | KOC 提交内容 | 14d | 违约：退商家质押 + 扣 KOC 15 信任分 |
-	   | 商家审核内容 | 4d | 自动通过（退押金+恢复信任，保护 KOC） |
-	   | KOC 修改重交 | 3d | 超时按 KOC 违约处理 |
-   | 长线空位无人接 | 7d | 系统介入自动匹配 |
+   | KOC Accept | 12h | Auto-redistribute (no penalty) |
+   | Merchant Ship | 48h | Violation: return KOC pledge + deduct merchant 20 Trust Score |
+   | KOC Confirm Receipt | 7d | Auto-confirm receipt |
+   | KOC Submit Content | 14d | Violation: return merchant pledge + deduct KOC 15 Trust Score |
+   | Merchant Review Content | 4d | Auto-approve (return pledge + restore Trust, protects KOC) |
+   | KOC Revision Resubmit | 3d | Timeout treated as KOC violation |
+   | Long-term Empty Slot | 7d | System intervenes with auto-match |
 
-8. **AI 评分降级**：DeepSeek API 不可用时自动降级为 mock 分数（基于 handle hash + 粉丝数加成），不阻塞申请流程。
+8. **AI Scoring Fallback**: When DeepSeek API is unavailable, auto-falls back to mock scores (based on handle hash + follower count bonus), does not block application flow.
 
-9. **存储模式**：每个 Store 用 `threading.Lock() + JSON 文件`，照搬 tvs-video-tool 的 `FileTaskStore` 模式。无数据库依赖。
+9. **Storage Pattern**: Each Store uses `threading.Lock() + JSON file`, modeled on tvs-video-tool's `FileTaskStore` pattern. No database dependency.
 
-10. **Brand**：活力社交方向 — Pink→Purple 渐变、Inter 字体、胶囊按钮、火花符号 ✦、四角色分色背景。
+10. **Brand**: Vibrant social direction — Pink→Purple gradient, Inter font, pill buttons, spark symbol ✦, four role-specific background colors.
 
-11. **内容审核闭环**（V2.1 新增）：KOC 提交内容后**不再自动完成**，必须经过商家审核：
-    - `submit` → slot 进入 `submitted` 状态（待审核），押金/信任暂不释放
-    - 商家 `review`（approve）→ slot `approved` → 退押金 + 信任分恢复 + 等级校准
-    - 商家 `review`（reject）→ slot `revision_requested` → KOC 修改重交（最多 3 次）
-    - 超出修改次数 → KOC 违约（退商家质押 + 扣 KOC 15 信任分）
-    - 商家 4 天未审 → cron 自动 approve（防止商家恶意拖延）
-    - 发货验证：商家发货需填 `carrier` + `shipping_proof_urls`（凭证照片/截图）
-    - 收货验证：KOC 收货可上传 `receipt_photo_urls`（开箱照）+ `receipt_notes`
-    - 物流追踪自动化：cron 每日查询所有 shipped slot 的物流状态 → 承运商确认送达 → 自动标记 received。支持 FedEx/DHL/USPS/UPS/SF-Express 等主流承运商，API 查询 + 网页解析双路径兜底，结果缓存避免频繁请求
+11. **Content Review Loop** (V2.1 addition): KOC submission no longer auto-completes; must pass merchant review:
+    - `submit` → slot enters `submitted` status (pending review), pledge/Trust not yet released
+    - Merchant `review` (approve) → slot `approved` → return pledge + restore Trust Score + calibrate tier
+    - Merchant `review` (reject) → slot `revision_requested` → KOC revises and resubmits (max 3 times)
+    - Exceeding revision limit → KOC violation (return merchant pledge + deduct KOC 15 Trust Score)
+    - Merchant 4 days no review → cron auto-approves (prevents merchant malicious delay)
+    - Shipment verification: merchant must provide `carrier` + `shipping_proof_urls` (receipt photos/screenshots)
+    - Receipt verification: KOC can upload `receipt_photo_urls` (unboxing photos) + `receipt_notes`
+    - Tracking automation: cron daily queries all shipped slots → carrier confirms delivery → auto-mark received. Supports FedEx/DHL/USPS/UPS/SF-Express and other major carriers, API query + web parsing dual-path fallback, result caching to avoid frequent requests
 
-## API 端点速查
+12. **Red Line Warning System** (V2.2): SLA deadlines are surfaced to users at 3 touchpoints:
+    - **Before action**: `CommitmentConfirm` modal with mandatory checkbox listing commitments, pledge rules, and penalty red lines
+    - **During active task**: `DeadlineBadge` countdown timer with 4 states (green >7d, amber 3-7d with pulse, red <3d with pulse, dark red expired)
+    - **After violation**: Timed-out state panel showing exact loss breakdown (pledge forfeited, Trust Score deduction, tier impact)
 
-### 认证
-| Method | Path | Auth | 说明 |
+## API Endpoint Reference
+
+### Auth
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| POST | `/api/auth/register` | ✗ | 注册 (koc→100pt, merchant→500pt) |
-| POST | `/api/auth/login` | ✗ | 登录 → JWT |
-| GET | `/api/auth/me` | ✅ | 用户 + 角色 + 点数 + 信任分 + 等级 |
+| POST | `/api/auth/register` | ✗ | Register (koc→1000pt, merchant→5000pt) |
+| POST | `/api/auth/login` | ✗ | Login → JWT |
+| GET | `/api/auth/me` | ✅ | User + role + points + Trust Score + tier |
 
-### 落地页（公开）
-| Method | Path | Auth | 说明 |
+### Landing (Public)
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| GET | `/api/landing/stats` | ✗ | 平台统计 (KOC数/视频数/产品数) |
-| GET | `/api/landing/products` | ✗ | 活跃产品展示 |
+| GET | `/api/landing/stats` | ✗ | Platform stats (KOC count/videos/products) |
+| GET | `/api/landing/products` | ✗ | Active product showcase |
 
-### KOC 申请
-| Method | Path | Auth | 说明 |
+### KOC Applications
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| POST | `/api/applications` | ✗ | KOC 申请 → 严格校验 → AI 评分 → 裂变追踪 |
-| GET | `/api/applications` | 🔒 | 申请列表 |
-| GET | `/api/applications/{id}` | 🔒 | 申请详情 |
-| PUT | `/api/applications/{id}/decision` | 🔒 | 审核 approve/reject/watching (通过触发裂变奖励) |
+| POST | `/api/applications` | ✗ | KOC application → strict validation → AI scoring → referral tracking |
+| GET | `/api/applications` | 🔒 | Application list |
+| GET | `/api/applications/{id}` | 🔒 | Application detail |
+| PUT | `/api/applications/{id}/decision` | 🔒 | Review approve/reject/watching (approve triggers referral reward) |
 
-### KOC 档案
-| Method | Path | Auth | 说明 |
+### KOC Profiles
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| GET | `/api/koc/pool` | ✅ | 商家匿名浏览 KOC 池 (无联系方式) |
-| GET | `/api/koc/pool/{id}` | ✅ | 商家看 KOC 匿名详情 |
-| GET | `/api/koc` | 🔒 | Admin 全量列表 (支持筛选) |
-| GET | `/api/koc/{id}` | ✅ | KOC 详情 |
-| PUT | `/api/koc/{id}` | 🔒 | Admin 更新 KOC |
+| GET | `/api/koc/pool` | ✅ | Merchant browses anonymous KOC pool (no contact info) |
+| GET | `/api/koc/pool/{id}` | ✅ | Merchant views anonymous KOC detail |
+| GET | `/api/koc` | 🔒 | Admin full list (with filtering) |
+| GET | `/api/koc/{id}` | ✅ | KOC detail |
+| PUT | `/api/koc/{id}` | 🔒 | Admin update KOC |
 
-### 商家
-| Method | Path | Auth | 说明 |
+### Merchants
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| POST | `/api/merchants` | ✅ | 创建商家 profile |
-| GET | `/api/merchants/me` | ✅ | 我的商家档案 |
-| PUT | `/api/merchants/me` | ✅ | 更新商家档案 |
-| GET | `/api/merchants` | 🔒 | Admin 全量 |
-| GET | `/api/merchants/{id}/trust` | ✅ | 商家诚信度 (KOC 决策用) |
-| POST | `/api/admin/merchants/{id}/trust` | 🔒 | Admin 调整商家诚信分 |
-| POST | `/api/merchants/{id}/report-fake-link` | ✅ | KOC 举报返佣链接无效 |
+| POST | `/api/merchants` | ✅ | Create merchant profile |
+| GET | `/api/merchants/me` | ✅ | My merchant profile |
+| PUT | `/api/merchants/me` | ✅ | Update merchant profile |
+| GET | `/api/merchants` | 🔒 | Admin full list |
+| GET | `/api/merchants/{id}/trust` | ✅ | Merchant trust info (for KOC decision-making) |
+| POST | `/api/admin/merchants/{id}/trust` | 🔒 | Admin adjust merchant Trust Score |
+| POST | `/api/merchants/{id}/report-fake-link` | ✅ | KOC report invalid commission link |
 
-### 产品
-| Method | Path | Auth | 说明 |
+### Products
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| POST | `/api/products` | ✅ | 商家上架产品 (含返佣链接) |
-| GET | `/api/products` | ✅ | 产品列表 (按角色返回不同视图，KOC 视图补商家信息) |
-| GET | `/api/products/{id}` | ✅ | 产品详情 |
-| PUT | `/api/products/{id}` | ✅ | 更新产品 (owner 或 admin) |
+| POST | `/api/products` | ✅ | Merchant lists product (with commission link) |
+| GET | `/api/products` | ✅ | Product list (role-specific views, KOC view includes merchant info) |
+| GET | `/api/products/{id}` | ✅ | Product detail |
+| PUT | `/api/products/{id}` | ✅ | Update product (owner or admin) |
 
-### 意向 → 自动接单（V2 核心）
-| Method | Path | Auth | 说明 |
+### Interest → Auto-Accept (V2 Core)
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| POST | `/api/interests` | ✅ | 表达意向：KOC对产品→自动接单，商家对KOC→信号 |
-| GET | `/api/interests` | ✅ | 我的意向列表 |
-| GET | `/api/interests/matches` | 🔒 | Admin 看所有双向绿灯 |
-| PUT | `/api/interests/{id}/match` | 🔒 | Admin 确认匹配 (V1 遗留，V2 基本不需要) |
-| PUT | `/api/interests/{id}/decline` | 🔒 | Admin 否决意向 |
+| POST | `/api/interests` | ✅ | Express interest: KOC on product→auto-accept, merchant on KOC→signal |
+| GET | `/api/interests` | ✅ | My interest list |
+| GET | `/api/interests/matches` | 🔒 | Admin view all bidirectional matches |
+| PUT | `/api/interests/{id}/match` | 🔒 | Admin confirm match (V1 legacy, rarely needed in V2) |
+| PUT | `/api/interests/{id}/decline` | 🔒 | Admin reject interest |
 
-### 智能匹配
-| Method | Path | Auth | 说明 |
+### Smart Matching
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| POST | `/api/matching/product/{id}` | ✅ | 为产品匹配 Top KOC (规则+AI精排) |
-| GET | `/api/matching/koc` | ✅ | 为当前 KOC 匹配 Top 产品 |
-| GET | `/api/matching/koc/{id}` | 🔒 | Admin 为指定 KOC 匹配产品 |
-| POST | `/api/matching/auto-interest` | ✅ | 批量表达意向 (防重复) |
+| POST | `/api/matching/product/{id}` | ✅ | Match top KOCs for product (rules + AI re-rank) |
+| GET | `/api/matching/koc` | ✅ | Match top products for current KOC |
+| GET | `/api/matching/koc/{id}` | 🔒 | Admin match products for specified KOC |
+| POST | `/api/matching/auto-interest` | ✅ | Batch express interest (dedup) |
 
-### 任务 V2（Slot 粒度）
-| Method | Path | Auth | 说明 |
+### Tasks V2 (Slot-level)
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| POST | `/api/tasks` | ✅ | 商家发布任务 (加急自动匹配，扣平台费5pt) |
-| GET | `/api/tasks/hall` | ✅ | KOC 任务广场 (筛选+排序+商家诚信度) |
-| GET | `/api/tasks/mine` | ✅ | 我的任务 (KOC看slot/商家看发布/admin看全部) |
-| GET | `/api/tasks/{id}` | ✅ | 任务详情 (补全产品+商家信息) |
-| PUT | `/api/tasks/{id}/accept/{slot}` | ✅ | KOC 接受任务 → 扣质押 10pt |
-| PUT | `/api/tasks/{id}/reject/{slot}` | ✅ | KOC 拒绝 → 扣信任分3 + 自动重推 |
-| PUT | `/api/tasks/{id}/ship` | ✅ | 商家发货 (物流+承运商+凭证+扣质押) |
-| PUT | `/api/tasks/{id}/receive/{slot}` | ✅ | KOC 确认收货 (含开箱照片+备注) |
-| PUT | `/api/tasks/{id}/submit/{slot}` | ✅ | KOC 提交内容 → 进入待审核（不自动完成） |
-| PUT | `/api/tasks/{id}/review/{slot}` | ✅ | 商家审核 KOC 内容 (approve→完成+确认佣金/reject→驳回) |
-| PUT | `/api/tasks/{id}/metrics/{slot}` | ✅ | KOC 更新内容表现数据 (播放/点赞/评论/分享/转化) |
-| GET | `/api/tasks/{id}/performance` | ✅ | 商家查看内容表现看板 (汇总+单KOC明细) |
-| GET | `/api/tasks/{id}/report` | ✅ | 商家看任务数据报表 |
-| POST | `/api/tasks/{id}/force-rematch/{slot}` | 🔒 | Admin 强制重推 slot |
-| PUT | `/api/tasks/{id}/sample` | 🔒 | DEPRECATED: 旧版 sample_status 兼容 |
+| POST | `/api/tasks` | ✅ | Merchant publish task (urgent auto-matches, deduct platform fee 5pt) |
+| GET | `/api/tasks/hall` | ✅ | KOC Task Hall (filter + sort + merchant trust) |
+| GET | `/api/tasks/mine` | ✅ | My tasks (KOC sees slots/merchant sees published/admin sees all) |
+| GET | `/api/tasks/{id}` | ✅ | Task detail (enriched with product + merchant info) |
+| PUT | `/api/tasks/{id}/accept/{slot}` | ✅ | KOC accept task → deduct pledge 10pt |
+| PUT | `/api/tasks/{id}/reject/{slot}` | ✅ | KOC reject → deduct Trust Score 3 + auto-redistribute |
+| PUT | `/api/tasks/{id}/ship` | ✅ | Merchant ship (tracking + carrier + proof + deduct pledge) |
+| PUT | `/api/tasks/{id}/receive/{slot}` | ✅ | KOC confirm receipt (with unboxing photos + notes) |
+| PUT | `/api/tasks/{id}/submit/{slot}` | ✅ | KOC submit content → enters pending review (does NOT auto-complete) |
+| PUT | `/api/tasks/{id}/review/{slot}` | ✅ | Merchant review KOC content (approve→complete+confirm commission/reject→return for revision) |
+| PUT | `/api/tasks/{id}/metrics/{slot}` | ✅ | KOC update content performance data (views/likes/comments/shares/conversions) |
+| GET | `/api/tasks/{id}/performance` | ✅ | Merchant view content performance dashboard (summary + per-KOC detail) |
+| GET | `/api/tasks/{id}/report` | ✅ | Merchant view task data report |
+| POST | `/api/tasks/{id}/force-rematch/{slot}` | 🔒 | Admin force rematch slot |
+| PUT | `/api/tasks/{id}/sample` | 🔒 | DEPRECATED: legacy sample_status compatibility |
 
-### 点数
-| Method | Path | Auth | 说明 |
+### Credits
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| GET | `/api/credits/balance` | ✅ | 我的点数余额 |
-| GET | `/api/credits/history` | ✅ | 点数流水 |
-| POST | `/api/credits/reward` | 🔒 | Admin 手动发点 |
+| GET | `/api/credits/balance` | ✅ | My credit balance |
+| GET | `/api/credits/history` | ✅ | Credit transaction history |
+| POST | `/api/credits/reward` | 🔒 | Admin manual credit reward |
 
-### 折扣码
-| Method | Path | Auth | 说明 |
+### Coupons
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| POST | `/api/coupons` | 🔒 | Admin 生成折扣码 |
-| GET | `/api/coupons` | ✅ | 我的折扣码 |
-| GET | `/api/coupons/{id}/usage` | ✅ | 折扣码使用统计 |
-| POST | `/api/coupons/{id}/orders` | 🔒 | 添加订单 |
-| POST | `/api/coupons/batch-import` | 🔒 | CSV 批量导入订单 |
+| POST | `/api/coupons` | 🔒 | Admin generate discount code |
+| GET | `/api/coupons` | ✅ | My discount codes |
+| GET | `/api/coupons/{id}/usage` | ✅ | Discount code usage stats |
+| POST | `/api/coupons/{id}/orders` | 🔒 | Add order |
+| POST | `/api/coupons/batch-import` | 🔒 | CSV batch import orders |
 
-### 裂变
-| Method | Path | Auth | 说明 |
+### Referrals
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| GET | `/api/referrals/code` | ✅ | 获取我的推荐码/链接 |
-| GET | `/api/referrals` | ✅ | 我的推荐列表 |
-| GET | `/api/referrals/stats` | ✅ | 推荐统计 |
+| GET | `/api/referrals/code` | ✅ | Get my referral code/link |
+| GET | `/api/referrals` | ✅ | My referral list |
+| GET | `/api/referrals/stats` | ✅ | Referral stats |
 
-### 互评
-| Method | Path | Auth | 说明 |
+### Reviews
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| POST | `/api/reviews` | ✅ | 履约后互评 (更新 avg_rating) |
-| GET | `/api/reviews` | ✅ | 看评价 |
+| POST | `/api/reviews` | ✅ | Post-fulfillment mutual review (updates avg_rating) |
+| GET | `/api/reviews` | ✅ | View reviews |
 
-### 黑名单
-| Method | Path | Auth | 说明 |
+### Blacklist
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| POST | `/api/blacklist` | ✅ | 拉黑 |
-| GET | `/api/blacklist` | ✅ | 我的黑名单 |
-| GET | `/api/blacklist/check` | 🔒 | 检查是否被拉黑 |
+| POST | `/api/blacklist` | ✅ | Block user |
+| GET | `/api/blacklist` | ✅ | My blacklist |
+| GET | `/api/blacklist/check` | 🔒 | Check if blocked |
 
-### AI 评分
-| Method | Path | Auth | 说明 |
+### AI Scoring
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| POST | `/api/scoring/evaluate-application` | ✗ | 三维评分 (公开) |
-| POST | `/api/scoring/evaluate-profile` | 🔒 | 对已有 KOC 重新评分 |
+| POST | `/api/scoring/evaluate-application` | ✗ | 3D scoring (public) |
+| POST | `/api/scoring/evaluate-profile` | 🔒 | Re-score existing KOC |
 
-### 管理后台
-| Method | Path | Auth | 说明 |
+### Admin
+| Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| GET | `/api/admin/stats` | 🔒 | 仪表盘统计 |
-| GET | `/api/admin/users` | 🔒 | 所有用户 (含余额) |
-| POST | `/api/admin/cron/scan` | 🔒 | 手动触发周度扫描 |
-| GET | `/api/admin/cron/alerts` | 🔒 | 查看逾期告警 |
-| GET | `/api/admin/reports` | 🔒 | 举报列表 |
-| PUT | `/api/admin/reports/{id}/review` | 🔒 | 审核举报 (approve→扣30+降级) |
+| GET | `/api/admin/stats` | 🔒 | Dashboard stats |
+| GET | `/api/admin/users` | 🔒 | All users (with balances) |
+| POST | `/api/admin/cron/scan` | 🔒 | Manual trigger periodic scan |
+| GET | `/api/admin/cron/alerts` | 🔒 | View overdue alerts |
+| GET | `/api/admin/reports` | 🔒 | Report list |
+| PUT | `/api/admin/reports/{id}/review` | 🔒 | Review report (approve→deduct 30 + downgrade) |
 
-✅ = KOC/商家登录即可 &nbsp; 🔒 = admin only
+✅ = KOC/Merchant login required &nbsp; 🔒 = admin only
 
-## 点数/质押/费用常量速查
+## Credit / Pledge / Fee Constants Quick Reference
 
-| 常量 | 值 | 说明 |
+| Constant | Value | Description |
 |------|:--:|------|
-| KOC 注册初始 | 1000pt | 注册时发放 |
-| 商家注册初始 | 5000pt | 注册时发放 |
-| 平台服务费 | 5pt | 商家每发一个任务即扣（不退） |
-| KOC 平台费 | 5pt | KOC 每完成一个 slot 从质押中扣 |
-| 每 slot 质押 | 10pt | 双方各自质押（KOC接单扣，商家发货扣） |
-| 裂变奖励 | 10pt | 推荐人得 |
+| KOC Registration Initial | 1000pt | Granted on registration |
+| Merchant Registration Initial | 5000pt | Granted on registration |
+| Platform Service Fee | 5pt | Deducted per task publish (non-refundable) |
+| KOC Platform Fee | 5pt | Deducted from KOC pledge per slot completion |
+| Per-slot Pledge | 10pt | Each side pledges (KOC on accept, merchant on ship) |
+| Referral Reward | 10pt | Referrer receives |
 
-## 注意事项
+## Important Notes
 
-- 后端必须从 `backend/` 目录启动 (`uvicorn main:app`)，否则 `from config import ...` 等绝对导入找不到模块
-- `backend/.env` 由 config.py 手动加载（不用 python-dotenv），只支持 `KEY=VALUE` 格式
-- KOC 的 user_id (users 表) 和 koc_id (koc_profiles 表) 不同，task slot 里存 koc_id，鉴权/点数发放必须做 email 桥接
-- 前端 API 调用直连 `http://localhost:8001` (`NEXT_PUBLIC_API_URL` 环境变量)，不走 Next.js 代理
-- Tailwind v4 使用 CSS-based `@theme` 配置，不是 `tailwind.config.ts`
-- 火花粒子动画使用 CSS custom properties (`--tx` / `--ty`) 做方向控制
-- `cron.py` 的 `calculate_tier` / `sync_koc_tier` / `sync_merchant_tier` 是信任分→等级校准的核心函数，任何修改信任分的操作都应调用它们
-- KOC 同时进行中任务上限 = **5 个 active slot**（在 accept_task 和 express_interest 两处均有校验）
-- 佣金走产品上架时填的 `commission_link`（返佣链接），点数系统不参与佣金发放。`commission_value` 字段仅作展示用
-- 匹配引擎 `matcher.py` 分两层：规则引擎 (7维加权) 始终可用 → AI 精排可选 (use_ai=true)。Task 发布时的自动匹配只用规则引擎
-- **JSON 存储线程安全**：Store 用 `threading.Lock()` 防竞态，但仅对单进程有效。多 uvicorn worker 部署时，slot 接单等操作存在跨进程竞态风险。生产环境建议单 worker（`--workers 1`）或迁移到数据库
+- Backend MUST be started from `backend/` directory (`uvicorn main:app`), otherwise `from config import ...` and similar absolute imports will fail
+- `backend/.env` is manually loaded by config.py (no python-dotenv), only supports `KEY=VALUE` format
+- KOC user_id (users table) ≠ koc_id (koc_profiles table); task slots store koc_id; auth/credit issuance must bridge via email
+- Frontend API calls directly connect to `http://localhost:8001` (`NEXT_PUBLIC_API_URL` env var), no Next.js proxy
+- Tailwind v4 uses CSS-based `@theme` config, NOT `tailwind.config.ts`
+- Spark particle animation uses CSS custom properties (`--tx` / `--ty`) for directional control
+- `cron.py`'s `calculate_tier` / `sync_koc_tier` / `sync_merchant_tier` are the core Trust Score→tier calibration functions; any operation that modifies Trust Score MUST call them
+- KOC concurrent active task limit = **5 active slots** (enforced in both accept_task and express_interest)
+- Commission goes through `commission_link` (affiliate link) set when listing product; the credit system does NOT participate in commission payouts. `commission_value` field is display-only
+- Matching engine `matcher.py` has two layers: rule engine (7-dim weighted) always available → AI re-rank optional (use_ai=true). Task publish auto-matching only uses rule engine
+- **JSON storage thread safety**: Stores use `threading.Lock()` to prevent race conditions, but this is only effective for single-process. Multi-uvicorn-worker deployments have cross-process race condition risk for slot accept operations. Production recommendation: single worker (`--workers 1`) or migrate to database
+- Frontend is fully English (i18n completed June 2026): all UI labels, error messages, commitment modals, SLA warnings, status badges, and navigation items are in English. Use canonical translations: `pt` (not "points"), `Trust Score`, `Pledge`, `Commission`, `Urgent`/`Long-term`, `Task Hall`, tier labels `Partner`/`Creator`/`Explorer` and `Gold`/`Silver`/`Bronze Merchant`
