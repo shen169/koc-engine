@@ -205,11 +205,28 @@ class KocTask(BaseModel):
 class CreditTransaction(BaseModel):
     id: str = Field(default_factory=_uid)
     user_id: str
-    amount: int  # 正数=入账，负数=扣减
-    type: str  # task_reward | referral_reward | manual | admin_adjust
-    ref_id: str = ""  # 关联的任务/推荐 ID
+    amount: int  # positive=credit, negative=debit
+    type: str  # registration_bonus | pledge | pledge_return | platform_fee | content_fee | referral_reward | manual_topup | withdrawal | admin_adjust
+    ref_id: str = ""  # associated task/referral ID
     note: str = ""
+    withdrawable: bool = False  # True = withdrawable pts, False = bonus pts
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+
+
+# ═══════════════════════════════════════════
+# 提现工单
+# ═══════════════════════════════════════════
+
+class WithdrawalRequest(BaseModel):
+    id: str = Field(default_factory=_uid)
+    user_id: str
+    amount: int
+    status: str = "pending"  # pending | paid | rejected
+    payment_method: str = ""  # paypal | bank_transfer | other
+    payment_account: str = ""  # PayPal email / bank account
+    admin_note: str = ""
+    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    processed_at: str = ""
 
 
 # ═══════════════════════════════════════════
@@ -359,3 +376,4 @@ VALID_PRODUCT_STATUSES = ["active", "paused", "archived"]
 TASK_TYPES = ["urgent", "long_term"]
 TASK_STATUSES = ["pending", "assigned", "accepted", "shipped", "creating", "completed", "disputed"]
 SLOT_STATUSES = ["pending", "assigned", "accepted", "shipped", "received", "creating", "submitted", "approved", "revision_requested", "completed", "rejected", "timed_out"]
+VALID_WITHDRAWAL_STATUSES = ["pending", "paid", "rejected"]

@@ -181,6 +181,9 @@ export const tasks = {
 export const credits = {
   balance: (token: string) => api("/api/credits/balance", { token }),
   history: (token: string) => api("/api/credits/history", { token }),
+  withdraw: (data: { amount: number; payment_method: string; payment_account: string }, token: string) =>
+    api("/api/credits/withdraw", { method: "POST", body: data, token }),
+  withdrawals: (token: string) => api("/api/credits/withdrawals", { token }),
 };
 
 // Admin
@@ -189,6 +192,12 @@ export const admin = {
   users: (token: string) => api("/api/admin/users", { token }),
   rewardCredits: (userId: string, amount: number, note: string, token: string) =>
     api("/api/credits/reward", { method: "POST", body: { user_id: userId, amount, note }, token }),
+  withdrawals: (token: string, status?: string) => {
+    const qs = status ? `?status=${status}` : "";
+    return api(`/api/admin/withdrawals${qs}`, { token });
+  },
+  processWithdrawal: (id: string, decision: string, adminNote: string, token: string) =>
+    api(`/api/admin/withdrawals/${id}/process`, { method: "PUT", body: { decision, admin_note: adminNote }, token }),
 };
 
 // Merchants V2

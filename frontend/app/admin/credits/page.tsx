@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { admin, credits, auth, getToken, clearToken } from "@/lib/api";
+import { api, admin, credits, auth, getToken, clearToken } from "@/lib/api";
 
 export default function AdminCreditsPage() {
   const router = useRouter();
@@ -16,6 +16,11 @@ export default function AdminCreditsPage() {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [withdrawable, setWithdrawable] = useState(true);
+
+  // Withdrawal management
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [withdrawalFilter, setWithdrawalFilter] = useState("pending");
 
   useEffect(() => {
     const token = getToken();
@@ -26,6 +31,11 @@ export default function AdminCreditsPage() {
     }).catch(() => { clearToken(); router.push("/login"); });
   }, [router]);
 
+  useEffect(() => {
+    const token = getToken();
+    if (token) loadWithdrawals(token);
+  }, [withdrawalFilter]);
+
   async function loadData(token: string) {
     try {
       const [userList, txHistory] = await Promise.all([
@@ -34,6 +44,7 @@ export default function AdminCreditsPage() {
       ]);
       setUsers(Array.isArray(userList) ? userList : []);
       setHistory(Array.isArray(txHistory) ? txHistory : []);
+      loadWithdrawals(token);
     } catch (e) {
       console.error("Failed to load data:", e);
     } finally {
@@ -51,7 +62,11 @@ export default function AdminCreditsPage() {
     setMessage(null);
     try {
       const token = getToken()!;
-      await admin.rewardCredits(selectedUserId, amount, note || "Admin Manual Top Up", token);
+      await api("/api/credits/reward", {
+        method: "POST",
+        body: { user_id: selectedUserId, amount, note: note || "Admin Manual Top Up", withdrawable },
+        token,
+      });
       setMessage({ type: "ok", text: `Successfully topped up ${amount} pt for user` });
       setAmount(100);
       setNote("");
@@ -62,6 +77,29 @@ export default function AdminCreditsPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function loadWithdrawals(token: string) {
+    try {
+      const res = await fetch(`http://localhost:8001/api/admin/withdrawals?status=${withdrawalFilter}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setWithdrawals(Array.isArray(data) ? data : []);
+    } catch {
+      // withdrawals may not be available yet
+    }
+  }
+
+  async function handleProcess(id: string, decision: string) {
+    const token = getToken()!;
+    const note = decision === "rejected" ? (prompt("Rejection reason:") || "") : "";
+    await fetch(`http://localhost:8001/api/admin/withdrawals/${id}/process`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ decision, admin_note: note }),
+    });
+    await loadWithdrawals(token);
   }
 
   if (loading) {
@@ -108,7 +146,7 @@ export default function AdminCreditsPage() {
                   <option value="">-- Select User --</option>
                   {users.map((u) => (
                     <option key={u.id} value={u.id}>
-                      {u.email} [{u.role === "koc" ? "KOC" : u.role === "merchant" ? "Merchant" : u.role}] — Balance: {u.balance} pt
+                      {u.email} [{u.role === "koc" ? "KOC" : u.role === "merchant" ? "Merchant" : u.role}] — Balance: {u.balance?.total ?? u.balance} pt
                     </option>
                   ))}
                 </select>
@@ -116,9 +154,9 @@ export default function AdminCreditsPage() {
 
               {selectedUser && (
                 <div className="bg-zinc-50 rounded-xl p-3 text-sm text-zinc-600">
-                  Current Balance: <span className="font-bold text-zinc-900">{selectedUser.balance} pt</span>
+                  Current Balance: <span className="font-bold text-zinc-900">{selectedUser.balance?.total ?? selectedUser.balance} pt</span>
                   <span className="mx-2">→</span>
-                  After Top Up: <span className="font-bold text-emerald-600">{selectedUser.balance + amount} pt</span>
+                  After Top Up: <span className="font-bold text-emerald-600">{(selectedUser.balance?.total ?? selectedUser.balance) + amount} pt</span>
                 </div>
               )}
 
@@ -158,6 +196,11 @@ export default function AdminCreditsPage() {
                 />
               </div>
 
+              <div className="flex items-center gap-2">
+                <input type="checkbox" checked={withdrawable} onChange={(e) => setWithdrawable(e.target.checked)} id="withdrawable" />
+                <label htmlFor="withdrawable" className="text-sm text-zinc-600">Withdrawable (can be withdrawn by KOC)</label>
+              </div>
+
               <button
                 type="submit"
                 disabled={submitting}
@@ -190,8 +233,8 @@ export default function AdminCreditsPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className={`text-lg font-extrabold ${u.balance < 30 ? "text-red-500" : "text-emerald-600"}`}>
-                        {u.balance}
+                      <div className={`text-lg font-extrabold ${(u.balance?.total ?? u.balance) < 30 ? "text-red-500" : "text-emerald-600"}`}>
+                        {u.balance?.total ?? u.balance}
                       </div>
                       <div className="text-xs text-zinc-400">pt</div>
                     </div>
@@ -200,6 +243,86 @@ export default function AdminCreditsPage() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Withdrawal Management */}
+        <div className="mt-6 bg-white rounded-2xl border border-zinc-100 p-6">
+          <h2 className="font-extrabold text-zinc-900 mb-4">💸 Withdrawal Management</h2>
+
+          {/* Filter tabs */}
+          <div className="flex gap-2 mb-4">
+            {["pending", "paid", "rejected"].map((s) => (
+              <button
+                key={s}
+                onClick={() => setWithdrawalFilter(s)}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition ${
+                  withdrawalFilter === s
+                    ? "bg-pink-500 text-white"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+
+          {withdrawals.length === 0 ? (
+            <p className="text-zinc-400 text-sm text-center py-8">No {withdrawalFilter} withdrawals</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-100 text-left text-zinc-500">
+                    <th className="pb-3 font-semibold">User</th>
+                    <th className="pb-3 font-semibold">Amount</th>
+                    <th className="pb-3 font-semibold">Method</th>
+                    <th className="pb-3 font-semibold">Account</th>
+                    <th className="pb-3 font-semibold">Date</th>
+                    <th className="pb-3 font-semibold">Status</th>
+                    <th className="pb-3 font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {withdrawals.map((w: any) => (
+                    <tr key={w.id} className="border-b border-zinc-50">
+                      <td className="py-3 text-zinc-900">{w.user_email || w.user_id}</td>
+                      <td className="py-3 font-semibold text-zinc-900">{w.amount} pt</td>
+                      <td className="py-3 text-zinc-600">{w.payment_method || "-"}</td>
+                      <td className="py-3 text-zinc-600 max-w-[160px] truncate">{w.payment_account || "-"}</td>
+                      <td className="py-3 text-zinc-500 text-xs">{w.created_at ? new Date(w.created_at).toLocaleDateString() : "-"}</td>
+                      <td className="py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${
+                          w.status === "pending" ? "bg-yellow-100 text-yellow-700" :
+                          w.status === "paid" ? "bg-emerald-100 text-emerald-700" :
+                          "bg-red-100 text-red-700"
+                        }`}>
+                          {w.status}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        {w.status === "pending" && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleProcess(w.id, "approved")}
+                              className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-600 transition"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleProcess(w.id, "rejected")}
+                              className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-500 text-white hover:bg-red-600 transition"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

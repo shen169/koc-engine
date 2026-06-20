@@ -26,7 +26,7 @@ export default function DashboardPage() {
         setMerchantProfile((u as any).merchant_profile);
       }
     }).catch(() => { clearToken(); router.push("/login"); });
-    credits.balance(token!).then((r) => setBalance(r.balance)).catch(() => {});
+    credits.balance(token!).then((r) => setBalance(r.total)).catch(() => {});
     tasks.mine(token!).then(setTaskList).catch(() => {});
   }, [router]);
 

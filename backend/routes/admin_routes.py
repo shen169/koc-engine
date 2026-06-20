@@ -12,6 +12,7 @@ from stores.coupon_store import coupon_store
 from stores.credit_store import credit_store
 from stores.user_store import user_store
 from stores.report_store import report_store
+from stores.withdrawal_store import withdrawal_store
 from models import Report
 from auth import require_admin
 from services.cron import run_weekly_scan, check_ghosted_status, sync_merchant_tier, sync_koc_tier
@@ -145,3 +146,55 @@ def review_report(report_id: str, data: dict, current_user: dict = Depends(requi
 
     report_store.update(report_id, update)
     return {"status": "ok", "decision": decision, **update}
+
+
+# ═══════════════════════════════════════════
+# Withdrawal Management (Admin)
+# ═══════════════════════════════════════════
+
+@router.get("/admin/withdrawals")
+def admin_get_withdrawals(status: str = "", current_user: dict = Depends(require_admin)):
+    """List withdrawal requests. Filter by status: pending, paid, rejected."""
+    withdrawals = withdrawal_store.get_all(status)
+    # Enrich with user email
+    result = []
+    for w in withdrawals:
+        user = user_store.get_by_id(w.user_id)
+        d = w.model_dump()
+        d["user_email"] = user.get("email", "") if user else ""
+        result.append(d)
+    return result
+
+
+@router.put("/admin/withdrawals/{withdrawal_id}/process")
+def admin_process_withdrawal(withdrawal_id: str, data: dict, current_user: dict = Depends(require_admin)):
+    """Approve or reject a withdrawal. data: {decision: 'paid'|'rejected', admin_note: ''}"""
+    from datetime import datetime
+
+    decision = data.get("decision", "")
+    admin_note = data.get("admin_note", "")
+
+    if decision not in ("paid", "rejected"):
+        raise HTTPException(400, "Decision must be 'paid' or 'rejected'")
+
+    wr = withdrawal_store.get_by_id(withdrawal_id)
+    if not wr:
+        raise HTTPException(404, "Withdrawal not found")
+
+    if wr.status != "pending":
+        raise HTTPException(400, f"Withdrawal already {wr.status}")
+
+    if decision == "rejected":
+        # Refund the points
+        credit_store.add_credits(
+            wr.user_id, wr.amount, "admin_adjust",
+            note=f"Withdrawal rejected: {admin_note}", withdrawable=True)
+
+    withdrawal_store.update(withdrawal_id, {
+        "status": decision,
+        "admin_note": admin_note,
+        "processed_at": datetime.utcnow().isoformat(),
+    })
+
+    updated = withdrawal_store.get_by_id(withdrawal_id)
+    return {"status": "ok", "withdrawal": updated.model_dump() if updated else {}}

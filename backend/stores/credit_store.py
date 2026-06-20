@@ -1,4 +1,4 @@
-"""点数存储 — KOC Engine 自有点数系统"""
+"""Points store — dual-bucket balance (withdrawable + bonus)"""
 
 import json
 import os
@@ -15,15 +15,52 @@ class CreditStore:
         self._lock = threading.Lock()
         os.makedirs(os.path.dirname(CREDITS_FILE), exist_ok=True)
 
+    # ── Balance helpers ──
+
     def _load_balances(self) -> dict:
         if not os.path.exists(BALANCE_FILE):
             return {}
         with open(BALANCE_FILE, "r") as f:
-            return json.load(f)
+            raw = json.load(f)
+        # Migrate old format: {uid: int} → {uid: {total, withdrawable, bonus}}
+        for uid, val in list(raw.items()):
+            if isinstance(val, int):
+                raw[uid] = {"total": val, "withdrawable": 0, "bonus": val}
+        return raw
 
     def _save_balances(self, data: dict):
         with open(BALANCE_FILE, "w") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+
+    def _ensure_balance(self, user_id: str, balances: dict):
+        if user_id not in balances:
+            balances[user_id] = {"total": 0, "withdrawable": 0, "bonus": 0}
+
+    def get_balance(self, user_id: str) -> dict:
+        """Return {total, withdrawable, bonus} for user."""
+        with self._lock:
+            balances = self._load_balances()
+            self._ensure_balance(user_id, balances)
+            return dict(balances[user_id])
+
+    def get_total(self, user_id: str) -> int:
+        return self.get_balance(user_id)["total"]
+
+    def get_withdrawable(self, user_id: str) -> int:
+        return self.get_balance(user_id)["withdrawable"]
+
+    def set_initial_balance(self, user_id: str, amount: int):
+        """Set registration bonus (non-withdrawable)."""
+        with self._lock:
+            balances = self._load_balances()
+            if user_id not in balances or (isinstance(balances[user_id], int) and balances[user_id] == 0):
+                balances[user_id] = {"total": amount, "withdrawable": 0, "bonus": amount}
+                self._save_balances(balances)
+            elif isinstance(balances[user_id], dict):
+                # Already has balance — don't overwrite
+                pass
+
+    # ── Transaction methods ──
 
     def _load_transactions(self) -> list:
         if not os.path.exists(CREDITS_FILE):
@@ -35,46 +72,71 @@ class CreditStore:
         with open(CREDITS_FILE, "w") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
-    def get_balance(self, user_id: str) -> int:
+    def add_credits(self, user_id: str, amount: int, tx_type: str,
+                    ref_id: str = "", note: str = "",
+                    withdrawable: bool = False) -> CreditTransaction:
+        """Add credits. withdrawable=True → earned pts; False → bonus pts."""
         with self._lock:
             balances = self._load_balances()
-            return balances.get(user_id, 0)
-
-    def set_initial_balance(self, user_id: str, amount: int):
-        with self._lock:
-            balances = self._load_balances()
-            if user_id not in balances:
-                balances[user_id] = amount
-                self._save_balances(balances)
-
-    def add_credits(self, user_id: str, amount: int, tx_type: str, ref_id: str = "", note: str = "") -> CreditTransaction:
-        """正数=入账"""
-        with self._lock:
-            balances = self._load_balances()
-            balances[user_id] = balances.get(user_id, 0) + amount
+            self._ensure_balance(user_id, balances)
+            b = balances[user_id]
+            b["total"] += amount
+            if withdrawable:
+                b["withdrawable"] += amount
+            else:
+                b["bonus"] += amount
             self._save_balances(balances)
 
             txs = self._load_transactions()
             tx = CreditTransaction(
                 user_id=user_id, amount=amount, type=tx_type,
-                ref_id=ref_id, note=note)
+                ref_id=ref_id, note=note, withdrawable=withdrawable)
             txs.append(tx.model_dump())
             self._save_transactions(txs)
         return tx
 
-    def deduct_credits(self, user_id: str, amount: int, tx_type: str, ref_id: str = "", note: str = "") -> CreditTransaction | None:
-        """扣点，余额不足返回 None"""
+    def deduct_credits(self, user_id: str, amount: int, tx_type: str,
+                       ref_id: str = "", note: str = "",
+                       prefer_withdrawable: bool = False) -> CreditTransaction | None:
+        """
+        Deduct credits. By default deducts from bonus first, then withdrawable.
+        Set prefer_withdrawable=True for withdrawals (only draw from withdrawable).
+        Returns None if insufficient balance.
+        """
         with self._lock:
             balances = self._load_balances()
-            if balances.get(user_id, 0) < amount:
+            self._ensure_balance(user_id, balances)
+            b = balances[user_id]
+            if b["total"] < amount:
                 return None
-            balances[user_id] -= amount
+
+            remaining = amount
+            bonus_deducted = 0
+            withdrawable_deducted = 0
+
+            if prefer_withdrawable:
+                # Withdrawal mode: only from withdrawable
+                if b["withdrawable"] < amount:
+                    return None
+                b["withdrawable"] -= amount
+                withdrawable_deducted = amount
+            else:
+                # Normal mode: bonus first, then withdrawable
+                from_bonus = min(b["bonus"], remaining)
+                b["bonus"] -= from_bonus
+                bonus_deducted = from_bonus
+                remaining -= from_bonus
+                if remaining > 0:
+                    b["withdrawable"] -= remaining
+                    withdrawable_deducted = remaining
+
+            b["total"] -= amount
             self._save_balances(balances)
 
             txs = self._load_transactions()
             tx = CreditTransaction(
                 user_id=user_id, amount=-amount, type=tx_type,
-                ref_id=ref_id, note=note)
+                ref_id=ref_id, note=note, withdrawable=False)
             txs.append(tx.model_dump())
             self._save_transactions(txs)
         return tx
