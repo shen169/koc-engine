@@ -15,9 +15,9 @@ function TrustLevelBadge({ score, tier }: { score: number; tier: string }) {
     L1: "bg-pink-100 text-pink-700",
   };
   const tierLabel: Record<string, string> = {
-    L3: "合伙人",
-    L2: "创作官",
-    L1: "体验官",
+    L3: "Partner",
+    L2: "Creator",
+    L1: "Explorer",
   };
   return (
     <div className="flex items-center gap-2">
@@ -76,7 +76,7 @@ export default function PortalDashboard() {
           <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs text-gray-400 mb-1">我的信用</div>
+                <div className="text-xs text-gray-400 mb-1">My Trust</div>
                 <TrustLevelBadge
                   score={kocProfile.trust_score as number}
                   tier={kocProfile.tier as string}
@@ -85,11 +85,11 @@ export default function PortalDashboard() {
               <div className="flex gap-4 text-sm">
                 <div className="text-center">
                   <div className="font-bold text-gray-900">{kocProfile.completed_tasks as number}</div>
-                  <div className="text-xs text-gray-400">已完成</div>
+                  <div className="text-xs text-gray-400">Completed</div>
                 </div>
                 <div className="text-center">
                   <div className="font-bold text-gray-900">{(kocProfile.avg_rating as number)?.toFixed(1) || "—"}</div>
-                  <div className="text-xs text-gray-400">均分</div>
+                  <div className="text-xs text-gray-400">Avg Rating</div>
                 </div>
               </div>
             </div>

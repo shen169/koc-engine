@@ -70,7 +70,7 @@ export default function ProductDetail() {
   if (!authorized || loading) {
     return (
       <div className="min-h-screen bg-orange-50 flex items-center justify-center">
-        <div className="text-zinc-400 text-sm">加载中...</div>
+        <div className="text-zinc-400 text-sm">Loading...</div>
       </div>
     );
   }
@@ -78,11 +78,11 @@ export default function ProductDetail() {
   if (!product) {
     return (
       <div className="min-h-screen bg-orange-50">
-        <NavBar user={null} role="koc" title="产品详情" />
+        <NavBar user={null} role="koc" title="Product Details" />
         <div className="max-w-2xl mx-auto px-6 py-16 text-center">
-          <p className="text-zinc-400 text-lg mb-4">产品未找到</p>
+          <p className="text-zinc-400 text-lg mb-4">Product not found</p>
           <button onClick={() => router.push("/portal/products")} className="btn-brand px-6 py-2">
-            ← 返回产品列表
+            ← Back to Product List
           </button>
         </div>
       </div>
@@ -94,11 +94,11 @@ export default function ProductDetail() {
 
   return (
     <div className="min-h-screen bg-orange-50">
-      <NavBar user={null} role="koc" title="产品详情" />
+      <NavBar user={null} role="koc" title="Product Details" />
 
       {showingInterestFeedback && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-lg text-sm font-bold animate-bounce">
-          ✅ 已接单！即将跳转我的任务...
+          ✅ Accepted! Redirecting to My Tasks...
         </div>
       )}
 
@@ -107,19 +107,19 @@ export default function ProductDetail() {
           onClick={() => router.push("/portal/products")}
           className="text-sm text-zinc-400 hover:text-pink-500 transition mb-6 flex items-center gap-1"
         >
-          ← 返回产品浏览
+          ← Back to Browse Products
         </button>
 
         <div className="bg-white rounded-3xl border border-pink-200 shadow-md overflow-hidden">
           <div className="bg-gradient-to-r from-pink-400 to-purple-500 px-6 py-6">
             <h1 className="text-2xl font-extrabold text-white">{product.name as string}</h1>
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-white/80 text-sm">{(product.category as string) || "未分类"}</span>
+              <span className="text-white/80 text-sm">{(product.category as string) || "Uncategorized"}</span>
               <span className="text-white/40">·</span>
               <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                 product.status === "active" ? "bg-white/20 text-white" : "bg-zinc-200 text-zinc-500"
               }`}>
-                {product.status === "active" ? "🟢 进行中" : "⏸ 已暂停"}
+                {product.status === "active" ? "🟢 Active" : "⏸ Paused"}
               </span>
             </div>
           </div>
@@ -128,11 +128,11 @@ export default function ProductDetail() {
             {score !== undefined && (
               <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4 border border-pink-200">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-zinc-700">🎯 智能匹配评分</span>
-                  <span className="text-xl font-extrabold text-pink-600">{score} 分</span>
+                  <span className="text-sm font-semibold text-zinc-700">🎯 Smart Match Score</span>
+                  <span className="text-xl font-extrabold text-pink-600">{score} pt</span>
                 </div>
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  匹配分综合考量你的<span className="font-medium text-zinc-600">领域标签</span>与产品<span className="font-medium text-zinc-600">品类</span>的重合度、粉丝量级、信任等级等因素。分越高越适合接这个产品。
+                  Match score considers your <span className="font-medium text-zinc-600">niche tags</span> overlap with product <span className="font-medium text-zinc-600">category</span>, follower count, Trust tier, and other factors. Higher score means better fit for this product.
                 </p>
                 {reasons && reasons.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-3">
@@ -146,9 +146,9 @@ export default function ProductDetail() {
               </div>
             )}
 
-            {/* 佣金信息 */}
+            {/* Commission Info */}
             <div className="bg-zinc-50 rounded-2xl p-4 space-y-3">
-              <h3 className="text-sm font-semibold text-zinc-600">💰 返佣信息</h3>
+              <h3 className="text-sm font-semibold text-zinc-600">💰 Commission Info</h3>
 
               {product.commission_link ? (
                 <a
@@ -160,12 +160,12 @@ export default function ProductDetail() {
                   💰 {product.commission_link as string} ↗
                 </a>
               ) : (
-                <p className="text-xs text-zinc-400">商家暂未提供返佣链接</p>
+                <p className="text-xs text-zinc-400">Merchant has not provided a commission link yet</p>
               )}
 
               <div className="flex items-center gap-2 text-sm">
                 <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-bold text-xs">
-                  {product.commission_type === "affiliate" ? "🔗 联盟佣金" : "🏷 折扣码"}
+                  {product.commission_type === "affiliate" ? "🔗 Affiliate Commission" : "🏷 Discount Code"}
                 </span>
                 <span className="font-extrabold text-zinc-900">
                   {product.commission_value as string || "15% off"}
@@ -175,26 +175,26 @@ export default function ProductDetail() {
 
             {product.description ? (
               <div>
-                <h3 className="text-sm font-semibold text-zinc-600 mb-2">📝 产品描述</h3>
+                <h3 className="text-sm font-semibold text-zinc-600 mb-2">📝 Product Description</h3>
                 <p className="text-sm text-zinc-600 leading-relaxed whitespace-pre-wrap">
                   {product.description as string}
                 </p>
               </div>
             ) : (
-              <div className="text-center py-4 text-zinc-300 text-sm">商家暂未提供详细描述</div>
+              <div className="text-center py-4 text-zinc-300 text-sm">Merchant has not provided a detailed description</div>
             )}
 
             <div className="flex gap-3 pt-2">
               {interested ? (
                 <div className="flex-1 flex flex-col gap-2">
                   <div className="px-6 py-3 bg-emerald-50 text-emerald-700 rounded-2xl text-center font-bold text-sm border border-emerald-200">
-                    ✅ 已接单
+                    ✅ Accepted
                   </div>
                   <button
                     onClick={() => router.push("/portal/tasks")}
                     className="w-full px-6 py-2.5 bg-zinc-800 text-white rounded-2xl text-sm font-semibold hover:bg-zinc-700 transition"
                   >
-                    查看我的任务列表 →
+                    View My Tasks →
                   </button>
                 </div>
               ) : (
@@ -202,7 +202,7 @@ export default function ProductDetail() {
                   onClick={handleInterested}
                   className="flex-1 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-2xl font-bold text-sm hover:from-pink-600 hover:to-purple-600 transition shadow-md shadow-pink-200"
                 >
-                  ✦ 接单
+                  ✦ Accept
                 </button>
               )}
             </div>

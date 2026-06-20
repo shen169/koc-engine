@@ -43,10 +43,10 @@ export default function MerchantTasksPage() {
   };
 
   const FILTER_TABS = [
-    { key: "", label: `全部 (${statusCounts.all})` },
-    { key: "pending", label: `待匹配 (${statusCounts.pending})` },
-    { key: "active", label: `进行中 (${statusCounts.active})` },
-    { key: "completed", label: `已完成 (${statusCounts.completed})` },
+    { key: "", label: `All (${statusCounts.all})` },
+    { key: "pending", label: `Pending Match (${statusCounts.pending})` },
+    { key: "active", label: `Active (${statusCounts.active})` },
+    { key: "completed", label: `Completed (${statusCounts.completed})` },
   ];
 
   const filtered = filter
@@ -59,18 +59,18 @@ export default function MerchantTasksPage() {
 
   return (
     <div className="min-h-screen bg-purple-50/30">
-      <NavBar user={null} role="merchant" title="任务管理" />
+      <NavBar user={null} role="merchant" title="Task Management" />
 
       {/* Header controls */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-gray-500">管理你的推广任务和 KOC 合作</p>
+            <p className="text-sm text-gray-500">Manage your promotional tasks and KOC collaborations</p>
             <button
               onClick={() => router.push("/dashboard/tasks/new")}
               className="btn-brand text-white px-5 py-2.5 rounded-xl text-sm font-semibold"
             >
-              + 发布新任务
+              + Publish New Task
             </button>
           </div>
 
@@ -96,15 +96,15 @@ export default function MerchantTasksPage() {
       {/* Task list */}
       <div className="max-w-5xl mx-auto px-6 py-6">
         {loading ? (
-          <div className="text-center py-20 text-gray-400">加载中...</div>
+          <div className="text-center py-20 text-gray-400">Loading...</div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-gray-400 text-lg mb-2">暂无任务</p>
+            <p className="text-gray-400 text-lg mb-2">No tasks yet</p>
             <button
               onClick={() => router.push("/dashboard/tasks/new")}
               className="text-sm text-pink-500 hover:text-pink-600 font-medium"
             >
-              发布第一个任务 →
+              Publish your first task →
             </button>
           </div>
         ) : (

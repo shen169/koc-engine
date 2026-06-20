@@ -53,11 +53,11 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
       <div className="flex items-center gap-2 mb-3">
         {isUrgent ? (
           <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
-            ⚡ 加急
+            ⚡ Urgent
           </span>
         ) : (
           <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-600">
-            🌊 长线
+            🌊 Long-term
           </span>
         )}
         {task.target_market && (
@@ -67,7 +67,7 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
         )}
         {mode === "hall" && task.merchant_trust_score !== undefined && task.merchant_trust_score < 60 && (
           <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
-            🛡️ 低信
+            🛡️ Low Trust
           </span>
         )}
 
@@ -84,7 +84,7 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
         {/* Timed out label */}
         {mode === "hall" && task.my_slot_status === "timed_out" && (
           <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">
-            ⛔ 已逾期
+            ⛔ Overdue
           </span>
         )}
       </div>
@@ -96,11 +96,11 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
 
       {/* Info row */}
       <div className="flex flex-wrap gap-3 text-sm text-gray-500 mb-3">
-        <span>💰 返佣 <strong className="text-gray-800">${task.commission}</strong></span>
+        <span>💰 Commission <strong className="text-gray-800">${task.commission}</strong></span>
         {mode === "hall" && (
-          <span>🔒 质押 <strong className="text-gray-800">10</strong> 点</span>
+          <span>🔒 Pledge <strong className="text-gray-800">10</strong> pt</span>
         )}
-        <span>👥 {task.koc_filled}/{task.koc_required} 人</span>
+        <span>👥 {task.koc_filled}/{task.koc_required} KOCs</span>
         {mode === "hall" && task.merchant_avg_rating && (
           <span>⭐ {(task.merchant_avg_rating as number).toFixed(1)}</span>
         )}
@@ -110,7 +110,7 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
       {mode === "merchant" && (
         <div className="mb-3">
           <div className="flex justify-between text-xs text-gray-400 mb-1">
-            <span>进度</span>
+            <span>Progress</span>
             <span>{progressPct}%</span>
           </div>
           <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -126,10 +126,10 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
       {mode === "hall" && (
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
           <span className="text-xs text-gray-400">
-            {isUrgent ? `⏰ 12h 内接单` : "⏰ 7 天内接单"}
+            {isUrgent ? `⏰ Accept within 12h` : "⏰ Accept within 7 days"}
           </span>
           <span className="text-xs font-semibold text-pink-500 opacity-0 group-hover:opacity-100 transition-opacity">
-            {isUrgent ? "接单 →" : "查看 →"}
+            {isUrgent ? "Accept →" : "View →"}
           </span>
         </div>
       )}

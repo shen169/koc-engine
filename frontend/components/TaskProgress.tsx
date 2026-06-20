@@ -16,15 +16,15 @@ interface SlotStatus {
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  assigned: { label: "待接单", color: "bg-gray-200 text-gray-600" },
-  accepted: { label: "已接单", color: "bg-blue-100 text-blue-700" },
-  shipped: { label: "已发货", color: "bg-purple-100 text-purple-700" },
-  received: { label: "已收货", color: "bg-indigo-100 text-indigo-700" },
-  creating: { label: "创作中", color: "bg-yellow-100 text-yellow-700" },
-  submitted: { label: "已提交", color: "bg-green-100 text-green-700" },
-  completed: { label: "已完成", color: "bg-emerald-100 text-emerald-700" },
-  rejected: { label: "已拒绝", color: "bg-red-100 text-red-600" },
-  timed_out: { label: "已超时", color: "bg-orange-100 text-orange-600" },
+  assigned: { label: "Awaiting Acceptance", color: "bg-gray-200 text-gray-600" },
+  accepted: { label: "Accepted", color: "bg-blue-100 text-blue-700" },
+  shipped: { label: "Shipped", color: "bg-purple-100 text-purple-700" },
+  received: { label: "Received", color: "bg-indigo-100 text-indigo-700" },
+  creating: { label: "Creating", color: "bg-yellow-100 text-yellow-700" },
+  submitted: { label: "Submitted", color: "bg-green-100 text-green-700" },
+  completed: { label: "Completed", color: "bg-emerald-100 text-emerald-700" },
+  rejected: { label: "Rejected", color: "bg-red-100 text-red-600" },
+  timed_out: { label: "Timed Out", color: "bg-orange-100 text-orange-600" },
 };
 
 function getSlotDeadline(slot: SlotStatus): { deadline: string; label: string; penalty: string } | null {
@@ -36,21 +36,21 @@ function getSlotDeadline(slot: SlotStatus): { deadline: string; label: string; p
       if (slot.created_at) {
         const hours = slot.task_type === "urgent" ? 12 : 7 * 24;
         const ts = new Date(slot.created_at).getTime() + hours * HOUR;
-        return { deadline: new Date(ts).toISOString(), label: "接单时限", penalty: "逾期将自动重推" };
+        return { deadline: new Date(ts).toISOString(), label: "Acceptance Deadline", penalty: "Auto-redistribute on timeout" };
       }
       return null;
     }
     case "accepted": {
       if (slot.accepted_at) {
         const ts = new Date(slot.accepted_at).getTime() + 48 * HOUR;
-        return { deadline: new Date(ts).toISOString(), label: "发货时限", penalty: "商家逾期未发货 → 退KOC质押 + 扣20信任分" };
+        return { deadline: new Date(ts).toISOString(), label: "Shipment Deadline", penalty: "Merchant late shipment: return KOC pledge + deduct 20 Trust Score" };
       }
       return null;
     }
     case "shipped": {
       if (slot.shipped_at) {
         const ts = new Date(slot.shipped_at).getTime() + 7 * DAY;
-        return { deadline: new Date(ts).toISOString(), label: "收货时限", penalty: "逾期将自动确认收货" };
+        return { deadline: new Date(ts).toISOString(), label: "Receipt Deadline", penalty: "Auto-confirm receipt on timeout" };
       }
       return null;
     }
@@ -58,14 +58,14 @@ function getSlotDeadline(slot: SlotStatus): { deadline: string; label: string; p
     case "creating": {
       if (slot.received_at) {
         const ts = new Date(slot.received_at).getTime() + 14 * DAY;
-        return { deadline: new Date(ts).toISOString(), label: "提交时限", penalty: "逾期未提交 → 扣15信任分 + 没收10pt质押" };
+        return { deadline: new Date(ts).toISOString(), label: "Submission Deadline", penalty: "Late submission: deduct 15 Trust Score + forfeit 10pt pledge" };
       }
       return null;
     }
     case "submitted": {
       if (slot.submitted_at) {
         const ts = new Date(slot.submitted_at).getTime() + 4 * DAY;
-        return { deadline: new Date(ts).toISOString(), label: "审核时限", penalty: "商家4天未审将自动通过" };
+        return { deadline: new Date(ts).toISOString(), label: "Review Deadline", penalty: "Auto-approve if merchant doesn't review in 4 days" };
       }
       return null;
     }
@@ -73,7 +73,7 @@ function getSlotDeadline(slot: SlotStatus): { deadline: string; label: string; p
       const base = (slot as any).rejected_at || slot.submitted_at;
       if (base) {
         const ts = new Date(base).getTime() + 3 * DAY;
-        return { deadline: new Date(ts).toISOString(), label: "重交时限", penalty: "逾期未重交 → 按违约处理：扣15信任分 + 没收质押" };
+        return { deadline: new Date(ts).toISOString(), label: "Resubmission Deadline", penalty: "Late resubmission: penalty - deduct 15 Trust Score + forfeit pledge" };
       }
       return null;
     }
@@ -121,7 +121,7 @@ export default function TaskProgress({ slots }: { slots: SlotStatus[] }) {
                 {/* Revision count for revision_requested */}
                 {slot.status === "revision_requested" && slot.revision_count !== undefined && (
                   <span className="text-xs text-orange-500 font-medium">
-                    ⚠️ 修改 {slot.revision_count}/{slot.max_revisions || 3}
+                    ⚠️ Revision {slot.revision_count}/{slot.max_revisions || 3}
                   </span>
                 )}
               </div>

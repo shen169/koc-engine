@@ -44,21 +44,21 @@ export default function AdminCreditsPage() {
   async function handleRecharge(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedUserId || amount <= 0) {
-      setMessage({ type: "err", text: "请选择用户并输入金额" });
+      setMessage({ type: "err", text: "Please select a user and enter an amount" });
       return;
     }
     setSubmitting(true);
     setMessage(null);
     try {
       const token = getToken()!;
-      await admin.rewardCredits(selectedUserId, amount, note || "Admin 手动充值", token);
-      setMessage({ type: "ok", text: `成功为用户充值 ${amount} 点` });
+      await admin.rewardCredits(selectedUserId, amount, note || "Admin Manual Top Up", token);
+      setMessage({ type: "ok", text: `Successfully topped up ${amount} pt for user` });
       setAmount(100);
       setNote("");
       // Reload data
       await loadData(token);
     } catch (e: any) {
-      setMessage({ type: "err", text: e.message || "充值失败" });
+      setMessage({ type: "err", text: e.message || "Top up failed" });
     } finally {
       setSubmitting(false);
     }
@@ -78,9 +78,9 @@ export default function AdminCreditsPage() {
           <button onClick={() => router.push("/admin")} className="text-zinc-400 hover:text-zinc-600 text-sm">
             ← Admin
           </button>
-          <h1 className="font-extrabold text-zinc-900">💰 积分管理</h1>
+          <h1 className="font-extrabold text-zinc-900">💰 Credits Management</h1>
         </div>
-        <button onClick={() => { clearToken(); router.push("/"); }} className="text-sm text-zinc-400 hover:text-zinc-600">退出</button>
+        <button onClick={() => { clearToken(); router.push("/"); }} className="text-sm text-zinc-400 hover:text-zinc-600">Sign Out</button>
       </nav>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
@@ -95,20 +95,20 @@ export default function AdminCreditsPage() {
         <div className="grid md:grid-cols-2 gap-6">
           {/* Recharge Form */}
           <div className="bg-white rounded-2xl border border-zinc-100 p-6">
-            <h2 className="font-extrabold text-zinc-900 mb-4">➕ 手动充值</h2>
+            <h2 className="font-extrabold text-zinc-900 mb-4">➕ Manual Top Up</h2>
             <form onSubmit={handleRecharge} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-zinc-700 mb-2">选择用户</label>
+                <label className="block text-sm font-semibold text-zinc-700 mb-2">Select User</label>
                 <select
                   value={selectedUserId}
                   onChange={(e) => setSelectedUserId(e.target.value)}
                   className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
                   required
                 >
-                  <option value="">-- 选择用户 --</option>
+                  <option value="">-- Select User --</option>
                   {users.map((u) => (
                     <option key={u.id} value={u.id}>
-                      {u.email} [{u.role === "koc" ? "KOC" : u.role === "merchant" ? "商家" : u.role}] — 余额: {u.balance} 点
+                      {u.email} [{u.role === "koc" ? "KOC" : u.role === "merchant" ? "Merchant" : u.role}] — Balance: {u.balance} pt
                     </option>
                   ))}
                 </select>
@@ -116,14 +116,14 @@ export default function AdminCreditsPage() {
 
               {selectedUser && (
                 <div className="bg-zinc-50 rounded-xl p-3 text-sm text-zinc-600">
-                  当前余额：<span className="font-bold text-zinc-900">{selectedUser.balance} 点</span>
+                  Current Balance: <span className="font-bold text-zinc-900">{selectedUser.balance} pt</span>
                   <span className="mx-2">→</span>
-                  充值后：<span className="font-bold text-emerald-600">{selectedUser.balance + amount} 点</span>
+                  After Top Up: <span className="font-bold text-emerald-600">{selectedUser.balance + amount} pt</span>
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-semibold text-zinc-700 mb-2">充值金额（点）</label>
+                <label className="block text-sm font-semibold text-zinc-700 mb-2">Top Up Amount (pt)</label>
                 <div className="flex gap-2 mb-2">
                   {[50, 100, 200, 500, 1000].map((n) => (
                     <button
@@ -149,11 +149,11 @@ export default function AdminCreditsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-zinc-700 mb-2">备注</label>
+                <label className="block text-sm font-semibold text-zinc-700 mb-2">Note</label>
                 <input
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="充值原因（可选）"
+                  placeholder="Top up reason (optional)"
                   className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
                 />
               </div>
@@ -163,17 +163,17 @@ export default function AdminCreditsPage() {
                 disabled={submitting}
                 className="w-full bg-pink-500 text-white py-3 rounded-xl font-semibold hover:bg-pink-600 transition disabled:opacity-50"
               >
-                {submitting ? "充值中..." : `确认充值 ${amount} 点`}
+                {submitting ? "Topping Up..." : `Confirm Top Up ${amount} pt`}
               </button>
             </form>
           </div>
 
           {/* User Balances */}
           <div className="bg-white rounded-2xl border border-zinc-100 p-6">
-            <h2 className="font-extrabold text-zinc-900 mb-4">👥 用户余额</h2>
+            <h2 className="font-extrabold text-zinc-900 mb-4">👥 User Balances</h2>
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {users.length === 0 ? (
-                <p className="text-zinc-400 text-sm text-center py-8">暂无用户</p>
+                <p className="text-zinc-400 text-sm text-center py-8">No users yet</p>
               ) : (
                 users.map((u) => (
                   <div
@@ -186,14 +186,14 @@ export default function AdminCreditsPage() {
                     <div>
                       <div className="text-sm font-semibold text-zinc-900">{u.email}</div>
                       <div className="text-xs text-zinc-400">
-                        {u.role === "koc" ? "🎬 KOC" : u.role === "merchant" ? "🏢 商家" : u.role}
+                        {u.role === "koc" ? "🎬 KOC" : u.role === "merchant" ? "🏢 Merchant" : u.role}
                       </div>
                     </div>
                     <div className="text-right">
                       <div className={`text-lg font-extrabold ${u.balance < 30 ? "text-red-500" : "text-emerald-600"}`}>
                         {u.balance}
                       </div>
-                      <div className="text-xs text-zinc-400">点</div>
+                      <div className="text-xs text-zinc-400">pt</div>
                     </div>
                   </div>
                 ))

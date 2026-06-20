@@ -58,7 +58,7 @@ export default function MerchantTaskDetailPage() {
 
   async function handleShip() {
     if (!trackingNumber.trim()) {
-      setError("请输入物流单号");
+      setError("Please enter tracking number");
       return;
     }
     setShipping(true);
@@ -67,7 +67,7 @@ export default function MerchantTaskDetailPage() {
       await tasks.ship(taskId, trackingNumber.trim(), token!);
       await loadTask();
     } catch (e: any) {
-      setError(e.message || "发货失败");
+      setError(e.message || "Shipping failed");
     } finally {
       setShipping(false);
     }
@@ -76,9 +76,9 @@ export default function MerchantTaskDetailPage() {
   async function handleReview(slotIndex: number, action: "approve" | "reject") {
     let feedback = "Approved";
     if (action === "reject") {
-      feedback = prompt("请输入驳回理由（KOC 将看到此反馈）：") || "";
+      feedback = prompt("Please enter rejection reason (KOC will see this feedback):") || "";
       if (!feedback.trim()) {
-        setError("请填写驳回理由");
+        setError("Please provide rejection reason");
         return;
       }
     }
@@ -88,21 +88,21 @@ export default function MerchantTaskDetailPage() {
       await tasks.review(taskId, slotIndex, action, feedback, token!);
       await loadTask();
     } catch (e: any) {
-      setError(e.message || "审核失败");
+      setError(e.message || "Review failed");
     } finally {
       setReviewing((prev) => ({ ...prev, [slotIndex]: false }));
     }
   }
 
-  if (loading) return <div className="text-center py-20 text-gray-400">加载中...</div>;
-  if (!task) return <div className="text-center py-20 text-gray-400">任务不存在</div>;
+  if (loading) return <div className="text-center py-20 text-gray-400">Loading...</div>;
+  if (!task) return <div className="text-center py-20 text-gray-400">Task not found</div>;
 
   const kocSlots = task.koc_slots || [];
   const kocFilled = kocSlots.filter((s: any) => s.koc_id).length;
 
   return (
     <div className="min-h-screen bg-purple-50/30">
-      <NavBar user={null} role="merchant" title="任务详情" />
+      <NavBar user={null} role="merchant" title="Task Details" />
       <div className="max-w-4xl mx-auto px-6 py-8">
 
         {/* Task header */}
@@ -115,7 +115,7 @@ export default function MerchantTaskDetailPage() {
                     ? "bg-orange-100 text-orange-600"
                     : "bg-blue-100 text-blue-600"
                 }`}>
-                  {task.task_type === "urgent" ? "⚡ 加急" : "🌊 长线"}
+                  {task.task_type === "urgent" ? "⚡ Urgent" : "🌊 Long-term"}
                 </span>
                 <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                   task.task_status === "completed"
@@ -129,7 +129,7 @@ export default function MerchantTaskDetailPage() {
               </div>
               <h1 className="text-2xl font-bold text-gray-900">{task.product_name}</h1>
               <p className="text-sm text-gray-500 mt-1">
-                佣金 {task.commission || 0} 点/KOC · {kocFilled}/{task.koc_required || 1} 人
+                Commission {task.commission || 0} pt/KOC · {kocFilled}/{task.koc_required || 1} KOCs
               </p>
             </div>
 
@@ -141,14 +141,14 @@ export default function MerchantTaskDetailPage() {
                     deadline={new Date(new Date(
                       kocSlots.find((s: any) => s.status === "accepted" && s.accepted_at)!.accepted_at
                     ).getTime() + 48 * 60 * 60 * 1000).toISOString()}
-                    label="发货截止"
-                    penalty="逾期未发货将退 KOC 质押 + 扣 20 信任分"
+                    label="Shipment Deadline"
+                    penalty="Late shipment: return KOC pledge + deduct 20 Trust Score"
                     size="sm"
                   />
                 )}
                 <input
                   type="text"
-                  placeholder="物流单号"
+                  placeholder="Tracking Number"
                   value={trackingNumber}
                   onChange={(e) => setTrackingNumber(e.target.value)}
                   className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pink-200 outline-none"
@@ -159,7 +159,7 @@ export default function MerchantTaskDetailPage() {
                   disabled={shipping}
                   className="btn-brand text-white text-sm py-2 px-4 rounded-lg font-semibold disabled:opacity-50"
                 >
-                  {shipping ? "发货中..." : "📦 确认发货"}
+                  {shipping ? "Shipping..." : "📦 Confirm Shipment"}
                 </button>
               </div>
             )}
@@ -168,7 +168,7 @@ export default function MerchantTaskDetailPage() {
           {/* Tracking info */}
           {task.tracking_number && (
             <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
-              📦 物流单号：<span className="font-mono font-medium">{task.tracking_number}</span>
+              📦 Tracking Number: <span className="font-mono font-medium">{task.tracking_number}</span>
             </div>
           )}
         </div>
@@ -181,7 +181,7 @@ export default function MerchantTaskDetailPage() {
               tab === "progress" ? "bg-pink-100 text-pink-700" : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            📊 KOC 进度
+            📊 KOC Progress
           </button>
           <button
             onClick={() => setTab("report")}
@@ -189,7 +189,7 @@ export default function MerchantTaskDetailPage() {
               tab === "report" ? "bg-pink-100 text-pink-700" : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            📈 数据报表
+            📈 Data Report
           </button>
           <button
             onClick={() => { setTab("performance"); loadPerformance(); }}
@@ -197,7 +197,7 @@ export default function MerchantTaskDetailPage() {
               tab === "performance" ? "bg-pink-100 text-pink-700" : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            📊 内容表现
+            📊 Content Performance
           </button>
         </div>
 
@@ -228,7 +228,7 @@ export default function MerchantTaskDetailPage() {
               s.status === "submitted" || s.status === "revision_requested" || s.status === "approved"
             ).length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                <h2 className="font-semibold text-gray-900 mb-4 text-lg">📋 内容审核</h2>
+                <h2 className="font-semibold text-gray-900 mb-4 text-lg">📋 Content Review</h2>
                 <div className="space-y-4">
                   {kocSlots.map((s: any, i: number) => {
                     if (!["submitted", "revision_requested", "approved"].includes(s.status)) return null;
@@ -253,15 +253,15 @@ export default function MerchantTaskDetailPage() {
                               s.status === "revision_requested" ? "bg-orange-100 text-orange-600" :
                               "bg-blue-100 text-blue-600"
                             }`}>
-                              {s.status === "approved" ? "✅ 已通过" :
-                               s.status === "revision_requested" ? "✏️ 已驳回" :
-                               "📩 待审核"}
+                              {s.status === "approved" ? "✅ Approved" :
+                               s.status === "revision_requested" ? "✏️ Rejected" :
+                               "📩 Pending Review"}
                             </span>
                             {dl && s.status !== "approved" && (
                               <DeadlineBadge
                                 deadline={dl}
-                                label="审核截止"
-                                penalty="4 天未审将自动通过"
+                                label="Review Deadline"
+                                penalty="Auto-approve after 4 days"
                                 size="sm"
                               />
                             )}
@@ -283,7 +283,7 @@ export default function MerchantTaskDetailPage() {
                         {/* Rejection feedback */}
                         {s.status === "revision_requested" && s.review_feedback && (
                           <div className="mb-3 p-3 bg-white rounded-lg text-sm">
-                            <span className="text-xs text-gray-400">驳回理由：</span>
+                            <span className="text-xs text-gray-400">Rejection Reason: </span>
                             <span className="text-gray-700">{s.review_feedback}</span>
                           </div>
                         )}
@@ -296,14 +296,14 @@ export default function MerchantTaskDetailPage() {
                               disabled={isReviewing}
                               className="flex-1 bg-green-500 text-white py-2 rounded-lg font-semibold text-sm hover:bg-green-600 transition-colors disabled:opacity-50"
                             >
-                              {isReviewing ? "处理中..." : "✅ 通过"}
+                              {isReviewing ? "Processing..." : "✅ Approve"}
                             </button>
                             <button
                               onClick={() => handleReview(i, "reject")}
                               disabled={isReviewing}
                               className="flex-1 bg-red-500 text-white py-2 rounded-lg font-semibold text-sm hover:bg-red-600 transition-colors disabled:opacity-50"
                             >
-                              {isReviewing ? "处理中..." : "❌ 驳回"}
+                              {isReviewing ? "Processing..." : "❌ Reject"}
                             </button>
                           </div>
                         )}
@@ -311,7 +311,7 @@ export default function MerchantTaskDetailPage() {
                         {/* Auto-approved note */}
                         {s.status === "approved" && (s as any).auto_approved && (
                           <p className="text-xs text-gray-400 mt-2">
-                            ⚠️ 系统自动通过（商家超时未审）
+                            ⚠️ Auto-approved (merchant review timeout)
                           </p>
                         )}
                       </div>
@@ -325,31 +325,31 @@ export default function MerchantTaskDetailPage() {
 
         {tab === "report" && report && (
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">📈 数据报表</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">📈 Data Report</h2>
 
             {/* Summary stats */}
             <div className="grid grid-cols-4 gap-4 mb-6">
               <div className="bg-gray-50 rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold brand-gradient-text">{report.submitted_slots}/{report.total_slots}</div>
-                <div className="text-xs text-gray-500 mt-1">已提交</div>
+                <div className="text-xs text-gray-500 mt-1">Submitted</div>
               </div>
               <div className="bg-gray-50 rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold brand-gradient-text">{report.total_content_urls}</div>
-                <div className="text-xs text-gray-500 mt-1">内容链接</div>
+                <div className="text-xs text-gray-500 mt-1">Content Links</div>
               </div>
               <div className="bg-gray-50 rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold brand-gradient-stat">{report.total_commission_paid}</div>
-                <div className="text-xs text-gray-500 mt-1">已结算佣金</div>
+                <div className="text-xs text-gray-500 mt-1">Commission Settled</div>
               </div>
               <div className="bg-gray-50 rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold text-gray-900">{report.koc_filled}/{report.koc_required}</div>
-                <div className="text-xs text-gray-500 mt-1">KOC 填充</div>
+                <div className="text-xs text-gray-500 mt-1">KOC Filled</div>
               </div>
             </div>
 
             {/* Per-KOC report */}
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">各 KOC 详情</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Per-KOC Details</h3>
               {(report.koc_reports || []).map((kr: any) => (
                 <div key={kr.slot_index} className="border border-gray-100 rounded-xl p-4">
                   <div className="flex items-center justify-between mb-2">
@@ -378,7 +378,7 @@ export default function MerchantTaskDetailPage() {
                     </div>
                   )}
                   {(!kr.content_urls || kr.content_urls.length === 0) && (
-                    <p className="text-xs text-gray-400">暂无内容链接</p>
+                    <p className="text-xs text-gray-400">No content links yet</p>
                   )}
                 </div>
               ))}
@@ -388,26 +388,26 @@ export default function MerchantTaskDetailPage() {
 
         {tab === "performance" && (
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">📊 内容表现</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">📊 Content Performance</h2>
 
             {!performance ? (
-              <div className="text-center py-10 text-gray-400">加载中...</div>
+              <div className="text-center py-10 text-gray-400">Loading...</div>
             ) : performance.summary?.total_views === 0 ? (
               <div className="text-center py-10 text-gray-400">
-                <p className="text-lg mb-2">暂无表现数据</p>
-                <p className="text-sm">KOC 提交内容后可更新播放量、点赞等指标</p>
+                <p className="text-lg mb-2">No performance data yet</p>
+                <p className="text-sm">KOCs can update views, likes and other metrics after submitting content</p>
               </div>
             ) : (
               <>
                 {/* Summary cards */}
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
                   {[
-                    { label: "总播放", value: (performance.summary?.total_views || 0).toLocaleString(), icon: "👁️" },
-                    { label: "总点赞", value: (performance.summary?.total_likes || 0).toLocaleString(), icon: "❤️" },
-                    { label: "总评论", value: (performance.summary?.total_comments || 0).toLocaleString(), icon: "💬" },
-                    { label: "总分享", value: (performance.summary?.total_shares || 0).toLocaleString(), icon: "🔄" },
-                    { label: "总成交", value: (performance.summary?.total_conversions || 0).toLocaleString(), icon: "💰" },
-                    { label: "平均互动率", value: `${performance.summary?.average_engagement_rate || 0}%`, icon: "📈" },
+                    { label: "Total Views", value: (performance.summary?.total_views || 0).toLocaleString(), icon: "👁️" },
+                    { label: "Total Likes", value: (performance.summary?.total_likes || 0).toLocaleString(), icon: "❤️" },
+                    { label: "Total Comments", value: (performance.summary?.total_comments || 0).toLocaleString(), icon: "💬" },
+                    { label: "Total Shares", value: (performance.summary?.total_shares || 0).toLocaleString(), icon: "🔄" },
+                    { label: "Total Conversions", value: (performance.summary?.total_conversions || 0).toLocaleString(), icon: "💰" },
+                    { label: "Avg Engagement Rate", value: `${performance.summary?.average_engagement_rate || 0}%`, icon: "📈" },
                   ].map(({ label, value, icon }) => (
                     <div key={label} className="bg-gray-50 rounded-xl p-3 text-center">
                       <div className="text-lg mb-1">{icon}</div>
@@ -421,13 +421,13 @@ export default function MerchantTaskDetailPage() {
                 {(performance.summary?.total_revenue || 0) > 0 && (
                   <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 text-center">
                     <span className="text-green-700 font-bold text-lg">
-                      💵 归因收入：${(performance.summary?.total_revenue || 0).toLocaleString()}
+                      💵 Attributed Revenue: ${(performance.summary?.total_revenue || 0).toLocaleString()}
                     </span>
                   </div>
                 )}
 
                 {/* Per-KOC breakdown */}
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">各 KOC 表现</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Per-KOC Performance</h3>
                 <div className="space-y-3">
                   {(performance.slots || []).map((s: any) => (
                     <div key={s.slot_index} className="border border-gray-100 rounded-xl p-4">
@@ -441,7 +441,7 @@ export default function MerchantTaskDetailPage() {
                           }`}>{s.status}</span>
                           {s.metrics?.engagement_rate > 0 && (
                             <span className="text-xs font-bold text-pink-600">
-                              {s.metrics.engagement_rate}% 互动率
+                              {s.metrics.engagement_rate}% Engagement Rate
                             </span>
                           )}
                         </div>
@@ -450,10 +450,10 @@ export default function MerchantTaskDetailPage() {
                       {s.metrics?.views > 0 ? (
                         <div className="grid grid-cols-4 gap-2 mb-2">
                           {[
-                            { label: "播放", value: s.metrics.views },
-                            { label: "点赞", value: s.metrics.likes },
-                            { label: "评论", value: s.metrics.comments },
-                            { label: "分享", value: s.metrics.shares },
+                            { label: "Views", value: s.metrics.views },
+                            { label: "Likes", value: s.metrics.likes },
+                            { label: "Comments", value: s.metrics.comments },
+                            { label: "Shares", value: s.metrics.shares },
                           ].map(({ label, value }) => (
                             <div key={label} className="bg-gray-50 rounded-lg p-2 text-center">
                               <div className="text-sm font-bold text-gray-800">{(value || 0).toLocaleString()}</div>
@@ -462,7 +462,7 @@ export default function MerchantTaskDetailPage() {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-xs text-gray-400 mb-2">暂无表现数据</p>
+                        <p className="text-xs text-gray-400 mb-2">No performance data yet</p>
                       )}
 
                       {s.content_urls?.length > 0 && (

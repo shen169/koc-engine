@@ -9,10 +9,10 @@ interface IntegrityBadgeProps {
 }
 
 const LEVEL_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  high: { label: "🛡️ 高信", bg: "bg-green-100", text: "text-green-700" },
-  normal: { label: "⚠️ 一般", bg: "bg-blue-100", text: "text-blue-700" },
-  low: { label: "🔶 低信", bg: "bg-yellow-100", text: "text-yellow-700" },
-  danger: { label: "🚫 危险", bg: "bg-red-100", text: "text-red-700" },
+  high: { label: "🛡️ High Trust", bg: "bg-green-100", text: "text-green-700" },
+  normal: { label: "⚠️ Normal", bg: "bg-blue-100", text: "text-blue-700" },
+  low: { label: "🔶 Low Trust", bg: "bg-yellow-100", text: "text-yellow-700" },
+  danger: { label: "🚫 At Risk", bg: "bg-red-100", text: "text-red-700" },
 };
 
 const DEFAULT_TIER_COLORS: Record<string, string> = {
@@ -58,9 +58,9 @@ export default function IntegrityBadge({
 
       {showDetails && (
         <div className="text-xs text-gray-400 space-y-0.5 mt-1">
-          {totalCompleted !== undefined && <div>✅ 完成 {totalCompleted} 单</div>}
+          {totalCompleted !== undefined && <div>✅ {totalCompleted} completed</div>}
           {totalDisputed !== undefined && totalDisputed > 0 && (
-            <div className="text-red-400">⚠️ {totalDisputed} 次争议</div>
+            <div className="text-red-400">⚠️ {totalDisputed} disputes</div>
           )}
           {avgRating !== undefined && avgRating > 0 && <div>⭐ {avgRating.toFixed(1)}</div>}
         </div>

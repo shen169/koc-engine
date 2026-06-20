@@ -42,38 +42,38 @@ export default function KocMyTasksPage() {
   });
 
   const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-    assigned: { label: "待接单", color: "bg-yellow-100 text-yellow-700" },
-    accepted: { label: "待发货", color: "bg-blue-100 text-blue-700" },
-    shipped: { label: "待收货", color: "bg-purple-100 text-purple-700" },
-    received: { label: "待创作", color: "bg-indigo-100 text-indigo-700" },
-    creating: { label: "创作中", color: "bg-orange-100 text-orange-700" },
-    submitted: { label: "已完成", color: "bg-green-100 text-green-700" },
-    completed: { label: "已完成", color: "bg-green-100 text-green-700" },
+    assigned: { label: "Awaiting Acceptance", color: "bg-yellow-100 text-yellow-700" },
+    accepted: { label: "Awaiting Shipment", color: "bg-blue-100 text-blue-700" },
+    shipped: { label: "Awaiting Receipt", color: "bg-purple-100 text-purple-700" },
+    received: { label: "Awaiting Content", color: "bg-indigo-100 text-indigo-700" },
+    creating: { label: "Creating", color: "bg-orange-100 text-orange-700" },
+    submitted: { label: "Completed", color: "bg-green-100 text-green-700" },
+    completed: { label: "Completed", color: "bg-green-100 text-green-700" },
   };
 
   return (
     <div className="min-h-screen bg-orange-50/30">
-      <NavBar user={null} role="koc" title="我的任务" />
+      <NavBar user={null} role="koc" title="My Tasks" />
       <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">📋 我的任务</h1>
-            <p className="text-sm text-gray-500 mt-1">已接的任务和进度</p>
+            <h1 className="text-2xl font-bold text-gray-900">📋 My Tasks</h1>
+            <p className="text-sm text-gray-500 mt-1">Accepted tasks and progress</p>
           </div>
           <button
             onClick={() => router.push("/portal/hall")}
             className="text-sm font-medium text-pink-500 hover:text-pink-600"
           >
-            🏪 去任务广场 →
+            🏪 Go to Task Hall →
           </button>
         </div>
 
         {/* Filter tabs */}
         <div className="flex gap-1 bg-white rounded-xl p-1 mb-6 w-fit border border-gray-100">
           {[
-            { key: "active", label: "进行中" },
-            { key: "completed", label: "已完成" },
-            { key: "all", label: "全部" },
+            { key: "active", label: "Active" },
+            { key: "completed", label: "Completed" },
+            { key: "all", label: "All" },
           ].map((f) => (
             <button
               key={f.key}
@@ -88,15 +88,15 @@ export default function KocMyTasksPage() {
         </div>
 
         {!authorized || loading ? (
-          <div className="text-center py-20 text-gray-400">加载中...</div>
+          <div className="text-center py-20 text-gray-400">Loading...</div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-gray-400 text-lg mb-2">暂无任务</p>
+            <p className="text-gray-400 text-lg mb-2">No tasks yet</p>
             <button
               onClick={() => router.push("/portal/hall")}
               className="text-sm text-pink-500 hover:text-pink-600 font-medium"
             >
-              去任务广场接单 →
+              Find tasks in Task Hall →
             </button>
           </div>
         ) : (
@@ -118,13 +118,13 @@ export default function KocMyTasksPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2 flex-wrap min-w-0">
                         <h3 className="font-bold text-gray-900 group-hover:text-pink-600 transition-colors truncate text-lg">
-                          {task.product_name || "未命名产品"}
+                          {task.product_name || "Unnamed Product"}
                         </h3>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${st.color}`}>
                           {st.label}
                         </span>
                         {task.task_type === "urgent" && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 font-medium shrink-0">⚡ 加急</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 font-medium shrink-0">⚡ Urgent</span>
                         )}
                       </div>
                       <span className="text-gray-300 group-hover:text-pink-400 transition-colors shrink-0 ml-2 text-lg">→</span>
@@ -164,15 +164,15 @@ export default function KocMyTasksPage() {
                     {/* Commission & Pledge row */}
                     <div className="flex items-center gap-4 text-sm mb-3">
                       <span className="font-bold text-pink-600 text-lg">${task.commission || 0}</span>
-                      <span className="text-gray-400 text-xs">返佣佣金</span>
+                      <span className="text-gray-400 text-xs">Commission</span>
                       <span className="text-gray-300">|</span>
-                      <span className="text-gray-700 font-medium">{task.pledge_koc || 0} 点</span>
-                      <span className="text-gray-400 text-xs">质押</span>
+                      <span className="text-gray-700 font-medium">{task.pledge_koc || 0} pt</span>
+                      <span className="text-gray-400 text-xs">Pledge</span>
                       {task.product_commission_type && (
                         <>
                           <span className="text-gray-300">|</span>
                           <span className="text-xs px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 font-medium">
-                            {task.product_commission_type === "affiliate" ? "🔗 联盟佣金" : "🏷 折扣码"}
+                            {task.product_commission_type === "affiliate" ? "🔗 Affiliate Commission" : "🏷 Discount Code"}
                           </span>
                         </>
                       )}
@@ -188,7 +188,7 @@ export default function KocMyTasksPage() {
                           }}
                           className="text-xs text-pink-500 hover:text-pink-600 font-medium underline underline-offset-2"
                         >
-                          📦 产品详情 →
+                          📦 Product Details →
                         </button>
                       )}
                       {task.product_commission_link && (
@@ -199,12 +199,12 @@ export default function KocMyTasksPage() {
                           onClick={(e) => e.stopPropagation()}
                           className="text-xs text-emerald-500 hover:text-emerald-600 font-medium underline underline-offset-2"
                         >
-                          💰 返佣链接 ↗
+                          💰 Commission Link ↗
                         </a>
                       )}
                       {slot.accepted_at && (
                         <span className="text-xs text-gray-400 ml-auto">
-                          {new Date(slot.accepted_at).toLocaleDateString()} 接单
+                          {new Date(slot.accepted_at).toLocaleDateString()} Accepted
                         </span>
                       )}
                     </div>

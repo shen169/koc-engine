@@ -30,7 +30,7 @@ export default function KocPoolPage() {
 
   return (
     <div className="min-h-screen bg-purple-50">
-      <NavBar user={null} role="merchant" title="达人池" />
+      <NavBar user={null} role="merchant" title="KOC Pool" />
       <div className="max-w-3xl mx-auto px-6 py-8">
         {pool.length === 0 ? (
           <div className="text-center py-16 text-zinc-400 text-sm">No approved creators yet.</div>

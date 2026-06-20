@@ -24,7 +24,7 @@ export default function CouponsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <NavBar user={null} role="koc" title="折扣码" />
+      <NavBar user={null} role="koc" title="Discount Codes" />
       <div className="max-w-2xl mx-auto p-6">
         <h1 className="text-xl font-bold text-slate-900 mb-6">My Discount Codes</h1>
         {coupons.length === 0 ? (

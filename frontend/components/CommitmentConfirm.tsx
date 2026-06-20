@@ -24,7 +24,7 @@ export default function CommitmentConfirm({
   commitments,
   pledge,
   redlines,
-  confirmLabel = "确认接单",
+  confirmLabel = "Confirm Acceptance",
   onConfirm,
   onCancel,
 }: CommitmentConfirmProps) {
@@ -79,11 +79,11 @@ export default function CommitmentConfirm({
     >
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[85vh] overflow-y-auto p-6">
         <h2 id="commitment-dialog-title" className="text-xl font-bold text-gray-900 mb-1">{title}</h2>
-        <p className="text-xs text-gray-400 mb-4">请仔细阅读以下条款</p>
+        <p className="text-xs text-gray-400 mb-4">Please read the terms below carefully</p>
 
-        {renderSection("📌 你的承诺", commitments, "text-blue-600")}
-        {renderSection("💰 质押规则", pledge, "text-purple-600")}
-        {renderSection("⛔ 红线（违约后果）", redlines, "text-red-600")}
+        {renderSection("📌 Your Commitments", commitments, "text-blue-600")}
+        {renderSection("💰 Pledge Rules", pledge, "text-purple-600")}
+        {renderSection("⛔ Red Lines (Penalties)", redlines, "text-red-600")}
 
         {/* Agreement checkbox */}
         <label className="flex items-start gap-3 mt-6 p-3 bg-amber-50 rounded-xl border border-amber-200 cursor-pointer">
@@ -94,7 +94,7 @@ export default function CommitmentConfirm({
             className="mt-0.5 w-4 h-4 rounded accent-pink-500"
           />
           <span className="text-sm text-amber-800 font-medium">
-            我已阅读并理解以上规则，知晓违约将导致质押被没收和信任分扣除
+            I have read and understood the rules above and acknowledge that violations will result in pledge forfeiture and Trust Score deduction.
           </span>
         </label>
 
@@ -103,7 +103,7 @@ export default function CommitmentConfirm({
             onClick={onCancel}
             className="flex-1 border border-gray-200 text-gray-500 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors"
           >
-            取消
+            Cancel
           </button>
           <button
             onClick={onConfirm}

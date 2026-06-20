@@ -38,11 +38,11 @@ export default function DashboardPage() {
           <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs text-gray-400 mb-1">商家诚信度</div>
+                <div className="text-xs text-gray-400 mb-1">Merchant Trust</div>
                 <IntegrityBadge
                   score={merchantProfile.trust_score as number}
                   tier={merchantProfile.tier as string}
-                  tierLabels={{ M3: "🏆 金牌商家", M2: "🥈 银牌商家", M1: "🥉 铜牌商家" }}
+                  tierLabels={{ M3: "🏆 Gold Merchant", M2: "🥈 Silver Merchant", M1: "🥉 Bronze Merchant" }}
                   totalCompleted={merchantProfile.total_tasks_completed as number}
                   totalDisputed={merchantProfile.total_tasks_disputed as number}
                   avgRating={merchantProfile.avg_rating as number}

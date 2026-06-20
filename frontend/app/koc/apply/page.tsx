@@ -103,7 +103,7 @@ function ApplyForm() {
     }
   }
 
-  // ── Result Screen (AI 评分结算动画) ──
+  // ── Result Screen (AI scoring animation) ──
   if (result) {
     const dims = [
       { key: "authenticity", label: "Authenticity", desc: "Real content & genuine voice" },

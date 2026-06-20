@@ -56,22 +56,22 @@ export default function BrowseProducts() {
   if (!authorized) {
     return (
       <div className="min-h-screen bg-orange-50 flex items-center justify-center">
-        <div className="text-zinc-400 text-sm">加载中...</div>
+        <div className="text-zinc-400 text-sm">Loading...</div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-orange-50">
-      <NavBar user={null} role="koc" title="产品浏览" />
+      <NavBar user={null} role="koc" title="Browse Products" />
       <div className="max-w-3xl mx-auto px-6 py-8">
 
-        {/* ── 为你推荐 ── */}
+        {/* ── Recommended for You ── */}
         {!recLoading && recommended.length > 0 && (
           <section className="mb-8">
             <h2 className="text-lg font-extrabold text-zinc-900 mb-3 flex items-center gap-2">
-              <span className="text-xl">✨</span> 为你推荐
-              <span className="text-xs font-normal text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">智能匹配</span>
+              <span className="text-xl">✨</span> Recommended for You
+              <span className="text-xs font-normal text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">Smart Match</span>
             </h2>
             <div className="space-y-2">
               {recommended.slice(0, showAll ? recommended.length : 5).map((m) => {
@@ -86,8 +86,8 @@ export default function BrowseProducts() {
                           <Link href={`/portal/products/${m.product_id}`} className="font-bold text-zinc-900 text-sm hover:text-pink-500 transition truncate">
                             {m.product_name}
                           </Link>
-                          <span className="text-xs font-mono text-pink-600 font-bold shrink-0" title="综合你的领域标签、粉丝量级、信任等级与产品品类的匹配度">
-                            {m.match_score}分
+                          <span className="text-xs font-mono text-pink-600 font-bold shrink-0" title="Match score based on your niche tags, follower count, Trust tier and product category fit">
+                            {m.match_score} pt
                           </span>
                           {m.source === "ai" && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">🤖 AI</span>}
                           {(fullProduct.target_market as string) && (
@@ -115,7 +115,7 @@ export default function BrowseProducts() {
                             onClick={(e) => e.stopPropagation()}
                             className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium underline underline-offset-2"
                           >
-                            💰 返佣链接：{(fullProduct.commission_link as string).slice(0, 30)}... ↗
+                            💰 Commission Link: {(fullProduct.commission_link as string).slice(0, 30)}... ↗
                           </a>
                         )}
                         <div className="flex flex-wrap gap-1 mt-1.5">
@@ -126,10 +126,10 @@ export default function BrowseProducts() {
                       </div>
                       {myInterests.has(m.product_id) ? (
                         <Link href={`/portal/products/${m.product_id}`} className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-full text-sm font-bold shrink-0 hover:bg-emerald-100 transition">
-                          ✓ 已接单
+                          ✓ Accepted
                         </Link>
                       ) : (
-                        <button onClick={() => express(m.product_id)} className="btn-brand px-5 py-2 text-sm shrink-0">接单</button>
+                        <button onClick={() => express(m.product_id)} className="btn-brand px-5 py-2 text-sm shrink-0">Accept</button>
                       )}
                     </div>
                   </div>
@@ -142,14 +142,14 @@ export default function BrowseProducts() {
                 onClick={() => setShowAll(!showAll)}
                 className="mt-3 text-xs text-pink-500 hover:text-pink-600 font-medium"
               >
-                {showAll ? `收起，只显示 Top 5` : `查看全部 ${recommended.length} 个推荐`}
+                {showAll ? `Collapse, show Top 5 only` : `View all ${recommended.length} recommendations`}
               </button>
             )}
           </section>
         )}
 
-        {/* ── 全部产品 ── */}
-        <h2 className="text-lg font-extrabold text-zinc-900 mb-3">📦 全部产品</h2>
+        {/* ── All Products ── */}
+        <h2 className="text-lg font-extrabold text-zinc-900 mb-3">📦 All Products</h2>
         {items.length === 0 ? (
           <div className="text-center py-16 text-zinc-400 text-sm">No products yet.</div>
         ) : (
@@ -189,16 +189,16 @@ export default function BrowseProducts() {
                         onClick={(e) => e.stopPropagation()}
                         className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium underline underline-offset-2"
                       >
-                        💰 返佣链接：{(p.commission_link as string).slice(0, 40)}... ↗
+                        💰 Commission Link: {(p.commission_link as string).slice(0, 40)}... ↗
                       </a>
                     )}
                   </div>
                   {myInterests.has(p.id as string) ? (
                     <Link href={`/portal/products/${p.id}`} className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-full text-sm font-bold shrink-0 hover:bg-emerald-100 transition">
-                      ✓ 已接单
+                      ✓ Accepted
                     </Link>
                   ) : (
-                    <button onClick={() => express(p.id as string)} className="btn-brand px-5 py-2 text-sm shrink-0">接单</button>
+                    <button onClick={() => express(p.id as string)} className="btn-brand px-5 py-2 text-sm shrink-0">Accept</button>
                   )}
                 </div>
               </div>

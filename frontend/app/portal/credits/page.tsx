@@ -35,7 +35,7 @@ export default function CreditsPage() {
 
   return (
     <div className="min-h-screen bg-orange-50">
-      <NavBar user={null} role="koc" title="积分中心" />
+      <NavBar user={null} role="koc" title="Credits Center" />
       <div className="max-w-lg mx-auto px-6 py-8">
         {showCoin && <CoinDrop amount={30} />}
 

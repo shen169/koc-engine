@@ -48,15 +48,15 @@ export default function NewTaskPage() {
 
   function handleSubmit() {
     if (!form.product_id) {
-      setError("请选择产品");
+      setError("Select Product");
       return;
     }
     if (form.koc_required < 1) {
-      setError("至少需要 1 个 KOC");
+      setError("At least 1 KOC required");
       return;
     }
     if (form.commission < 1) {
-      setError("佣金不能为 0");
+      setError("Commission cannot be 0");
       return;
     }
 
@@ -78,18 +78,18 @@ export default function NewTaskPage() {
         router.push("/dashboard/tasks");
       })
       .catch((e: Error) => {
-        setError(e.message || "发布失败");
+        setError(e.message || "Publish failed");
         setSubmitting(false);
       });
   }
 
   return (
     <div className="min-h-screen bg-purple-50/30">
-      <NavBar user={null} role="merchant" title="发布新任务" />
+      <NavBar user={null} role="merchant" title="Publish New Task" />
       <div className="max-w-2xl mx-auto px-6 py-8">
 
         <div className="bg-white rounded-2xl border border-gray-100 p-8">
-          <h1 className="text-xl font-bold text-gray-900 mb-6">📢 发布新任务</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-6">📢 Publish New Task</h1>
 
           {error && (
             <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">
@@ -100,12 +100,12 @@ export default function NewTaskPage() {
           <div className="space-y-5">
             {/* Product selection */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">选择产品</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Select Product</label>
               {productList.length === 0 ? (
                 <p className="text-sm text-gray-400">
-                  还没有上架产品？{" "}
+                  No products listed yet?{" "}
                   <a href="/dashboard/products/new" className="text-pink-500">
-                    先去上架 →
+                    Add a product first →
                   </a>
                 </p>
               ) : (
@@ -114,7 +114,7 @@ export default function NewTaskPage() {
                   onChange={(e) => handleProductSelect(e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
                 >
-                  <option value="">-- 选择产品 --</option>
+                  <option value="">-- Select Product --</option>
                   {productList.map((p: any) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
@@ -126,7 +126,7 @@ export default function NewTaskPage() {
 
             {/* Task type */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">任务类型</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Task Type</label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setForm((f) => ({ ...f, task_type: "urgent" }))}
@@ -136,8 +136,8 @@ export default function NewTaskPage() {
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  <div className="font-semibold text-gray-900">⚡ 加急</div>
-                  <div className="text-xs text-gray-500 mt-1">平台自动推送匹配，12h 接单时限</div>
+                  <div className="font-semibold text-gray-900">⚡ Urgent</div>
+                  <div className="text-xs text-gray-500 mt-1">Auto-push matching, 12h acceptance deadline</div>
                 </button>
                 <button
                   onClick={() => setForm((f) => ({ ...f, task_type: "long_term" }))}
@@ -147,8 +147,8 @@ export default function NewTaskPage() {
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  <div className="font-semibold text-gray-900">🌊 长线</div>
-                  <div className="text-xs text-gray-500 mt-1">挂在产品池，KOC 自行发现接单</div>
+                  <div className="font-semibold text-gray-900">🌊 Long-term</div>
+                  <div className="text-xs text-gray-500 mt-1">Listed in product pool, KOCs discover and accept independently</div>
                 </button>
               </div>
             </div>
@@ -156,7 +156,7 @@ export default function NewTaskPage() {
             {/* KOC count */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                需要 KOC 人数
+                Number of KOCs Needed
               </label>
               <div className="flex items-center gap-3">
                 <button
@@ -174,14 +174,14 @@ export default function NewTaskPage() {
                 >
                   +
                 </button>
-                <span className="text-sm text-gray-400">人</span>
+                <span className="text-sm text-gray-400">KOCs</span>
               </div>
             </div>
 
             {/* Commission (reference for affiliate link, NOT paid in points) */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                💰 返佣参考值（$/KOC，用于质押计算，实际佣金走返佣链接）
+                💰 Commission Reference ($/KOC, for pledge calculation; actual commission via affiliate link)
               </label>
               <input
                 type="number"
@@ -191,46 +191,46 @@ export default function NewTaskPage() {
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
               <p className="text-xs text-gray-400 mt-1">
-                KOC 通过返佣链接推广，成交佣金由联盟平台自动结算。此处仅作质押计算参考。
+                KOCs promote via commission links. Transaction commissions are settled automatically by the affiliate platform. This value is for pledge calculation reference only.
               </p>
             </div>
 
             {/* Pledges — fixed at 10 pts/slot */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
-                <div className="text-xs text-purple-500 font-semibold mb-1">商家质押（履约后退还）</div>
-                <div className="text-2xl font-extrabold text-purple-700">10 × {form.koc_required} = {10 * form.koc_required} 点</div>
+                <div className="text-xs text-purple-500 font-semibold mb-1">Merchant Pledge (refunded on fulfillment)</div>
+                <div className="text-2xl font-extrabold text-purple-700">10 × {form.koc_required} = {10 * form.koc_required} pt</div>
               </div>
               <div className="bg-pink-50 border border-pink-100 rounded-xl p-4">
-                <div className="text-xs text-pink-500 font-semibold mb-1">KOC 质押/人（履约后退还）</div>
-                <div className="text-2xl font-extrabold text-pink-700">10 点</div>
+                <div className="text-xs text-pink-500 font-semibold mb-1">KOC Pledge per person (refunded on fulfillment)</div>
+                <div className="text-2xl font-extrabold text-pink-700">10 pt</div>
               </div>
             </div>
 
             {/* Summary */}
             <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 space-y-1">
-              <div className="font-semibold text-gray-800 mb-2">📊 费用预估</div>
+              <div className="font-semibold text-gray-800 mb-2">📊 Cost Estimate</div>
               <div>
-                平台服务费（商家）：5 点 <span className="text-xs text-gray-400">（发布即扣，不退）</span>
+                Platform Service Fee (Merchant): 5 pt <span className="text-xs text-gray-400">(deducted on publish, non-refundable)</span>
               </div>
               <div>
-                商家质押：10 × {form.koc_required} = {10 * form.koc_required} 点 <span className="text-xs text-gray-400">（发货时扣，KOC 完成后退还）</span>
+                Merchant Pledge: 10 × {form.koc_required} = {10 * form.koc_required} pt <span className="text-xs text-gray-400">(deducted on shipment, refunded on KOC completion)</span>
               </div>
               <div className="text-xs text-gray-400 mt-2">
-                * KOC 接单冻结 10 点质押，完成后退还 5 点（平台扣 5 点）
+                * KOC pledge of 10 pt frozen on acceptance, 5 pt refunded on completion (Platform deducts 5 pt)
               </div>
             </div>
 
             {/* SLA Agreement */}
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-              <h3 className="text-sm font-bold text-amber-800 mb-3">📋 发布前确认</h3>
-              <p className="text-xs text-amber-700 mb-3">作为商家，你承诺：</p>
+              <h3 className="text-sm font-bold text-amber-800 mb-3">📋 Pre-Publish Confirmation</h3>
+              <p className="text-xs text-amber-700 mb-3">As a merchant, you commit to:</p>
               <div className="space-y-2">
                 {[
-                  { text: "48 小时内发货", sub: "逾期扣 20 信任分 + 退还 KOC 质押" },
-                  { text: "4 天内审核 KOC 提交的内容", sub: "逾期系统自动通过" },
-                  { text: "平台服务费 5pt 发布即扣，不可退" },
-                  { text: `每 slot 质押 10pt（共 ${10 * form.koc_required}pt），KOC 完成后退还` },
+                  { text: "Ship within 48 hours", sub: "Late: deduct 20 Trust Score + return KOC pledge" },
+                  { text: "Review KOC submissions within 4 days", sub: "Late: auto-approved by system" },
+                  { text: "Platform service fee: 5pt deducted on publish, non-refundable" },
+                  { text: `10pt pledge per slot (${10 * form.koc_required}pt total), refunded on KOC completion` },
                 ].map((item, i) => (
                   <label key={i} className="flex items-start gap-2 text-sm text-amber-700 cursor-pointer">
                     <span className="mt-0.5 shrink-0">☐</span>
@@ -249,7 +249,7 @@ export default function NewTaskPage() {
                   className="mt-0.5 w-4 h-4 rounded accent-pink-500"
                 />
                 <span className="text-sm text-amber-800 font-medium">
-                  我已阅读并同意以上规则，知晓违约将导致信任分扣除和质押损失
+                  I have read and agreed to the rules above and acknowledge violations will result in Trust Score deduction and pledge loss.
                 </span>
               </label>
             </div>
@@ -260,7 +260,7 @@ export default function NewTaskPage() {
               disabled={submitting || !slaAgreed}
               className="w-full btn-brand text-white py-3.5 rounded-xl font-semibold text-lg disabled:opacity-50"
             >
-              {submitting ? "发布中..." : "🚀 发布任务"}
+              {submitting ? "Publishing..." : "🚀 Publish Task"}
             </button>
           </div>
         </div>

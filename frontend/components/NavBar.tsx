@@ -31,7 +31,7 @@ export default function NavBar({ user, role, balance, title }: NavBarProps) {
           href={consolePath}
           className="text-sm font-semibold text-zinc-700 hover:text-pink-500 transition"
         >
-          🖥️ 控制台
+          🖥️ Dashboard
         </Link>
         {title && (
           <>
@@ -51,7 +51,7 @@ export default function NavBar({ user, role, balance, title }: NavBarProps) {
           onClick={handleSignOut}
           className="text-zinc-400 hover:text-zinc-600 transition"
         >
-          退出
+          Sign Out
         </button>
       </div>
     </nav>

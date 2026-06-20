@@ -36,9 +36,9 @@ export default function NewProduct() {
       } else {
         try {
           new URL(value);
-          setLinkWarning(detectAffiliateLink(value) ? "" : "⚠️ 未检测到返佣参数（tag/aff/ref等），请确认这是有效的返佣链接");
+          setLinkWarning(detectAffiliateLink(value) ? "" : "⚠️ No affiliate parameters detected (tag/aff/ref, etc.). Please verify this is a valid commission link.");
         } catch {
-          setLinkWarning("⚠️ 请输入有效的 URL（以 http:// 或 https:// 开头）");
+          setLinkWarning("⚠️ Please enter a valid URL (starting with http:// or https://)");
         }
       }
     }
@@ -46,7 +46,7 @@ export default function NewProduct() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (linkWarning && linkWarning.includes("有效的 URL")) {
+    if (linkWarning && linkWarning.includes("valid URL")) {
       return; // block submit on invalid URL
     }
     setLoading(true);
@@ -56,7 +56,7 @@ export default function NewProduct() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <NavBar user={null} role="merchant" title="添加产品" />
+      <NavBar user={null} role="merchant" title="Add New Product" />
       <div className="max-w-lg mx-auto p-6">
         <div className="bg-white rounded-xl border border-slate-100 p-6">
           <h1 className="text-xl font-bold text-slate-900 mb-6">Add New Product</h1>
@@ -107,7 +107,7 @@ export default function NewProduct() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                🔗 Commission Link <span className="text-slate-400 font-normal">（返佣链接，KOC拿这个推广）</span>
+                🔗 Commission Link <span className="text-slate-400 font-normal">(Commission link, KOCs use this to promote)</span>
               </label>
               <input value={form.commission_link} onChange={(e) => update("commission_link", e.target.value)}
                 placeholder="https://amazon.com/dp/B0XXX?tag=youraff-20"

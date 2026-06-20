@@ -7,17 +7,17 @@ import TaskCard from "@/components/TaskCard";
 import NavBar from "@/components/NavBar";
 
 const TABS = [
-  { key: "", label: "全部" },
-  { key: "recommended", label: "推荐" },
-  { key: "urgent", label: "⚡ 加急" },
-  { key: "long_term", label: "🌊 长线" },
+  { key: "", label: "All" },
+  { key: "recommended", label: "Recommended" },
+  { key: "urgent", label: "⚡ Urgent" },
+  { key: "long_term", label: "🌊 Long-term" },
 ];
 
 const SORT_OPTIONS = [
-  { key: "default", label: "综合排序" },
-  { key: "newest", label: "最新发布" },
-  { key: "commission", label: "佣金最高" },
-  { key: "urgency", label: "紧急优先" },
+  { key: "default", label: "Relevance" },
+  { key: "newest", label: "Newest" },
+  { key: "commission", label: "Highest Commission" },
+  { key: "urgency", label: "Most Urgent" },
 ];
 
 export default function TaskHallPage() {
@@ -80,21 +80,21 @@ export default function TaskHallPage() {
 
   return (
     <div className="min-h-screen bg-orange-50/30">
-      <NavBar user={user} role="koc" title="任务广场" />
+      <NavBar user={user} role="koc" title="Task Hall" />
 
       {/* Header */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-4xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">🏪 任务广场</h1>
-              <p className="text-sm text-gray-500 mt-1">发现合作机会，接单赚点数</p>
+              <h1 className="text-2xl font-bold text-gray-900">🏪 Task Hall</h1>
+              <p className="text-sm text-gray-500 mt-1">Discover opportunities, accept tasks to earn points</p>
             </div>
             <button
               onClick={() => router.push("/portal/tasks")}
               className="text-sm font-medium text-pink-500 hover:text-pink-600 transition-colors"
             >
-              我的任务 →
+              My Tasks →
             </button>
           </div>
 
@@ -131,7 +131,7 @@ export default function TaskHallPage() {
             {/* Category search */}
             <input
               type="text"
-              placeholder="搜索品类..."
+              placeholder="Search category..."
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && loadTasks()}
@@ -144,7 +144,7 @@ export default function TaskHallPage() {
               onChange={(e) => setRegion(e.target.value)}
               className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700"
             >
-              <option value="">🌍 全部区域</option>
+              <option value="">🌍 All Regions</option>
               <option value="US">🇺🇸 US</option>
               <option value="UK">🇬🇧 UK</option>
               <option value="CA">🇨🇦 CA</option>
@@ -164,17 +164,17 @@ export default function TaskHallPage() {
               }}
               className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700"
             >
-              <option value="0">佣金不限</option>
-              <option value="20">≥20 点</option>
-              <option value="30">≥30 点</option>
-              <option value="50">≥50 点</option>
+              <option value="0">Any Commission</option>
+              <option value="20">≥20 pt</option>
+              <option value="30">≥30 pt</option>
+              <option value="50">≥50 pt</option>
             </select>
 
             <button
               onClick={loadTasks}
               className="text-sm px-3 py-1.5 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
             >
-              筛选
+              Filter
             </button>
           </div>
         </div>
@@ -183,11 +183,11 @@ export default function TaskHallPage() {
       {/* Task cards */}
       <div className="max-w-4xl mx-auto px-6 py-6">
         {loading ? (
-          <div className="text-center py-20 text-gray-400">加载中...</div>
+          <div className="text-center py-20 text-gray-400">Loading...</div>
         ) : taskList.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-gray-400 text-lg mb-2">暂无任务</p>
-            <p className="text-gray-300 text-sm">换个筛选条件试试</p>
+            <p className="text-gray-400 text-lg mb-2">No tasks yet</p>
+            <p className="text-gray-300 text-sm">Try different filters</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">

@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 
 interface DeadlineBadgeProps {
   deadline: string;       // ISO 8601 timestamp
-  label: string;          // "提交内容" / "确认发货" / "审核内容"
-  penalty?: string;       // "逾期将扣除 15 信任分"
+  label: string;          // e.g. "Submission" / "Shipment" / "Review"
+  penalty?: string;       // e.g. "Late submission: deduct 15 Trust Score"
   size?: "sm" | "md";     // sm: inline badge, md: detail page block
   className?: string;
 }
@@ -25,7 +25,7 @@ function calcUrgency(deadline: string): { urgency: Urgency; hoursLeft: number; d
       urgency: "expired",
       hoursLeft: 0,
       daysLeft: 0,
-      text: daysOver === 0 ? "已逾期" : `已逾期 ${daysOver} 天`,
+      text: daysOver === 0 ? "Overdue" : `${daysOver} days overdue`,
     };
   }
 
@@ -35,7 +35,7 @@ function calcUrgency(deadline: string): { urgency: Urgency; hoursLeft: number; d
       urgency: "urgent",
       hoursLeft,
       daysLeft,
-      text: h <= 24 ? (h < 1 ? "不足 1 小时" : `仅剩 ${h} 小时`) : `仅剩 ${Math.floor(daysLeft)} 天`,
+      text: h <= 24 ? (h < 1 ? "less than 1 hour" : `${h} hours left`) : `${Math.floor(daysLeft)} days left`,
     };
   }
 
@@ -44,7 +44,7 @@ function calcUrgency(deadline: string): { urgency: Urgency; hoursLeft: number; d
       urgency: "warning",
       hoursLeft,
       daysLeft,
-      text: `还剩 ${Math.floor(daysLeft)} 天`,
+      text: `${Math.floor(daysLeft)} days remaining`,
     };
   }
 
@@ -52,7 +52,7 @@ function calcUrgency(deadline: string): { urgency: Urgency; hoursLeft: number; d
     urgency: "normal",
     hoursLeft,
     daysLeft,
-    text: `还剩 ${Math.floor(daysLeft)} 天`,
+    text: `${Math.floor(daysLeft)} days remaining`,
   };
 }
 
