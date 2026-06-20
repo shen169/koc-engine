@@ -204,10 +204,10 @@ koc-engine/
 4. **Urgent vs Long-term**: `task_type=urgent` → auto-triggers `match_kocs_for_task()` on publish to fill slots; `task_type=long_term` → creates empty slots for Task Hall, KOCs browse and accept independently, cron intervenes after 7 days if slots remain empty.
 
 5. **Pledge Economy**:
-   - Merchant per task publish: deduct **5pt** platform service fee (non-refundable)
-   - Both sides per slot pledge: **10pt** each (KOC deducted on accept, merchant deducted on ship)
-   - KOC submits → refund: KOC gets (10 - 5) = **5pt**, merchant gets **full refund**
-   - Commission via product's **commission_link** (affiliate link), not via platform points
+   - Merchant per task publish: deduct **5pt** platform service fee (non-refundable) + **commission × koc_required** merchant pledge (fully refunded on KOC completion)
+   - Pledge per slot = **commission value** set by merchant at publish (NOT fixed 10pt). Merchant pledge deducted at publish, KOC pledge deducted on accept
+   - KOC submits + merchant approves → refund: KOC gets (commission - 5) pt, merchant gets **full pledge refund**
+   - Commission via product's **commission_link** (affiliate link), not via platform points; commission field is for pledge calculation reference
 
    - Repeat collaboration bonus: same merchant×KOC history → match score boost (+3 each time, max 15; avg rating ≥4.0 → extra +5)
 
@@ -399,7 +399,7 @@ koc-engine/
 | Merchant Registration Initial | 5000pt | Granted on registration |
 | Platform Service Fee | 5pt | Deducted per task publish (non-refundable) |
 | KOC Platform Fee | 5pt | Deducted from KOC pledge per slot completion |
-| Per-slot Pledge | 10pt | Each side pledges (KOC on accept, merchant on ship) |
+| Per-slot Pledge | commission value | Each side pledges based on task commission (merchant at publish, KOC on accept) |
 | Referral Reward | 10pt | Referrer receives |
 
 ## Important Notes
