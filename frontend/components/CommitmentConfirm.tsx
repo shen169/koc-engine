@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface RuleItem {
   icon: string;
@@ -30,6 +30,26 @@ export default function CommitmentConfirm({
 }: CommitmentConfirmProps) {
   const [agreed, setAgreed] = useState(false);
 
+  // Reset checkbox state every time modal opens
+  useEffect(() => {
+    if (open) setAgreed(false);
+  }, [open]);
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  // Escape key to cancel
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Escape") onCancel();
+  }, [onCancel]);
+
   if (!open) return null;
 
   function renderSection(heading: string, items: RuleItem[], headingColor: string) {
@@ -50,9 +70,15 @@ export default function CommitmentConfirm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="commitment-dialog-title"
+      onKeyDown={handleKeyDown}
+    >
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[85vh] overflow-y-auto p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-1">{title}</h2>
+        <h2 id="commitment-dialog-title" className="text-xl font-bold text-gray-900 mb-1">{title}</h2>
         <p className="text-xs text-gray-400 mb-4">请仔细阅读以下条款</p>
 
         {renderSection("📌 你的承诺", commitments, "text-blue-600")}
