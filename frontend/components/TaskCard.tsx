@@ -100,7 +100,7 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
       <div className="flex flex-wrap gap-3 text-sm text-gray-500 mb-3">
         <span>💰 Commission <strong className="text-gray-800">${task.commission}</strong></span>
         {mode === "hall" && (
-          <span>🔒 Pledge <strong className="text-gray-800">10</strong> pt</span>
+          <span>🔒 Pledge <strong className="text-gray-800">{task.pledge_koc || 0}</strong> pt</span>
         )}
         <span>👥 {task.koc_filled}/{task.koc_required} KOCs</span>
         {mode === "hall" && task.merchant_avg_rating && (

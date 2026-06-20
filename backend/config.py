@@ -27,7 +27,7 @@ DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"
 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 
 # Admin
-ADMIN_EMAIL = "admin@koc-engine.internal"
+ADMIN_EMAIL = "honghuishen24@gmail.com"
 ADMIN_PASSWORD = os.getenv("ACCESS_PASSWORD", "admin123")
 
 # 点数
@@ -44,7 +44,7 @@ SCORE_THRESHOLD_L3 = 80       # ≥80 → L3
 # Platform
 PLATFORM_SERVICE_FEE = 5          # 商家每发一个任务固定扣点（平台服务费）
 KOC_PLATFORM_FEE = 5              # KOC 每接一个 slot 固定扣点（平台服务费）
-PLEDGE_PER_SLOT = 10              # 双方每 slot 质押点数（商家=10×KOC人数，KOC=10）
+PLEDGE_PER_SLOT = 10              # 双方每 slot 质押点数（默认最小值；实际质押以任务佣金值为准）
 PLATFORM_PROFIT_RATE = 0.15       # 平台抽佣率（备用）
 
 # Cron

@@ -76,7 +76,7 @@ export default function LoginPage() {
           No account? <Link href="/register" className="text-pink-500 font-semibold hover:underline">Register</Link>
         </p>
         <div className="mt-4 p-3 bg-zinc-50 rounded-xl text-xs text-zinc-400 text-center">
-          Demo: admin@koc-engine.internal / admin123
+          Demo: honghuishen24@gmail.com / admin123
         </div>
       </div>
     </div>

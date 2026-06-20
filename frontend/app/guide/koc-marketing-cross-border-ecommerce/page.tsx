@@ -115,7 +115,7 @@ export default function KocMarketingGuidePage() {
               <table className="w-full text-sm border-collapse">
                 <thead><tr className="bg-gray-50"><th className="border border-gray-200 p-3 text-left">Method</th><th className="border border-gray-200 p-3 text-left">Cost per Creator</th><th className="border border-gray-200 p-3 text-left">Time Investment</th><th className="border border-gray-200 p-3 text-left">Ghosting Risk</th></tr></thead>
                 <tbody>
-                  {[["Manual DM Outreach","$50–$200 + product","10–20h per creator","~40%"],["MCN Agency","$500–$2,000 + product","2–5h per campaign","~15%"],["KOC Engine","5pt fee + refundable 10pt pledge","30min to post task","&lt;5% (pledge-protected)"]].map(([m,c,t,r])=>(
+                  {[["Manual DM Outreach","$50–$200 + product","10–20h per creator","~40%"],["MCN Agency","$500–$2,000 + product","2–5h per campaign","~15%"],["KOC Engine","5pt fee + commission-based pledge","30min to post task","&lt;5% (pledge-protected)"]].map(([m,c,t,r])=>(
                     <tr key={m}><td className="border border-gray-200 p-3 font-medium">{m}</td><td className="border border-gray-200 p-3">{c}</td><td className="border border-gray-200 p-3">{t}</td><td className="border border-gray-200 p-3">{r}</td></tr>
                   ))}
                 </tbody>

@@ -17,7 +17,7 @@ print("=" * 60)
 # ── SETUP: Admin login ──
 print("\n[Setup] Admin login...")
 r = requests.post(BASE + "/auth/login", json={
-    "email": "admin@koc-engine.internal", "password": "admin123"
+    "email": "honghuishen24@gmail.com", "password": "admin123"
 })
 at = ok(r)["token"]
 

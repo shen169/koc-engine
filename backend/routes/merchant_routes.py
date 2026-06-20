@@ -21,6 +21,7 @@ def create_merchant(data: dict, current_user: dict = Depends(get_current_user)):
         website=data.get("website", ""),
         amazon_storefront=data.get("amazon_storefront", ""),
         product_categories=data.get("product_categories", []),
+        target_markets=data.get("target_markets", []),
     )
     merchant_store.create(merchant)
     return merchant.model_dump()
@@ -43,7 +44,7 @@ def update_my_merchant(updates: dict, current_user: dict = Depends(get_current_u
     m = merchant_store.get_by_user_id(current_user["sub"])
     if not m:
         raise HTTPException(404, "Merchant profile not found")
-    allowed = {"company_name", "website", "amazon_storefront", "product_categories"}
+    allowed = {"company_name", "website", "amazon_storefront", "product_categories", "target_markets"}
     safe = {k: v for k, v in updates.items() if k in allowed}
     updated = merchant_store.update(m.id, safe)
     return updated.model_dump()

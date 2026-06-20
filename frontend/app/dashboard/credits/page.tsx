@@ -118,10 +118,10 @@ export default function MerchantCreditsPage() {
                 Contact admin to purchase withdrawable pts for KOC content fees.
               </p>
               <a
-                href="mailto:admin@kocengine.com"
+                href="mailto:honghuishen24@gmail.com"
                 className="inline-block mt-3 text-sm font-bold text-purple-600 hover:text-purple-700 transition-colors"
               >
-                admin@kocengine.com
+                honghuishen24@gmail.com
               </a>
             </div>
           </div>

@@ -10,7 +10,7 @@ from stores.user_store import user_store
 from stores.task_store import task_store
 from stores.product_store import product_store
 from auth import get_current_user, require_admin
-from config import PLEDGE_PER_SLOT
+
 import re
 
 router = APIRouter(tags=["interests"])
@@ -85,8 +85,8 @@ def auto_assign_koc_to_product(koc_id: str, product_id: str) -> dict | None:
         task_status="accepted",
         koc_required=1,
         koc_slots=[_make_slot(koc_id)],
-        pledge_merchant=PLEDGE_PER_SLOT,
-        pledge_koc=PLEDGE_PER_SLOT,
+        pledge_merchant=parsed_commission,   # 商家质押 = 佣金值
+        pledge_koc=parsed_commission,        # KOC 质押 = 佣金值
         commission=parsed_commission,
         created_at=now,
     )

@@ -58,7 +58,7 @@ function getSlotDeadline(slot: SlotStatus): { deadline: string; label: string; p
     case "creating": {
       if (slot.received_at) {
         const ts = new Date(slot.received_at).getTime() + 14 * DAY;
-        return { deadline: new Date(ts).toISOString(), label: "Submission Deadline", penalty: "Late submission: deduct 15 Trust Score + forfeit 10pt pledge" };
+        return { deadline: new Date(ts).toISOString(), label: "Submission Deadline", penalty: `Late submission: deduct 15 Trust Score + forfeit ${pledgeKoc}pt pledge` };
       }
       return null;
     }
@@ -82,7 +82,7 @@ function getSlotDeadline(slot: SlotStatus): { deadline: string; label: string; p
   }
 }
 
-export default function TaskProgress({ slots }: { slots: SlotStatus[] }) {
+export default function TaskProgress({ slots, pledgeKoc = 10 }: { slots: SlotStatus[]; pledgeKoc?: number }) {
   const total = slots.length;
   const done = slots.filter((s) => s.status === "completed" || s.status === "submitted").length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;

@@ -195,29 +195,32 @@ export default function NewTaskPage() {
               </p>
             </div>
 
-            {/* Pledges — fixed at 10 pts/slot */}
+            {/* Pledges — based on commission value */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
                 <div className="text-xs text-purple-500 font-semibold mb-1">Merchant Pledge (refunded on fulfillment)</div>
-                <div className="text-2xl font-extrabold text-purple-700">10 × {form.koc_required} = {10 * form.koc_required} pt</div>
+                <div className="text-2xl font-extrabold text-purple-700">{form.commission} × {form.koc_required} = {form.commission * form.koc_required} pt</div>
               </div>
               <div className="bg-pink-50 border border-pink-100 rounded-xl p-4">
                 <div className="text-xs text-pink-500 font-semibold mb-1">KOC Pledge per person (refunded on fulfillment)</div>
-                <div className="text-2xl font-extrabold text-pink-700">10 pt</div>
+                <div className="text-2xl font-extrabold text-pink-700">{form.commission} pt</div>
               </div>
             </div>
 
             {/* Summary */}
             <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 space-y-1">
-              <div className="font-semibold text-gray-800 mb-2">📊 Cost Estimate</div>
+              <div className="font-semibold text-gray-800 mb-2">📊 Cost Estimate (All Deducted on Publish)</div>
               <div>
-                Platform Service Fee (Merchant): 5 pt <span className="text-xs text-gray-400">(deducted on publish, non-refundable)</span>
+                Platform Service Fee: 5 pt <span className="text-xs text-gray-400">(non-refundable)</span>
               </div>
               <div>
-                Merchant Pledge: 10 × {form.koc_required} = {10 * form.koc_required} pt <span className="text-xs text-gray-400">(deducted on shipment, refunded on KOC completion)</span>
+                Merchant Pledge: {form.commission} × {form.koc_required} = {form.commission * form.koc_required} pt <span className="text-xs text-gray-400">(deducted now, fully refunded on KOC completion)</span>
+              </div>
+              <div className="text-sm font-bold text-purple-700 mt-2 pt-2 border-t border-gray-200">
+                Total deducted on publish: {5 + form.commission * form.koc_required} pt
               </div>
               <div className="text-xs text-gray-400 mt-2">
-                * KOC pledge of 10 pt frozen on acceptance, 5 pt refunded on completion (Platform deducts 5 pt)
+                * KOC pledge of {form.commission} pt frozen on acceptance, {form.commission - 5} pt refunded on completion (Platform deducts 5 pt)
               </div>
             </div>
 
@@ -229,8 +232,7 @@ export default function NewTaskPage() {
                 {[
                   { text: "Ship within 48 hours", sub: "Late: deduct 20 Trust Score + return KOC pledge" },
                   { text: "Review KOC submissions within 4 days", sub: "Late: auto-approved by system" },
-                  { text: "Platform service fee: 5pt deducted on publish, non-refundable" },
-                  { text: `10pt pledge per slot (${10 * form.koc_required}pt total), refunded on KOC completion` },
+                  { text: `Total deduction now: 5pt fee + ${form.commission * form.koc_required}pt pledge = ${5 + form.commission * form.koc_required}pt`, sub: "Platform fee non-refundable; pledge fully refunded on KOC completion" },
                 ].map((item, i) => (
                   <label key={i} className="flex items-start gap-2 text-sm text-amber-700 cursor-pointer">
                     <span className="mt-0.5 shrink-0">☐</span>

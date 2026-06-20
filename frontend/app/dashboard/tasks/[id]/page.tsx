@@ -206,6 +206,7 @@ export default function MerchantTaskDetailPage() {
           <div className="space-y-6">
             <div className="bg-white rounded-2xl border border-gray-100 p-6">
               <TaskProgress
+                pledgeKoc={task.pledge_koc || 10}
                 slots={kocSlots.map((s: any, i: number) => ({
                   slot_index: i,
                   koc_anon_id: s.koc_id ? `KOC-${s.koc_id.slice(0, 4).toUpperCase()}` : "-",

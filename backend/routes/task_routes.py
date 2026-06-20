@@ -12,7 +12,7 @@ from stores.product_store import product_store
 from services.matcher import match_kocs_for_task, rematch_slot
 from services.cron import sync_koc_tier, sync_merchant_tier
 from auth import get_current_user, require_admin
-from config import PLATFORM_SERVICE_FEE, KOC_PLATFORM_FEE, PLEDGE_PER_SLOT, MAX_REVISIONS
+from config import PLATFORM_SERVICE_FEE, KOC_PLATFORM_FEE, MAX_REVISIONS
 from models import ContentMetrics
 
 router = APIRouter(tags=["tasks"])
@@ -61,9 +61,9 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
     koc_required = data.get("koc_required", 1)
     commission = data.get("commission", 30)
 
-    # ── 质押规则（固定每 slot 10 点）──
-    pledge_merchant = PLEDGE_PER_SLOT * koc_required   # 商家质押 = 10 × KOC人数
-    pledge_koc = PLEDGE_PER_SLOT                        # KOC 质押 = 10 点
+    # ── 质押规则（以佣金为基准）──
+    pledge_merchant = commission * koc_required   # 商家质押 = 佣金 × KOC人数
+    pledge_koc = commission                        # KOC 质押 = 佣金值
 
     task = KocTask(
         merchant_id=merchant_id,
@@ -81,14 +81,27 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
     )
     task_store.create(task)
 
-    # ── 平台服务费：建任务后扣（余额预检 + 实扣）──
+    # ── 平台服务费 + 商家质押：建任务时立即扣除 ──
     m_uid = _get_merchant_user_id(merchant_id)
+
+    # 1️⃣ 平台服务费 5pt（不退还）
     fee_result = credit_store.deduct_credits(
         m_uid, PLATFORM_SERVICE_FEE, "platform_fee",
         task.id, f"Platform service fee for task: {task.product_name}"
     )
     if fee_result is None:
         raise HTTPException(400, f"Insufficient credits for platform fee ({PLATFORM_SERVICE_FEE} pts)")
+
+    # 2️⃣ 商家质押 commission × KOC人数（履约完成后全额退还）
+    if pledge_merchant > 0:
+        pledge_result = credit_store.deduct_credits(
+            m_uid, pledge_merchant, "pledge_merchant",
+            task.id, f"Merchant pledge for task: {task.product_name} ({koc_required} slots × {commission}pt)"
+        )
+        if pledge_result is None:
+            # 回退平台费
+            credit_store.add_credits(m_uid, PLATFORM_SERVICE_FEE, "pledge_fee_rollback", task.id, "Rollback: pledge deduction failed")
+            raise HTTPException(400, f"Insufficient credits for merchant pledge ({pledge_merchant} pts for {koc_required} slots × {commission}pt)")
 
     # 自动匹配引擎：加急任务预填 slot，长线任务留空由 KOC 广场自主接单
     matched = []
@@ -452,7 +465,7 @@ def reject_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
 
 @router.put("/tasks/{task_id}/ship")
 def ship_task(task_id: str, data: dict, current_user: dict = Depends(get_current_user)):
-    """商家发货 → 上传物流单号 + 承运商 + 发货凭证（照片/截图）→ 扣商家质押点"""
+    """商家发货 → 上传物流单号 + 承运商 + 发货凭证（照片/截图）。商家质押已在发布时扣除，此处不再重复扣款。"""
     if current_user.get("role") not in ("merchant", "admin"):
         raise HTTPException(403, "Only merchant can ship")
 
@@ -476,15 +489,8 @@ def ship_task(task_id: str, data: dict, current_user: dict = Depends(get_current
     carrier = data.get("carrier", "")  # FedEx, DHL, USPS, SF-Express, Amazon Logistics, etc.
     shipping_proof_urls = data.get("shipping_proof_urls", [])  # 发货凭证照片/截图
 
-    # 扣商家质押点
-    if task.pledge_merchant > 0:
-        m_uid = _get_merchant_user_id(task.merchant_id)
-        result = credit_store.deduct_credits(
-            m_uid, task.pledge_merchant, "pledge_merchant",
-            task_id, f"Pledge for task: {task.product_name}"
-        )
-        if result is None:
-            raise HTTPException(400, "Insufficient credits for pledge")
+    # 商家质押已在发布任务时扣除，此处不再重复扣款
+    # 仅更新发货状态 + 物流信息
 
     now = datetime.utcnow().isoformat()
     task_store.update(task_id, {
