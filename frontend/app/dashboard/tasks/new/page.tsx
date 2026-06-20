@@ -22,6 +22,7 @@ export default function NewTaskPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [slaAgreed, setSlaAgreed] = useState(false);
 
   useEffect(() => {
     loadProducts();
@@ -220,10 +221,43 @@ export default function NewTaskPage() {
               </div>
             </div>
 
+            {/* SLA Agreement */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <h3 className="text-sm font-bold text-amber-800 mb-3">📋 发布前确认</h3>
+              <p className="text-xs text-amber-700 mb-3">作为商家，你承诺：</p>
+              <div className="space-y-2">
+                {[
+                  { text: "48 小时内发货", sub: "逾期扣 20 信任分 + 退还 KOC 质押" },
+                  { text: "4 天内审核 KOC 提交的内容", sub: "逾期系统自动通过" },
+                  { text: "平台服务费 5pt 发布即扣，不可退" },
+                  { text: `每 slot 质押 10pt（共 ${10 * form.koc_required}pt），KOC 完成后退还` },
+                ].map((item, i) => (
+                  <label key={i} className="flex items-start gap-2 text-sm text-amber-700 cursor-pointer">
+                    <span className="mt-0.5 shrink-0">☐</span>
+                    <span>
+                      <strong>{item.text}</strong>
+                      <span className="text-xs text-amber-500 block">{item.sub}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <label className="flex items-start gap-3 mt-4 p-3 bg-white rounded-xl border border-amber-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={slaAgreed}
+                  onChange={(e) => setSlaAgreed(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded accent-pink-500"
+                />
+                <span className="text-sm text-amber-800 font-medium">
+                  我已阅读并同意以上规则，知晓违约将导致信任分扣除和质押损失
+                </span>
+              </label>
+            </div>
+
             {/* Submit */}
             <button
               onClick={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || !slaAgreed}
               className="w-full btn-brand text-white py-3.5 rounded-xl font-semibold text-lg disabled:opacity-50"
             >
               {submitting ? "发布中..." : "🚀 发布任务"}
