@@ -27,7 +27,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   timed_out: { label: "Timed Out", color: "bg-orange-100 text-orange-600" },
 };
 
-function getSlotDeadline(slot: SlotStatus): { deadline: string; label: string; penalty: string } | null {
+function getSlotDeadline(slot: SlotStatus, pledgeKoc: number = 10): { deadline: string; label: string; penalty: string } | null {
   const HOUR = 60 * 60 * 1000;
   const DAY = 24 * HOUR;
 
@@ -58,7 +58,8 @@ function getSlotDeadline(slot: SlotStatus): { deadline: string; label: string; p
     case "creating": {
       if (slot.received_at) {
         const ts = new Date(slot.received_at).getTime() + 14 * DAY;
-        return { deadline: new Date(ts).toISOString(), label: "Submission Deadline", penalty: `Late submission: deduct 15 Trust Score + forfeit ${pledgeKoc}pt pledge` };
+        const penaltyText = "Late submission: deduct 15 Trust Score + forfeit " + pledgeKoc + "pt pledge";
+        return { deadline: new Date(ts).toISOString(), label: "Submission Deadline", penalty: penaltyText };
       }
       return null;
     }
@@ -128,7 +129,7 @@ export default function TaskProgress({ slots, pledgeKoc = 10 }: { slots: SlotSta
               <div className="flex items-center gap-2 text-xs text-gray-400">
                 {/* Countdown */}
                 {(() => {
-                  const dl = getSlotDeadline(slot);
+                  const dl = getSlotDeadline(slot, pledgeKoc);
                   return dl ? (
                     <DeadlineBadge
                       deadline={dl.deadline}

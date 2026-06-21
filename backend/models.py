@@ -178,6 +178,8 @@ class KocTask(BaseModel):
 
     # ── V2 新增：物流 ──
     tracking_number: str = ""
+    carrier: str = ""                    # FedEx, DHL, USPS, SF-Express, etc.
+    shipping_proof_urls: list = Field(default_factory=list)  # 发货凭证照片/截图
 
     # ── V2 新增：内容 ──
     content_urls: list = Field(default_factory=list)

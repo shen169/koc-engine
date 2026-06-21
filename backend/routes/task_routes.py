@@ -495,6 +495,8 @@ def ship_task(task_id: str, data: dict, current_user: dict = Depends(get_current
     now = datetime.utcnow().isoformat()
     task_store.update(task_id, {
         "tracking_number": tracking_number,
+        "carrier": carrier,
+        "shipping_proof_urls": shipping_proof_urls,
         "task_status": "shipped",
     })
 

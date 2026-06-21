@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { tasks, getToken, getRole, getConsolePath } from "@/lib/api";
+import { CARRIER_NAMES, getTrackingUrl } from "@/lib/tracking";
 import NavBar from "@/components/NavBar";
 import TaskProgress from "@/components/TaskProgress";
 import DeadlineBadge from "@/components/DeadlineBadge";
@@ -22,6 +23,8 @@ export default function MerchantTaskDetailPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"progress" | "report" | "performance">("progress");
   const [trackingNumber, setTrackingNumber] = useState("");
+  const [carrier, setCarrier] = useState("");
+  const [shippingProofUrls, setShippingProofUrls] = useState("");
   const [shipping, setShipping] = useState(false);
   const [error, setError] = useState("");
   const [reviewing, setReviewing] = useState<Record<number, boolean>>({});
@@ -64,7 +67,14 @@ export default function MerchantTaskDetailPage() {
     setShipping(true);
     setError("");
     try {
-      await tasks.ship(taskId, trackingNumber.trim(), token!);
+      const urls = shippingProofUrls
+        .split(/[\n,]+/)
+        .map((u) => u.trim())
+        .filter((u) => u.length > 0);
+      await tasks.ship(taskId, trackingNumber.trim(), carrier, urls, token!);
+      setTrackingNumber("");
+      setCarrier("");
+      setShippingProofUrls("");
       await loadTask();
     } catch (e: any) {
       setError(e.message || "Shipping failed");
@@ -133,9 +143,9 @@ export default function MerchantTaskDetailPage() {
               </p>
             </div>
 
-            {/* Ship button */}
+            {/* Ship form */}
             {["accepted"].includes(task.task_status) && (
-              <div className="flex flex-col gap-2 w-64">
+              <div className="flex flex-col gap-2 w-72">
                 {kocSlots.some((s: any) => s.status === "accepted" && s.accepted_at) && (
                   <DeadlineBadge
                     deadline={new Date(new Date(
@@ -146,11 +156,28 @@ export default function MerchantTaskDetailPage() {
                     size="sm"
                   />
                 )}
+                <select
+                  value={carrier}
+                  onChange={(e) => setCarrier(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pink-200 outline-none bg-white"
+                >
+                  <option value="">-- Select Carrier --</option>
+                  {CARRIER_NAMES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
                 <input
                   type="text"
-                  placeholder="Tracking Number"
+                  placeholder="Tracking Number *"
                   value={trackingNumber}
                   onChange={(e) => setTrackingNumber(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pink-200 outline-none"
+                />
+                <input
+                  type="text"
+                  placeholder="Shipping Proof URLs (comma-separated)"
+                  value={shippingProofUrls}
+                  onChange={(e) => setShippingProofUrls(e.target.value)}
                   className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-pink-200 outline-none"
                 />
                 {error && <p className="text-xs text-red-500">{error}</p>}
@@ -165,10 +192,49 @@ export default function MerchantTaskDetailPage() {
             )}
           </div>
 
-          {/* Tracking info */}
-          {task.tracking_number && (
-            <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
-              📦 Tracking Number: <span className="font-mono font-medium">{task.tracking_number}</span>
+          {/* Tracking info (after shipped) */}
+          {task.tracking_number && task.task_status !== "accepted" && (
+            <div className="text-sm text-gray-600 bg-gray-50 rounded-xl p-4 space-y-1">
+              <div className="flex items-center gap-2">
+                <span>📦</span>
+                <span className="font-semibold text-gray-700">Shipment Info</span>
+              </div>
+              {task.carrier && (
+                <div className="flex gap-2">
+                  <span className="text-gray-400">Carrier:</span>
+                  <span className="font-medium">{task.carrier}</span>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <span className="text-gray-400">Tracking:</span>
+                <span className="font-mono font-medium">{task.tracking_number}</span>
+                {getTrackingUrl(task.carrier || "", task.tracking_number) && (
+                  <a
+                    href={getTrackingUrl(task.carrier || "", task.tracking_number)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-pink-500 hover:text-pink-600 underline text-xs"
+                  >
+                    Track ↗
+                  </a>
+                )}
+              </div>
+              {task.shipping_proof_urls?.length > 0 && (
+                <div className="flex gap-2 flex-wrap">
+                  <span className="text-gray-400">Proof:</span>
+                  {task.shipping_proof_urls.map((url: string, i: number) => (
+                    <a
+                      key={i}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-pink-500 hover:text-pink-600 underline text-xs"
+                    >
+                      📷 Photo {i + 1}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

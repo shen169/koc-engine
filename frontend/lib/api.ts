@@ -144,9 +144,9 @@ export const tasks = {
   // V2: KOC rejects a slot
   reject: (taskId: string, slotIndex: number, token: string) =>
     api(`/api/tasks/${taskId}/reject/${slotIndex}`, { method: "PUT", token }),
-  // V2: Merchant ships task
-  ship: (taskId: string, trackingNumber: string, token: string) =>
-    api(`/api/tasks/${taskId}/ship`, { method: "PUT", body: { tracking_number: trackingNumber }, token }),
+  // V2: Merchant ships task (tracking + carrier + proof)
+  ship: (taskId: string, trackingNumber: string, carrier: string, shippingProofUrls: string[], token: string) =>
+    api(`/api/tasks/${taskId}/ship`, { method: "PUT", body: { tracking_number: trackingNumber, carrier, shipping_proof_urls: shippingProofUrls }, token }),
   // V2: KOC confirms receipt
   receive: (taskId: string, slotIndex: number, token: string) =>
     api(`/api/tasks/${taskId}/receive/${slotIndex}`, { method: "PUT", token }),

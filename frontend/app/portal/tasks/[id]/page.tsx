@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { tasks, auth, interests, getToken, getRole, getConsolePath } from "@/lib/api";
+import { getTrackingUrl } from "@/lib/tracking";
 import IntegrityBadge from "@/components/IntegrityBadge";
 import NavBar from "@/components/NavBar";
 import DeadlineBadge from "@/components/DeadlineBadge";
@@ -393,8 +394,47 @@ export default function KocTaskDetailPage() {
             ))}
           </div>
           {task.tracking_number && (
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm">
-              📦 Tracking Number: <span className="font-mono font-medium">{task.tracking_number}</span>
+            <div className="mt-4 p-4 bg-gray-50 rounded-xl text-sm space-y-1">
+              <div className="flex items-center gap-2">
+                <span>📦</span>
+                <span className="font-semibold text-gray-700">Shipment Tracking</span>
+              </div>
+              {task.carrier && (
+                <div className="flex gap-2">
+                  <span className="text-gray-400">Carrier:</span>
+                  <span className="font-medium">{task.carrier}</span>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <span className="text-gray-400">Tracking:</span>
+                <span className="font-mono font-medium">{task.tracking_number}</span>
+                {getTrackingUrl(task.carrier || "", task.tracking_number) && (
+                  <a
+                    href={getTrackingUrl(task.carrier || "", task.tracking_number)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-pink-500 hover:text-pink-600 underline font-medium"
+                  >
+                    🔗 Track Package ↗
+                  </a>
+                )}
+              </div>
+              {task.shipping_proof_urls?.length > 0 && (
+                <div className="flex gap-2 flex-wrap pt-1">
+                  <span className="text-gray-400">Proof:</span>
+                  {task.shipping_proof_urls.map((url: string, i: number) => (
+                    <a
+                      key={i}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-pink-500 hover:text-pink-600 underline text-xs"
+                    >
+                      📷 Photo {i + 1}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

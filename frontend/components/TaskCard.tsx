@@ -27,6 +27,7 @@ interface TaskCardProps {
     my_slot_deadline?: string;     // ISO timestamp of deadline
     my_slot_deadline_label?: string;
     my_slot_deadline_penalty?: string;
+    tracking_number?: string;      // shown when shipped
   };
   mode: "hall" | "merchant";
   token: string;
@@ -127,11 +128,17 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
       {/* Action hint */}
       {mode === "hall" && (
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
-          <span className="text-xs text-gray-400">
-            {isUrgent ? `⏰ Accept within 12h` : "⏰ Accept within 7 days"}
-          </span>
+          {task.my_slot_status === "shipped" && task.tracking_number ? (
+            <span className="text-xs text-emerald-600 font-medium">
+              📦 Shipped — {task.tracking_number}
+            </span>
+          ) : (
+            <span className="text-xs text-gray-400">
+              {isUrgent ? `⏰ Accept within 12h` : "⏰ Accept within 7 days"}
+            </span>
+          )}
           <span className="text-xs font-semibold text-pink-500 opacity-0 group-hover:opacity-100 transition-opacity">
-            {isUrgent ? "Accept →" : "View →"}
+            {task.my_slot_status === "shipped" ? "Track →" : isUrgent ? "Accept →" : "View →"}
           </span>
         </div>
       )}
