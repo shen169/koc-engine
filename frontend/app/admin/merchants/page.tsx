@@ -31,6 +31,7 @@ export default function AdminMerchants() {
         <div className="space-y-3">
           {list.map((m) => (
             <div key={m.id as string} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5">
+              <Link href={`/admin/merchants/${m.id}`} className="block">
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-bold text-zinc-900">{m.company_name as string || "Unnamed"}</h3>
@@ -44,6 +45,7 @@ export default function AdminMerchants() {
                 </div>
                 <span className="text-xs text-zinc-400">{m.id as string}</span>
               </div>
+              </Link>
             </div>
           ))}
         </div>

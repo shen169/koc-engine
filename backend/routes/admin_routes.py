@@ -89,6 +89,32 @@ def list_all_users(current_user: dict = Depends(require_admin)):
     return result
 
 
+@router.get("/admin/merchants/{merchant_id}")
+def admin_merchant_detail(merchant_id: str, current_user: dict = Depends(require_admin)):
+    """Admin 查看商家详情（含产品、任务数、用户信息）"""
+    m = merchant_store.get(merchant_id)
+    if not m:
+        raise HTTPException(404, "Merchant not found")
+
+    user = user_store.get_by_id(m.user_id)
+    products = product_store.list_by_merchant(merchant_id)
+    tasks = task_store.list_by_merchant(merchant_id)
+
+    active_tasks = [t for t in tasks if t.task_status not in ("completed", "disputed")]
+    completed_tasks = [t for t in tasks if t.task_status == "completed"]
+
+    return {
+        "profile": m.model_dump(),
+        "user_email": user.email if user else "",
+        "products": [p.model_dump() for p in products],
+        "tasks": {
+            "total": len(tasks),
+            "active": len(active_tasks),
+            "completed": len(completed_tasks),
+            "recent": [t.model_dump() for t in (tasks[:5] if len(tasks) > 5 else tasks)],
+        },
+    }
+
 # ═══════════════════════════════════════════
 # 举报管理
 # ═══════════════════════════════════════════
@@ -198,3 +224,5 @@ def admin_process_withdrawal(withdrawal_id: str, data: dict, current_user: dict 
 
     updated = withdrawal_store.get_by_id(withdrawal_id)
     return {"status": "ok", "withdrawal": updated.model_dump() if updated else {}}
+from stores.product_store import product_store
+from stores.task_store import task_store
