@@ -75,6 +75,7 @@ def judge_submission(
             merchant_rejection_reasons=merchant_rejection_reasons,
             koc_performance_score=koc_performance_score,
             koc_completed_tasks=koc_completed_tasks,
+            koc_follower_count=koc_follower_count,
         )
 
     content_urls = content_urls or []
@@ -145,6 +146,7 @@ Submitted: {submitted_at}"""
             merchant_rejection_reasons=merchant_rejection_reasons,
             koc_performance_score=koc_performance_score,
             koc_completed_tasks=koc_completed_tasks,
+            koc_follower_count=koc_follower_count,
         )
 
 
@@ -154,6 +156,7 @@ def _rule_based_judge(
     merchant_rejection_reasons: list = None,
     koc_performance_score: float = 0.0,
     koc_completed_tasks: int = 0,
+    koc_follower_count: int = 0,
 ) -> dict:
     """无 API Key 时的规则引擎 fallback。倾向保护高信誉方。"""
     content_urls = content_urls or []
@@ -183,7 +186,7 @@ def _rule_based_judge(
         flags_detail.append("URLs don't match known social platforms")
 
     # 3. Metrics plausibility
-    followers_estimate = 1000  # conservative default
+    followers_estimate = max(1000, koc_follower_count)  # floor at 1000 for tiny accounts
     views = content_data.get("views", 0)
     if views > 0:
         engagement = (content_data.get("likes", 0) + content_data.get("comments", 0) +

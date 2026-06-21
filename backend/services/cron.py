@@ -682,13 +682,14 @@ def sync_merchant_tier(merchant_id: str) -> dict | None:
 
 
 def _sync_task_disputed(task_id: str):
-    """如果大部分 slot 已超时/完成，标记任务为 disputed"""
+    """如果大部分 slot 已超时/完成，标记任务为 disputed。
+    ⚠️ KEEP IN SYNC with task_routes._sync_task_disputed (same function duplicated to avoid circular import)."""
     task = task_store.get(task_id)
     if not task:
         return
     slots = task.koc_slots
     if not slots:
         return
-    active = sum(1 for s in slots if s.get("status") not in ("completed", "timed_out", "rejected"))
+    active = sum(1 for s in slots if s.get("status") not in ("completed", "approved", "timed_out", "rejected"))
     if active == 0:
         task_store.update(task_id, {"task_status": "disputed"})

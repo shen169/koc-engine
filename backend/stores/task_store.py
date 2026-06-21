@@ -255,7 +255,13 @@ class TaskStore:
             data = self._load()
         tasks = [KocTask(**t) for t in data.values()]
         if filters:
+            valid_fields = set(KocTask.model_fields.keys())
             for key, val in filters.items():
+                if key not in valid_fields:
+                    import warnings
+                    warnings.warn(f"TaskStore.list_all: ignoring unknown filter key '{key}' "
+                                  f"(valid keys: {sorted(valid_fields)})")
+                    continue
                 tasks = [t for t in tasks if getattr(t, key, None) == val]
         return sorted(tasks, key=lambda t: t.created_at, reverse=True)
 

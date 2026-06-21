@@ -128,20 +128,26 @@ def submit_application(data: dict):
 
     # Auto-approve: grant initial credits + referral reward
     email = data.get("email", "")
-    koc_email = email  # capture email for notification (define outside if-block for safety)
-    if email:
-        existing_user = user_store.get_by_email(email)
-        if existing_user:
-            credit_store.set_initial_balance(existing_user.id, DEFAULT_KOC_INITIAL_CREDITS)
+    koc_email = email
 
-        # Notification: KOC auto-approved
-        koc_name = data.get("name", "User")
-        notify_user(
-            existing_user.id if existing_user else "",
-            "auto_approved",
-            "Application Approved",
-            f"Your creator application has been approved. You are now a {scoring['tier']} creator.",
-        )
+    # 确保邮箱已注册（KOC 必须先注册再申请，保证 user_id ↔ koc_id 一致）
+    existing_user = user_store.get_by_email(email) if email else None
+    if not existing_user:
+        raise HTTPException(400,
+            "No account found with this email. Please register first (POST /api/auth/register) "
+            "with the same email, then submit your application.")
+
+    # 授予初始点数（注册时已给 1000pt，此处幂等兜底）
+    credit_store.set_initial_balance(existing_user.id, DEFAULT_KOC_INITIAL_CREDITS)
+
+    # Notification: KOC auto-approved
+    koc_name = data.get("name", "User")
+    notify_user(
+        existing_user.id,
+        "auto_approved",
+        "Application Approved",
+        f"Your creator application has been approved. You are now a {scoring['tier']} creator.",
+    )
 
     # Referral reward (immediate on auto-approve)
     ref_code = data.get("referral_code", "")
@@ -153,8 +159,15 @@ def submit_application(data: dict):
                 "referred_koc_id": koc.id,
                 "status": "completed",
             })
+            # Bridge KOC profile ID → user ID for referral reward
+            referrer_user_id = ref.referrer_koc_id  # fallback
+            referrer_koc = koc_store.get(ref.referrer_koc_id)
+            if referrer_koc and referrer_koc.email:
+                referrer_user = user_store.get_by_email(referrer_koc.email)
+                if referrer_user:
+                    referrer_user_id = referrer_user.id
             credit_store.add_credits(
-                ref.referrer_koc_id,
+                referrer_user_id,
                 DEFAULT_REFERRAL_REWARD_CREDITS,
                 "referral_reward",
                 ref.id,
@@ -216,8 +229,15 @@ def decide_application(app_id: str, data: dict, current_user: dict = Depends(req
             ref = referral_store.get_by_code(app.referral_code)
             if ref and ref.status == "joined":
                 referral_store.update(ref.id, {"status": "completed"})
+                # Bridge KOC profile ID → user ID for referral reward
+                referrer_user_id = ref.referrer_koc_id  # fallback
+                referrer_koc = koc_store.get(ref.referrer_koc_id)
+                if referrer_koc and referrer_koc.email:
+                    referrer_user = user_store.get_by_email(referrer_koc.email)
+                    if referrer_user:
+                        referrer_user_id = referrer_user.id
                 credit_store.add_credits(
-                    ref.referrer_koc_id,
+                    referrer_user_id,
                     DEFAULT_REFERRAL_REWARD_CREDITS,
                     "referral_reward",
                     ref.id,
@@ -226,5 +246,27 @@ def decide_application(app_id: str, data: dict, current_user: dict = Depends(req
 
     elif decision == "rejected" and app.koc_id:
         koc_store.update(app.koc_id, {"status": "Ghosted"})
+
+        # 收回已发放的推荐奖励（auto-approve 时已发，驳回需收回）
+        if app.referral_code:
+            ref = referral_store.get_by_code(app.referral_code)
+            if ref and ref.status == "completed" and ref.referred_koc_id == app.koc_id:
+                # 通过 KOC profile → user 桥接找到推荐人账户
+                revoke_user_id = ref.referrer_koc_id  # fallback
+                referrer_koc = koc_store.get(ref.referrer_koc_id)
+                if referrer_koc and referrer_koc.email:
+                    referrer_user = user_store.get_by_email(referrer_koc.email)
+                    if referrer_user:
+                        revoke_user_id = referrer_user.id
+                # 收回奖励（deduct 会优先从 bonus 扣，正好注册奖励是 bonus）
+                credit_store.deduct_credits(
+                    revoke_user_id,
+                    DEFAULT_REFERRAL_REWARD_CREDITS,
+                    "referral_revoked",
+                    ref.id,
+                    f"Referral reward revoked: application {app_id} rejected"
+                )
+                # 回退推荐状态，后续可被其他申请人触发
+                referral_store.update(ref.id, {"status": "pending", "referred_koc_id": ""})
 
     return {"status": "ok", "decision": decision}

@@ -683,6 +683,26 @@ def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict
     if not content_urls:
         raise HTTPException(400, "content_urls is required (at least one link)")
 
+    # URL 格式校验：每个链接必须包含已知社交/内容平台域名
+    VALID_DOMAINS = [
+        "tiktok.com", "youtube.com", "youtu.be", "instagram.com",
+        "facebook.com", "fb.com", "x.com", "twitter.com",
+        "pinterest.com", "snapchat.com", "linkedin.com", "twitch.tv",
+        "xiaohongshu.com", "xhslink.com", "douyin.com",
+        "reddit.com", "threads.net", "likee.com", "kwai.com",
+        "bilibili.com", "vimeo.com", "dailymotion.com",
+    ]
+    for url in content_urls:
+        if not isinstance(url, str) or not url.strip():
+            raise HTTPException(400, f"Invalid content URL: empty or non-string value")
+        url_lower = url.strip().lower()
+        if not url_lower.startswith(("http://", "https://")):
+            raise HTTPException(400, f"URL must start with http:// or https://: {url[:80]}")
+        if not any(d in url_lower for d in VALID_DOMAINS):
+            raise HTTPException(400,
+                f"URL domain not recognized as a content platform: {url[:80]}. "
+                f"Expected one of: {', '.join(VALID_DOMAINS[:8])}...")
+
     # 可选的初始表现数据
     raw_metrics = data.get("content_data", {})
     content_data = {}
@@ -832,6 +852,7 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                 "total_collaborations": koc.total_collaborations + 1,
                 "trust_score": new_trust,
             })
+            sync_koc_tier(koc_id)
 
         # 恢复商家信任分 + 统计
         m = merchant_store.get(task.merchant_id)
@@ -842,6 +863,7 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                 "total_tasks_completed": m.total_tasks_completed + 1,
                 "trust_score": new_m_trust,
             })
+            sync_merchant_tier(task.merchant_id)
 
         # 同步 task 整体状态
         _sync_task_status(task_id)
@@ -1384,7 +1406,8 @@ def update_sample_status(task_id: str, data: dict, current_user: dict = Depends(
 
 
 def _sync_task_disputed(task_id: str):
-    """如果所有 slot 已超时/完成/approved，标记任务为 disputed"""
+    """如果所有 slot 已超时/完成/approved，标记任务为 disputed。
+    ⚠️ KEEP IN SYNC with cron._sync_task_disputed (same function duplicated to avoid circular import)."""
     task = task_store.get(task_id)
     if not task:
         return
