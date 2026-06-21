@@ -1,95 +1,155 @@
-"""邮件回执服务 — 使用 gmail-assistant skill"""
+"""Email service — SMTP sending for KOC notifications"""
+
+import os
+import smtplib
+import threading
+import logging
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+log = logging.getLogger("email_service")
+
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASS = os.getenv("SMTP_PASS", "")
+SMTP_FROM = os.getenv("SMTP_FROM", "noreply@kocengine.com")
+
+EMAIL_ENABLED = bool(SMTP_HOST and SMTP_USER and SMTP_PASS)
 
 
-def send_welcome_email(koc_email: str, koc_name: str, tier: str) -> dict:
-    """审核通过 → 欢迎信"""
-    tier_info = {"L1": "体验官 — 你将获得免费样品试用", "L2": "创作官 — 样品 + 15-20% 佣金", "L3": "合伙人 — 固定激励 + 流量扶持"}
-    subject = "🎉 Welcome to the Creator Program!"
+def _send_email_sync(to_email: str, subject: str, body: str):
+    """Send email synchronously via SMTP. Logs instead of raising."""
+    if not EMAIL_ENABLED:
+        log.info(f"[email disabled] To: {to_email} | Subject: {subject}")
+        log.info(f"[email body]\n{body}")
+        return
+
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_FROM
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain", "utf-8"))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_FROM, to_email, msg.as_string())
+        log.info(f"[email sent] To: {to_email} | Subject: {subject}")
+    except Exception as e:
+        log.error(f"[email failed] To: {to_email} | Error: {e}")
+        log.info(f"[email fallback body]\n{body}")
+
+
+def send_email_async(to_email: str, subject: str, body: str):
+    """Send email in background thread — never block API response."""
+    t = threading.Thread(target=_send_email_sync, args=(to_email, subject, body), daemon=True)
+    t.start()
+
+
+# ═══════════════════════════════════════════
+# Template functions
+# ═══════════════════════════════════════════
+
+def send_welcome_email(koc_email: str, koc_name: str, tier: str):
+    tier_info = {"L1": "Explorer — free samples", "L2": "Creator — samples + 15-20% commission", "L3": "Partner — fixed incentives + traffic support"}
+    subject = "Welcome to KOC Engine!"
     body = f"""Hi {koc_name},
 
-Congratulations! Your application has been approved. You are now a **{tier}** ({tier_info.get(tier, '')}).
+Your creator application has been approved. You are now a **{tier}** ({tier_info.get(tier, '')}).
 
 **Next Steps:**
-1. Log in at your Creator Portal to browse available products
-2. Express interest in products you'd like to promote
-3. Once matched with a brand, we'll ship you free samples
-4. Create content using our AI video tools
-5. Submit your video and earn credits + commissions
-
-Your account includes **30 free credits** to get started.
+1. Log in to browse available products
+2. Express interest or accept tasks in the Task Hall
+3. Receive free samples from brands
+4. Create content and earn commissions
 
 Let's create something great together!
 
 — KOC Engine Team
 """
-    return {"to": koc_email, "subject": subject, "body": body}
+    send_email_async(koc_email, subject, body)
 
 
-def send_rejection_email(koc_email: str, koc_name: str) -> dict:
-    """审核拒绝 → 婉拒信"""
-    subject = "Update on Your Creator Application"
+def send_match_email(koc_email: str, koc_name: str, product_name: str, company_name: str):
+    subject = "You've been matched!"
     body = f"""Hi {koc_name},
 
-Thank you for applying to our Creator Program. After careful review, we're unable to approve your application at this time.
+You've been matched with **{company_name}** for **{product_name}**.
 
-This could be due to:
-- Content style not matching our current brand needs
-- Insufficient engagement metrics
-- Incomplete application information
-
-You're welcome to re-apply in 30 days. In the meantime, keep creating great content!
-
-Best,
-KOC Engine Team
-"""
-    return {"to": koc_email, "subject": subject, "body": body}
-
-
-def send_application_received(koc_email: str, koc_name: str) -> dict:
-    """申请提交 → 自动回执"""
-    subject = "We received your application!"
-    body = f"""Hi {koc_name},
-
-We've received your creator application. Our AI is reviewing your profile right now.
-
-You'll hear back from us within 24-48 hours.
-
-In the meantime, feel free to explore what we offer at our website.
+A free sample is on the way. Check your portal for tracking details.
 
 — KOC Engine Team
 """
-    return {"to": koc_email, "subject": subject, "body": body}
+    send_email_async(koc_email, subject, body)
 
 
-def send_match_notification(koc_email: str, koc_name: str, product_name: str, company_name: str) -> dict:
-    """双向匹配成功 → 通知 KOC"""
-    subject = f"💚 You've been matched with {company_name}!"
+def send_ship_email(koc_email: str, koc_name: str, product_name: str, tracking: str, carrier: str):
+    subject = f"Your sample has shipped — {product_name}"
     body = f"""Hi {koc_name},
 
-Great news! You've been matched with **{company_name}** for the product **{product_name}**.
+Your sample of **{product_name}** has been shipped!
 
-**What happens next:**
-- We'll ship a free sample to your address
-- Once you receive it, create a video review
-- Submit the video link in your Creator Portal
-- Earn credits and unlock more opportunities
+Carrier: {carrier}
+Tracking: {tracking}
 
-Exciting times ahead!
+Once you receive it, create your content and submit it in your portal.
 
 — KOC Engine Team
 """
-    return {"to": koc_email, "subject": subject, "body": body}
+    send_email_async(koc_email, subject, body)
 
 
-def send_ghosted_warning(koc_email: str, koc_name: str, days_overdue: int) -> dict:
-    """逾期提醒 → 警告信"""
-    subject = "⚠️ Action Required: Your task is overdue"
-    body = f"""Hi {koc_name},
+def send_review_email(koc_email: str, koc_name: str, product_name: str, decision: str, note: str = ""):
+    if decision == "approved":
+        subject = f"Content approved — {product_name}"
+        body = f"""Hi {koc_name},
 
-This is a reminder that your task is now **{days_overdue} days overdue**.
+Your content for **{product_name}** has been approved!
 
-Please submit your video link as soon as possible to avoid being marked as inactive. If you're having issues, reply to this email.
+Your pledge has been refunded and credits unlocked. Keep creating!
 
 — KOC Engine Team
 """
-    return {"to": koc_email, "subject": subject, "body": body}
+    else:
+        subject = f"Content needs revision — {product_name}"
+        body = f"""Hi {koc_name},
+
+Your content for **{product_name}** needs revision.
+
+Reason: {note if note else 'Not specified'}
+Please revise and resubmit in your portal.
+
+— KOC Engine Team
+"""
+    send_email_async(koc_email, subject, body)
+
+
+def send_violation_email(koc_email: str, koc_name: str, reason: str, penalty: str):
+    subject = "Task Violation Notice"
+    body = f"""Hi {koc_name},
+
+Your task has been flagged for violation.
+
+Reason: {reason}
+Penalty: {penalty}
+
+You can appeal by contacting support.
+
+— KOC Engine Team
+"""
+    send_email_async(koc_email, subject, body)
+
+
+def send_warning_email(koc_email: str, koc_name: str, product_name: str, days_left: int):
+    subject = f"Deadline approaching — {product_name}"
+    body = f"""Hi {koc_name},
+
+Your task for **{product_name}** has {days_left} days remaining.
+
+Please submit your content to avoid a timeout penalty.
+
+— KOC Engine Team
+"""
+    send_email_async(koc_email, subject, body)

@@ -89,6 +89,7 @@ from routes.review_routes import router as review_router
 from routes.blacklist_routes import router as blacklist_router
 from routes.scoring_routes import router as scoring_router
 from routes.admin_routes import router as admin_router
+from routes.notification_routes import router as notification_router
 from routes.matching_routes import router as matching_router
 
 app.include_router(auth_router, prefix="/api")
@@ -107,3 +108,4 @@ app.include_router(blacklist_router, prefix="/api")
 app.include_router(scoring_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
 app.include_router(matching_router, prefix="/api")
+app.include_router(notification_router, prefix="/api")

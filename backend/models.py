@@ -92,6 +92,7 @@ class Merchant(BaseModel):
     total_tasks_completed: int = 0   # 累计完成（恢复诚信度用）
     total_tasks_disputed: int = 0    # 累计争议数
     target_markets: List[str] = Field(default_factory=list)  # 商家经营的目标市场
+    lark_webhook_url: str = ""        # 飞书 Bot webhook（可选，商家自行配置）
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
 
@@ -379,3 +380,18 @@ TASK_TYPES = ["urgent", "long_term"]
 TASK_STATUSES = ["pending", "assigned", "accepted", "shipped", "creating", "completed", "disputed"]
 SLOT_STATUSES = ["pending", "assigned", "accepted", "shipped", "received", "creating", "submitted", "approved", "revision_requested", "completed", "rejected", "timed_out"]
 VALID_WITHDRAWAL_STATUSES = ["pending", "paid", "rejected"]
+
+
+# ═══════════════════════════════════════════
+# 通知（V2.3 新增）
+# ═══════════════════════════════════════════
+class Notification(BaseModel):
+    id: str = Field(default_factory=_uid)
+    user_id: str                              # 接收人 user_id
+    type: str = ""                            # task_accepted | task_shipped | content_submitted | content_reviewed | koc_matched | interest | auto_approved | deadline | violation
+    title: str = ""
+    message: str = ""
+    task_id: str = ""                         # 可选关联任务
+    resource_path: str = ""                   # 前端跳转路径 e.g. /portal/tasks/xxx
+    read: bool = False
+    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())

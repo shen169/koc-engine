@@ -1,3 +1,4 @@
+from services.notifier import notify_user
 """意向表达 + 匹配路由 — V2：KOC 感兴趣 → 自动接单"""
 
 from datetime import datetime, timezone
@@ -217,6 +218,24 @@ def express_interest(data: dict, current_user: dict = Depends(get_current_user))
     if role == "koc" and to_type == "product":
         assign_result = auto_assign_koc_to_product(from_id, to_id)
 
+
+    # Notification: KOC expressed interest → notify merchant
+    if role == "koc" and to_type == "product":
+        from stores.product_store import product_store
+        product = product_store.get(to_id)
+        if product:
+            m = merchant_store.get(product.merchant_id)
+            if m:
+                merchant_usr = user_store.get_by_id(m.user_id)
+                if merchant_usr:
+                    notify_user(
+                        merchant_usr.id,
+                        "interest",
+                        "New Interest Signal",
+                        f"A KOC ({data.get("platform", "")} creator) has expressed interest in {product.name}",
+                        task_id=assign_result.get("task_id", "") if assign_result else "",
+                        resource_path=f"/dashboard/products/{to_id}",
+                    )
     # 创建意向记录
     interest = Interest(
         from_role=role,

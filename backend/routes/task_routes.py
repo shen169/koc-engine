@@ -14,6 +14,7 @@ from services.cron import sync_koc_tier, sync_merchant_tier
 from auth import get_current_user, require_admin
 from config import PLATFORM_SERVICE_FEE, KOC_PLATFORM_FEE, MAX_REVISIONS
 from models import ContentMetrics
+from services.notifier import notify_user
 
 router = APIRouter(tags=["tasks"])
 
@@ -420,6 +421,21 @@ def accept_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
     # 检查是否所有 slot 都被接受了 → 更新 task_status
     _sync_task_status(task_id)
 
+    # Notification: KOC accepted → notify merchant
+    if task.merchant_id:
+        m = merchant_store.get(task.merchant_id)
+        if m:
+            merchant_user = user_store.get_by_id(m.user_id)
+            if merchant_user:
+                notify_user(
+                    merchant_user.id,
+                    "task_accepted",
+                    "KOC Accepted Your Task",
+                    f"A KOC has accepted {task.product_name}",
+                    task_id=task_id,
+                    resource_path=f"/dashboard/tasks/{task_id}",
+                )
+
     return {"status": "accepted", "task_id": task_id, "slot_index": slot_index, "accepted_at": now}
 
 
@@ -538,6 +554,23 @@ def ship_task(task_id: str, data: dict, current_user: dict = Depends(get_current
                 "carrier": carrier,
                 "shipping_proof_urls": shipping_proof_urls,
             })
+
+    # Notification: merchant shipped → notify KOC(s)
+    task = task_store.get(task_id)
+    koc_profile_ids = [s.get("koc_id") for s in task.koc_slots if s.get("koc_id")]
+    for koc_pid in koc_profile_ids:
+        koc_prof = koc_store.get(koc_pid)
+        if koc_prof and koc_prof.email:
+            koc_usr = user_store.get_by_email(koc_prof.email)
+            if koc_usr:
+                notify_user(
+                    koc_usr.id,
+                    "task_shipped",
+                    "Your Sample Has Shipped",
+                    f"Your sample of {task.product_name} shipped via {carrier}. Tracking: {tracking_number}",
+                    task_id=task_id,
+                    resource_path=f"/portal/tasks/{task_id}",
+                )
 
     return {
         "status": "shipped",
@@ -676,6 +709,21 @@ def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict
     # 同步 task 整体状态
     _sync_task_status(task_id)
 
+    # Notification: KOC submitted content → notify merchant
+    if task.merchant_id:
+        m = merchant_store.get(task.merchant_id)
+        if m:
+            merchant_usr = user_store.get_by_id(m.user_id)
+            if merchant_usr:
+                notify_user(
+                    merchant_usr.id,
+                    "content_submitted",
+                    "Content Ready for Review",
+                    f"KOC has submitted content for {task.product_name}. Please review.",
+                    task_id=task_id,
+                    resource_path=f"/dashboard/tasks/{task_id}",
+                )
+
     return {
         "status": "submitted",
         "task_id": task_id,
@@ -782,6 +830,21 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
         _sync_task_status(task_id)
 
         return {
+
+        # Notification: content approved → notify KOC
+        if koc_id:
+            koc_prof = koc_store.get(koc_id)
+            if koc_prof and koc_prof.email:
+                koc_usr = user_store.get_by_email(koc_prof.email)
+                if koc_usr:
+                    notify_user(
+                        koc_usr.id,
+                        "content_reviewed",
+                        "Content Approved",
+                        f"Your content for {task.product_name} has been approved. Pledge refunded.",
+                        task_id=task_id,
+                        resource_path=f"/portal/tasks/{task_id}",
+                    )
             "status": "approved",
             "task_id": task_id,
             "slot_index": slot_index,
@@ -800,6 +863,21 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                 "status": "timed_out",
                 "reviewed_at": now,
                 "review_feedback": feedback,
+
+        # Notification: content rejected → notify KOC
+        if koc_id:
+            koc_prof = koc_store.get(koc_id)
+            if koc_prof and koc_prof.email:
+                koc_usr = user_store.get_by_email(koc_prof.email)
+                if koc_usr:
+                    notify_user(
+                        koc_usr.id,
+                        "content_reviewed",
+                        "Content Needs Revision",
+                        f"Your content for {task.product_name} needs revision: {feedback or "Please review and resubmit."}",
+                        task_id=task_id,
+                        resource_path=f"/portal/tasks/{task_id}",
+                    )
                 "revision_count": revision_count,
             })
 

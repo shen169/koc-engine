@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Spark from "@/components/Spark";
 import { clearToken, getConsolePath } from "@/lib/api";
+import NotificationBell from "@/components/Notifications";
 
 interface NavBarProps {
   user: { email?: string } | null;
@@ -41,6 +42,7 @@ export default function NavBar({ user, role, balance, title }: NavBarProps) {
         )}
       </div>
       <div className="flex items-center gap-4 text-sm">
+        <NotificationBell role={role} />
         {user?.email && <span className="text-zinc-400">{user.email}</span>}
         {balance !== undefined && (
           <span className="bg-pink-50 text-pink-700 px-3 py-1 rounded-full font-bold text-xs">

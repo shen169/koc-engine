@@ -229,3 +229,15 @@ export const landing = {
   stats: () => api("/api/landing/stats"),
   products: () => api("/api/landing/products"),
 };
+
+// ── Notifications ──
+export const notifications = {
+  list: (token: string, limit = 50) =>
+    api("/api/notifications?limit=" + limit, { token }),
+  unreadCount: (token: string) =>
+    api("/api/notifications/unread-count", { token }),
+  markRead: (id: string, token: string) =>
+    api("/api/notifications/" + id + "/read", { method: "PUT", token }),
+  markAllRead: (token: string) =>
+    api("/api/notifications/read-all", { method: "PUT", token }),
+};
