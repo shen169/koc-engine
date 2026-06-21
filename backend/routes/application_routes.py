@@ -128,6 +128,7 @@ def submit_application(data: dict):
 
     # Auto-approve: grant initial credits + referral reward
     email = data.get("email", "")
+    koc_email = email  # capture email for notification (define outside if-block for safety)
     if email:
         existing_user = user_store.get_by_email(email)
         if existing_user:
@@ -135,7 +136,6 @@ def submit_application(data: dict):
 
         # Notification: KOC auto-approved
         koc_name = data.get("name", "User")
-        koc_email = email  # capture email for notification
         notify_user(
             existing_user.id if existing_user else "",
             "auto_approved",
@@ -166,6 +166,9 @@ def submit_application(data: dict):
         "application_id": app.id,
         "koc_id": koc.id,
         "koc_email": koc_email,
+        "authenticity": scoring["authenticity"],
+        "niche": scoring["niche"],
+        "engagement": scoring["engagement"],
         "ai_score": scoring["total"],
         "ai_reason": scoring["reason"],
         "tier": scoring["tier"],
