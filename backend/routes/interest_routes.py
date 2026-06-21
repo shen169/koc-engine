@@ -105,6 +105,21 @@ def auto_assign_koc_to_product(koc_id: str, product_id: str) -> dict | None:
                 new_slot["pledge_paid"] = t.pledge_koc > 0
                 task_store.update_slot(t.id, i, new_slot)
                 _sync_task_status(t.id)
+                
+                # Notification: KOC matched to product
+                koc_user = _get_koc_user_id(koc_id)
+                if koc_user:
+                    m = merchant_store.get(t.merchant_id)
+                    merchant_name = m.company_name if m else "Brand"
+                    notify_user(
+                        koc_user,
+                        "koc_matched",
+                        "You've Been Matched!",
+                        f"You've been matched with {merchant_name} for {t.product_name}. Start creating!",
+                        task_id=t.id,
+                        resource_path=f"/portal/tasks/{t.id}",
+                    )
+                
                 return {"task_id": t.id, "slot_index": i, "action": "filled"}
 
     # 无可用空位 → 自动创建 long_term 任务（含质押）

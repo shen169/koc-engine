@@ -598,7 +598,7 @@ export default function KocTaskDetailPage() {
                 <textarea
                   value={contentUrls}
                   onChange={(e) => setContentUrls(e.target.value)}
-                  placeholder="https://tiktok.com/@xxx/video/xxx&#10;https://instagram.com/p/xxx&#10;https://xiaohongshu.com/xxx"
+                  placeholder="https://tiktok.com/@xxx/video/xxx&#10;https://youtube.com/watch?v=xxx&#10;https://instagram.com/p/xxx"
                   rows={4}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none resize-none"
                 />

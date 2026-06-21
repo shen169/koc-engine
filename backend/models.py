@@ -39,7 +39,7 @@ class UserLogin(BaseModel):
 
 class KocProfile(BaseModel):
     id: str = Field(default_factory=_uid)
-    platform: str  # tiktok | instagram | xiaohongshu
+    platform: str  # tiktok|douyin|instagram|youtube|xiaohongshu|x|facebook|pinterest|snapchat|linkedin|twitch|threads|likee|kwai|triller|clapper
     handle: str
     display_name: str = ""
     profile_url: str = ""
@@ -315,7 +315,7 @@ class ContentMetrics(BaseModel):
     conversions: int = 0          # 成交转化数
     revenue: float = 0.0          # 归因收入
     engagement_rate: float = 0.0   # (likes+comments+shares+saves)/views*100，服务端计算
-    platform: str = ""            # tiktok | instagram | xiaohongshu | youtube
+    platform: str = ""            # tiktok|douyin|instagram|youtube|xiaohongshu|x|facebook|pinterest|snapchat|linkedin|twitch|threads|likee|kwai|triller|clapper
     last_updated: str = ""        # ISO timestamp
 
 

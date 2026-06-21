@@ -16,11 +16,24 @@ from services.notifier import notify_user
 router = APIRouter(tags=["applications"])
 
 # 平台 → 允许的 profile URL 域名
+# 覆盖全球主流社交 / 内容平台，KOC 选择平台后 profile_url 必须匹配对应域名
 PLATFORM_DOMAINS = {
-    "tiktok": ["tiktok.com", "douyin.com"],
+    "tiktok": ["tiktok.com"],
+    "douyin": ["douyin.com"],
     "instagram": ["instagram.com"],
-    "xiaohongshu": ["xiaohongshu.com", "xhslink.com"],
     "youtube": ["youtube.com", "youtu.be"],
+    "xiaohongshu": ["xiaohongshu.com", "xhslink.com"],
+    "x": ["x.com", "twitter.com"],
+    "facebook": ["facebook.com", "fb.com", "fb.watch"],
+    "pinterest": ["pinterest.com", "pin.it"],
+    "snapchat": ["snapchat.com"],
+    "linkedin": ["linkedin.com"],
+    "twitch": ["twitch.tv"],
+    "threads": ["threads.net"],
+    "likee": ["likee.com"],
+    "kwai": ["kwai.com"],
+    "triller": ["triller.co"],
+    "clapper": ["clapperapp.com"],
 }
 
 

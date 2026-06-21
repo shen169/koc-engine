@@ -169,7 +169,22 @@ function ApplyForm() {
             <div>
               <select value={form.platform} onChange={(e) => update("platform", e.target.value)}
                 className={inputClass("platform")}>
-                <option value="tiktok">TikTok</option><option value="instagram">Instagram</option><option value="xiaohongshu">Xiaohongshu</option>
+                <option value="tiktok">TikTok</option>
+                <option value="instagram">Instagram</option>
+                <option value="youtube">YouTube</option>
+                <option value="xiaohongshu">Xiaohongshu</option>
+                <option value="douyin">Douyin</option>
+                <option value="x">X (Twitter)</option>
+                <option value="facebook">Facebook</option>
+                <option value="pinterest">Pinterest</option>
+                <option value="snapchat">Snapchat</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="twitch">Twitch</option>
+                <option value="threads">Threads</option>
+                <option value="likee">Likee</option>
+                <option value="kwai">Kwai</option>
+                <option value="triller">Triller</option>
+                <option value="clapper">Clapper</option>
               </select>
             </div>
             <div>
@@ -186,7 +201,7 @@ function ApplyForm() {
               required
               value={form.profile_url}
               onChange={(e) => update("profile_url", e.target.value)}
-              placeholder="https://www.tiktok.com/@yourhandle *"
+              placeholder="https://your-social-profile-url.com/@handle *"
               className={inputClass("profile_url")}
             />
             {fieldErrors.profile_url && <p className="text-red-500 text-xs mt-1">{fieldErrors.profile_url}</p>}
@@ -258,7 +273,7 @@ function ApplyForm() {
               required
               value={form.past_video_urls}
               onChange={(e) => update("past_video_urls", e.target.value)}
-              placeholder={"Paste 2+ video/content links (one per line) *\n\nhttps://www.tiktok.com/@you/video/123\nhttps://www.instagram.com/p/abc"}
+              placeholder={"Paste 2+ video/content links (one per line) *\n\nhttps://www.tiktok.com/@user/video/123\nhttps://youtube.com/watch?v=abc\nhttps://www.instagram.com/p/xyz"}
               className={inputClass("past_video_urls") + " resize-y"}
             />
             {fieldErrors.past_video_urls && <p className="text-red-500 text-xs mt-1">{fieldErrors.past_video_urls}</p>}
