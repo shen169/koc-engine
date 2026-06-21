@@ -33,8 +33,9 @@ mp = ok(requests.post(BASE + "/merchants", json={
 mid = mp["id"]
 prod = ok(requests.post(BASE + "/products", json={
     "name": "Wireless Earbuds V4",
-    "category": "electronics",
-    "commission_value": "30%",
+   "category": "electronics",
+   "commission_value": "30%",
+    "commission_link": "https://example.com/earbuds-v4",
 }, headers=auth_headers(mt)))
 pid = prod["id"]
 print("   Merchant: trust={}, product={}".format(mp["trust_score"], prod["name"]))
@@ -232,7 +233,8 @@ m2id = mp2["id"]
 prod2 = ok(requests.post(BASE + "/products", json={
     "name": "Vitamin C Serum",
     "category": "skincare,beauty",
-    "commission_value": "20% off",
+   "commission_value": "20% off",
+    "commission_link": "https://example.com/vitamin-c-serum",
     "description": "Korean beauty vitamin C serum for brightening",
 }, headers=auth_headers(m2t)))
 p2id = prod2["id"]
