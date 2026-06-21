@@ -50,7 +50,7 @@ app/
 │   └── tasks/[id]/page.tsx     # 任务详情+数据报表
 └── admin/                      # 管理后台 (中性灰背景)
     ├── page.tsx                # 仪表盘统计
-    ├── applications/page.tsx   # 申请审核
+    ├── applications/page.tsx   # 申请记录（只读历史，自动审核通过）
     ├── koc/page.tsx            # KOC 管理
     ├── merchants/page.tsx      # 商家管理
     ├── products/page.tsx       # 产品管理

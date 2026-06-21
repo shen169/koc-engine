@@ -130,7 +130,7 @@ koc-engine/
 │   ├── routes/                # 16 route modules
 │   │   ├── auth_routes.py         # Register/login/me (returns Trust Score + tier + points)
 │   │   ├── landing_routes.py      # Landing page data (public)
-│   │   ├── application_routes.py  # KOC application + AI scoring + strict validation + referral
+│   │   ├── application_routes.py  # KOC application + AI scoring + strict validation + auto-approve + referral
 │   │   ├── koc_routes.py          # KOC profiles + anonymous pool (merchant view)
 │   │   ├── merchant_routes.py     # Merchant profiles + trust lookup + report fake commission link
 │   │   ├── product_routes.py      # Product CRUD + role views (KOC sees active + merchant info)
@@ -268,10 +268,10 @@ koc-engine/
 ### KOC Applications
 | Method | Path | Auth | Description |
 |--------|------|:--:|------|
-| POST | `/api/applications` | ✗ | KOC application → strict validation → AI scoring → referral tracking |
+| POST | `/api/applications` | ✗ | KOC application → strict validation → AI scoring → auto-approved (grants credits + referral reward) |
 | GET | `/api/applications` | 🔒 | Application list |
 | GET | `/api/applications/{id}` | 🔒 | Application detail |
-| PUT | `/api/applications/{id}/decision` | 🔒 | Review approve/reject/watching (approve triggers referral reward) |
+| PUT | `/api/applications/{id}/decision` | 🔒 | Manual override (rarely needed; normal flow is auto-approved) |
 
 ### KOC Profiles
 | Method | Path | Auth | Description |
