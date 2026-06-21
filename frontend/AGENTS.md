@@ -27,6 +27,7 @@ cd frontend && npm run dev     # http://localhost:3000
 ```
 app/
 ├── page.tsx                    # 公开首页 (火花动画 + 三色渐变)
+├── rules/page.tsx              # 平台规则落地页 (佣金/质押/SLA/AI审核/提现)
 ├── koc/apply/page.tsx          # KOC 申请页 (AI评分结算动画)
 ├── login/page.tsx              # 登录
 ├── register/page.tsx           # 注册
