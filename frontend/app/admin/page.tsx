@@ -4,12 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Spark from "@/components/Spark";
-import { admin, applications, interests, getToken, clearToken, auth } from "@/lib/api";
+import { admin, interests, getToken, clearToken, auth } from "@/lib/api";
 
 export default function AdminPage() {
   const router = useRouter();
   const [stats, setStats] = useState<Record<string, unknown> | null>(null);
-  const [pendingApps, setPendingApps] = useState<Array<Record<string, unknown>>>([]);
   const [mutual, setMutual] = useState<Array<Record<string, unknown>>>([]);
 
   useEffect(() => {
@@ -18,20 +17,9 @@ export default function AdminPage() {
     auth.me(token).then((u) => {
       if (u.role !== "admin") { router.push("/dashboard"); return; }
       admin.stats(token).then(setStats).catch(() => {});
-      applications.list(token).then((list) =>
-        setPendingApps((list as Array<Record<string, unknown>>).filter((a) => a.decision === "pending"))
-      ).catch(() => {});
       interests.matches(token).then(setMutual).catch(() => {});
     }).catch(() => { clearToken(); router.push("/login"); });
   }, [router]);
-
-  async function handleDecision(appId: string, decision: string) {
-    const token = getToken();
-    if (!token) return;
-    await applications.decide(appId, decision, token);
-    setPendingApps((prev) => prev.filter((a) => a.id !== appId));
-    admin.stats(token).then(setStats).catch(() => {});
-  }
 
   const navLinks = [
     ["/admin/applications", "Applications"],
@@ -85,37 +73,6 @@ export default function AdminPage() {
         )}
 
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Pending Applications */}
-          <div className="bg-white rounded-2xl border border-rose-100 shadow-sm p-6">
-            <h2 className="font-extrabold text-zinc-900 mb-4">🔍 Pending Applications ({pendingApps.length})</h2>
-            {pendingApps.length === 0 ? (
-              <div className="text-center py-6"><Spark size={32} className="mx-auto opacity-30" /><p className="text-zinc-400 text-sm mt-2">All caught up!</p></div>
-            ) : (
-              <div className="space-y-3">
-                {pendingApps.slice(0, 5).map((a) => {
-                  const form = a.raw_form as Record<string, unknown> || {};
-                  return (
-                    <div key={a.id as string} className="p-4 bg-zinc-50 rounded-xl">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <span className="font-semibold text-zinc-900">{form.name as string || "Unknown"}</span>
-                          <span className="text-xs text-zinc-400 ml-2">@{form.handle as string}</span>
-                        </div>
-                        <span className="text-sm font-extrabold brand-gradient-text">{a.ai_score as number}/100</span>
-                      </div>
-                      <div className="flex gap-2">
-                        {[{ l: "Approve", d: "approved", c: "bg-emerald-500 hover:bg-emerald-600" }, { l: "Reject", d: "rejected", c: "bg-rose-500 hover:bg-rose-600" }, { l: "Watch", d: "watching", c: "bg-amber-500 hover:bg-amber-600" }].map((b) => (
-                          <button key={b.d} onClick={() => handleDecision(a.id as string, b.d)}
-                            className={`flex-1 py-1.5 ${b.c} text-white rounded-full text-xs font-bold transition`}>{b.l}</button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
           {/* Mutual Matches */}
           <div className="bg-white rounded-2xl border border-rose-100 shadow-sm p-6">
             <h2 className="font-extrabold text-zinc-900 mb-4">💚 Mutual Matches ({mutual.length})</h2>

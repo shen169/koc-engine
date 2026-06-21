@@ -15,13 +15,6 @@ export default function AdminApplications() {
     applications.list(token).then(setApps).catch(() => {});
   }, []);
 
-  async function decide(appId: string, decision: string) {
-    const token = getToken();
-    if (!token) return;
-    await applications.decide(appId, decision, token);
-    setApps((prev) => prev.map((a) => a.id === appId ? { ...a, decision } : a));
-  }
-
   const filtered = filter === "all" ? apps : apps.filter((a) => a.decision === filter);
   const decisionBadge: Record<string, string> = { approved: "bg-emerald-50 text-emerald-700", rejected: "bg-rose-50 text-rose-700", watching: "bg-amber-50 text-amber-700", pending: "bg-zinc-50 text-zinc-600" };
 
@@ -58,14 +51,6 @@ export default function AdminApplications() {
                   </div>
                   <p className="text-xs text-zinc-400 mb-2">{a.ai_reason as string}</p>
                   <p className="text-xs text-zinc-400 mb-3">{form.follower_count as string} followers &middot; {form.region as string} &middot; {form.email as string}</p>
-                  {a.decision === "pending" && (
-                    <div className="flex gap-2">
-                      {[{ l: "Approve", d: "approved", c: "bg-emerald-500 hover:bg-emerald-600" }, { l: "Reject", d: "rejected", c: "bg-rose-500 hover:bg-rose-600" }, { l: "Watch", d: "watching", c: "bg-amber-500 hover:bg-amber-600" }].map((b) => (
-                        <button key={b.d} onClick={() => decide(a.id as string, b.d)}
-                          className={`flex-1 py-1.5 ${b.c} text-white rounded-full text-xs font-bold transition`}>{b.l}</button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               );
             })}

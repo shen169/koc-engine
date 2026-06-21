@@ -78,7 +78,7 @@ Backend `backend/.env`:
 
 | | KOC | Merchant | Admin |
 |------|:--:|:--:|:--:|
-| Register | ✅ requires application | ✅ open | system-created |
+| Register | ✅ auto-approve (AI scored) | ✅ open | system-created |
 | Browse KOC Pool | ✗ | ✅ (anonymous) | ✅ |
 | Browse Task Hall | ✅ | ✗ | ✅ |
 | Browse Product Pool | ✅ | own only | ✅ |
@@ -97,7 +97,7 @@ Merchant registers (5000pt) → creates profile → lists products (with commiss
     ├─ Urgent: auto-matching engine fills KOC slots → assigned
     └─ Long-term: creates empty slots → enters Task Hall for KOCs to browse and accept
 
-KOC landing page → applies (strict validation + AI scoring) → Admin reviews → approved (1000pt) → browses Task Hall + Product Pool
+KOC landing page → applies (strict validation + AI scoring) → auto-approved (1000pt) → browses Task Hall + Product Pool
     ├─ Task Hall accept: browse → accept → deduct pledge (10pt)
     └─ Product interest: auto-fills existing empty slots OR creates long_term task
 

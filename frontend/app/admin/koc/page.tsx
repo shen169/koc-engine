@@ -65,16 +65,6 @@ export default function AdminKocList() {
                   <p className="text-xs text-zinc-400">@{k.handle as string} &middot; {(k.follower_count as number)?.toLocaleString()} followers &middot; AI: {k.score_total as number} &middot; ⭐ {(k.avg_rating as number)?.toFixed(1)}</p>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <select onChange={(e) => { if (e.target.value) updateKoc(k.id as string, { tier: e.target.value }); }}
-                  className="rounded-full border border-zinc-200 px-2 py-1 text-xs font-semibold outline-none" defaultValue="">
-                  <option value="" disabled>Tier</option><option value="L1">L1</option><option value="L2">L2</option><option value="L3">L3</option>
-                </select>
-                <select onChange={(e) => { if (e.target.value) updateKoc(k.id as string, { status: e.target.value }); }}
-                  className="rounded-full border border-zinc-200 px-2 py-1 text-xs font-semibold outline-none" defaultValue="">
-                  <option value="" disabled>Status</option><option value="Approved">Approved</option><option value="Ghosted">Ghosted</option><option value="Collaborating">Collaborating</option>
-                </select>
-              </div>
             </div>
           ))}
         </div>

@@ -85,7 +85,7 @@ def submit_application(data: dict):
         referral_code=data.get("referral_code", ""),
         ai_score=scoring["total"],
         ai_reason=scoring["reason"],
-        decision="pending",
+        decision="approved",
     )
     application_store.create(app)
 
@@ -105,14 +105,21 @@ def submit_application(data: dict):
         score_total=scoring["total"],
         score_reason=scoring["reason"],
         tier=scoring["tier"],
-        status="Applied",
+        status="Approved",
     )
     koc_store.create(koc)
 
     # 绑定 koc_id 到申请
     application_store.update(app.id, {"koc_id": koc.id})
 
-    # 裂变追踪
+    # Auto-approve: grant initial credits + referral reward
+    email = data.get("email", "")
+    if email:
+        existing_user = user_store.get_by_email(email)
+        if existing_user:
+            credit_store.set_initial_balance(existing_user.id, DEFAULT_KOC_INITIAL_CREDITS)
+
+    # Referral reward (immediate on auto-approve)
     ref_code = data.get("referral_code", "")
     if ref_code:
         ref = referral_store.get_by_code(ref_code)
@@ -120,8 +127,16 @@ def submit_application(data: dict):
             referral_store.update(ref.id, {
                 "referred_email": data.get("email", ""),
                 "referred_koc_id": koc.id,
-                "status": "joined",
+                "status": "completed",
             })
+            credit_store.add_credits(
+                ref.referrer_koc_id,
+                DEFAULT_REFERRAL_REWARD_CREDITS,
+                "referral_reward",
+                ref.id,
+                f"Referral reward: {koc.id}"
+            )
+
 
     return {
         "application_id": app.id,
@@ -129,7 +144,7 @@ def submit_application(data: dict):
         "ai_score": scoring["total"],
         "ai_reason": scoring["reason"],
         "tier": scoring["tier"],
-        "decision": app.decision,
+        "decision": "approved",
     }
 
 
