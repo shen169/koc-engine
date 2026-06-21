@@ -10,6 +10,7 @@ from stores.interest_store import interest_store
 from stores.user_store import user_store
 from models import Interest
 from auth import get_current_user, require_admin
+from stores.task_store import task_store
 
 router = APIRouter(tags=["matching"])
 
@@ -202,6 +203,11 @@ def auto_express_interest(
             if not product:
                 raise HTTPException(404, "Product not found")
 
+        # 活跃任务上限检查
+        active_count = task_store.count_active_for_koc(koc.id)
+        if active_count >= 5:
+            raise HTTPException(400, f"You already have {active_count} active tasks (max 5). Complete some before expressing new interest.")
+
         existing = interest_store.list_by_from(koc.id, "koc")
         already = any(
             i.to_id == product_id and i.to_type == "product" and i.status == "expressed"
@@ -210,6 +216,9 @@ def auto_express_interest(
         if already:
             skipped.append(product_id)
         else:
+            # V2: 先执行自动接单（可能抛异常，所以放在创建意向之前）
+            assign_result = auto_assign_koc_to_product(koc.id, product_id)
+
             interest = Interest(
                 from_role="koc",
                 from_id=koc.id,
@@ -219,8 +228,6 @@ def auto_express_interest(
             interest_store.create(interest)
             created.append(product_id)
 
-            # V2: KOC 对产品表达意向 → 触发自动接单（填空位或创建任务）
-            assign_result = auto_assign_koc_to_product(koc.id, product_id)
             if assign_result:
                 auto_assigned.append({
                     "product_id": product_id,

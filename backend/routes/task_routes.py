@@ -34,6 +34,33 @@ def _get_merchant_user_id(merchant_id: str) -> str:
     return m.user_id if m else merchant_id
 
 
+def _get_current_koc_profile_id(current_user: dict) -> str:
+    user = user_store.get_by_id(current_user["sub"])
+    koc = koc_store.get_by_email(user.email) if user else None
+    return koc.id if koc else current_user["sub"]
+
+
+def _merchant_slot_pledge(task: KocTask) -> int:
+    if task.koc_required > 0:
+        return max(0, task.pledge_merchant // task.koc_required)
+    return max(0, task.pledge_merchant)
+
+
+def _ensure_can_view_task(task: KocTask, current_user: dict):
+    role = current_user.get("role")
+    if role == "admin":
+        return
+    if role == "merchant":
+        merchant = merchant_store.get_by_user_id(current_user["sub"])
+        if merchant and merchant.id == task.merchant_id:
+            return
+    if role == "koc":
+        koc_id = _get_current_koc_profile_id(current_user)
+        if any(slot.get("koc_id") == koc_id for slot in task.koc_slots):
+            return
+    raise HTTPException(403, "Not allowed to view this task")
+
+
 # ═══════════════════════════════════════════
 # 商家发布任务
 # ═══════════════════════════════════════════
@@ -302,6 +329,7 @@ def get_task(task_id: str, current_user: dict = Depends(get_current_user)):
     task = task_store.get(task_id)
     if not task:
         raise HTTPException(404, "Task not found")
+    _ensure_can_view_task(task, current_user)
     result = task.model_dump()
     # 补全产品信息
     if task.product_id:
@@ -454,8 +482,8 @@ def reject_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
         "status": "rejected",
         "task_id": task_id,
         "slot_index": slot_index,
-        "trust_penalty": -10,
-        "new_trust": koc_profile.trust_score - 10 if koc_profile else 0,
+        "trust_penalty": -3,
+        "new_trust": new_trust if koc_profile else 0,
     }
 
 
@@ -721,10 +749,12 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                                      task_id, f"KOC platform fee from: {task.product_name}")
 
         # 退还商家质押（全额）
-        if task.pledge_merchant > 0:
+        merchant_return = _merchant_slot_pledge(task)
+        if merchant_return > 0 and not slot.get("merchant_pledge_returned"):
             m_uid = _get_merchant_user_id(task.merchant_id)
-            credit_store.add_credits(m_uid, task.pledge_merchant, "pledge_return_merchant",
+            credit_store.add_credits(m_uid, merchant_return, "pledge_return_merchant",
                                      task_id, f"Pledge returned for: {task.product_name}")
+            task_store.update_slot(task_id, slot_index, {"merchant_pledge_returned": True})
 
         # 恢复 KOC 信任分 + 统计
         koc = koc_store.get(koc_id) if koc_id else None
@@ -757,7 +787,7 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
             "slot_index": slot_index,
             "reviewed_at": now,
             "pledge_returned_koc": task.pledge_koc - KOC_PLATFORM_FEE if task.pledge_koc > 0 else 0,
-            "pledge_returned_merchant": task.pledge_merchant,
+            "pledge_returned_merchant": merchant_return,
         }
 
     else:  # reject
@@ -774,10 +804,12 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
             })
 
             # 退商家质押
-            if task.pledge_merchant > 0:
+            merchant_return = _merchant_slot_pledge(task)
+            if merchant_return > 0 and not slot.get("merchant_pledge_returned"):
                 m_uid = _get_merchant_user_id(task.merchant_id)
-                credit_store.add_credits(m_uid, task.pledge_merchant, "breach_compensation_merchant",
+                credit_store.add_credits(m_uid, merchant_return, "breach_compensation_merchant",
                                          task_id, f"KOC max revisions exceeded: {task.product_name}")
+                task_store.update_slot(task_id, slot_index, {"merchant_pledge_returned": True})
 
             # 扣 KOC 信任分
             if koc_id:

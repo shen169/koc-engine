@@ -157,6 +157,8 @@ def run_weekly_scan() -> dict:
     # ── Stale 检测 ──
     all_kocs = koc_store.list_all()
     for koc in all_kocs:
+        # 更新所有 KOC 的扫描时间（合并到同一循环）
+        koc_store.update(koc.id, {"last_scanned_at": now.isoformat()})
         if koc.status in ("Ghosted", "Discovered"):
             continue
         try:
@@ -167,8 +169,6 @@ def run_weekly_scan() -> dict:
             koc_store.update(koc.id, {"status": "Stale"})
             result["stale"] += 1
 
-    for koc in all_kocs:
-        koc_store.update(koc.id, {"last_scanned_at": now.isoformat()})
     result["trust_updated"] = len(all_kocs)
 
     # ── 物流追踪：自动查询所有 shipped slot 的物流状态 ──
@@ -345,11 +345,14 @@ def _handle_merchant_ship_timeout(task):
 
 def _handle_submit_timeout(task, slot_index: int, koc_id: str):
     """14d 未提交内容 → KOC 违约 → 退商家质押 + 扣 KOC 点"""
+    slot = task.koc_slots[slot_index] if slot_index < len(task.koc_slots) else {}
     # 退商家质押
-    if task.pledge_merchant > 0:
+    merchant_return = _merchant_slot_pledge(task)
+    if merchant_return > 0 and not slot.get("merchant_pledge_returned"):
         m_uid = _get_merchant_user_id(task.merchant_id)
-        credit_store.add_credits(m_uid, task.pledge_merchant, "breach_compensation_merchant",
+        credit_store.add_credits(m_uid, merchant_return, "breach_compensation_merchant",
                                  task.id, f"KOC breach compensation: {task.product_name}")
+        task_store.update_slot(task.id, slot_index, {"merchant_pledge_returned": True})
 
     # KOC 质押不退还（stays deducted）
     # 扣 KOC 信任分
@@ -389,10 +392,12 @@ def _handle_auto_approve(task, slot_index: int, koc_id: str):
                                  task.id, f"KOC platform fee (auto-approved): {task.product_name}")
 
     # 退还商家质押（全额）
-    if task.pledge_merchant > 0:
+    merchant_return = _merchant_slot_pledge(task)
+    if merchant_return > 0 and not slot.get("merchant_pledge_returned"):
         m_uid = _get_merchant_user_id(task.merchant_id)
-        credit_store.add_credits(m_uid, task.pledge_merchant, "pledge_return_merchant",
+        credit_store.add_credits(m_uid, merchant_return, "pledge_return_merchant",
                                  task.id, f"Pledge returned (auto-approved): {task.product_name}")
+        task_store.update_slot(task.id, slot_index, {"merchant_pledge_returned": True})
 
     # 恢复 KOC 信任分
     if koc_id:
@@ -420,11 +425,14 @@ def _handle_auto_approve(task, slot_index: int, koc_id: str):
 
 def _handle_revision_timeout(task, slot_index: int, koc_id: str):
     """商家驳回后 KOC 3 天内未重新提交 → 按 KOC 违约处理"""
+    slot = task.koc_slots[slot_index] if slot_index < len(task.koc_slots) else {}
     # 退商家质押
-    if task.pledge_merchant > 0:
+    merchant_return = _merchant_slot_pledge(task)
+    if merchant_return > 0 and not slot.get("merchant_pledge_returned"):
         m_uid = _get_merchant_user_id(task.merchant_id)
-        credit_store.add_credits(m_uid, task.pledge_merchant, "breach_compensation_merchant",
+        credit_store.add_credits(m_uid, merchant_return, "breach_compensation_merchant",
                                  task.id, f"KOC revision timeout: {task.product_name}")
+        task_store.update_slot(task.id, slot_index, {"merchant_pledge_returned": True})
 
     # KOC 质押不退还
     if koc_id:
@@ -475,6 +483,12 @@ def _get_koc_user_id(koc_profile_id: str) -> str:
 def _get_merchant_user_id(merchant_id: str) -> str:
     m = merchant_store.get(merchant_id)
     return m.user_id if m else merchant_id
+
+
+def _merchant_slot_pledge(task) -> int:
+    if getattr(task, "koc_required", 0) > 0:
+        return max(0, task.pledge_merchant // task.koc_required)
+    return max(0, task.pledge_merchant)
 
 
 # ═══════════════════════════════════════════

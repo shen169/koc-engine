@@ -6,6 +6,7 @@ from stores.review_store import review_store
 from stores.task_store import task_store
 from stores.koc_store import koc_store
 from stores.merchant_store import merchant_store
+from stores.user_store import user_store
 from auth import get_current_user, require_admin
 
 router = APIRouter(tags=["reviews"])
@@ -26,7 +27,9 @@ def create_review(data: dict, current_user: dict = Depends(get_current_user)):
         raise HTTPException(400, f"Task not yet delivered (status: {task.task_status})")
 
     if role == "koc":
-        reviewer_id = current_user["sub"]
+        user = user_store.get_by_id(current_user["sub"])
+        koc = koc_store.get_by_email(user.email) if user else None
+        reviewer_id = koc.id if koc else current_user["sub"]
         target_id = task.merchant_id
         dimensions = data.get("dimensions", {})  # 产品靠谱度/发货速度/履约诚信
     else:
@@ -71,7 +74,9 @@ def list_reviews(current_user: dict = Depends(get_current_user)):
 
     role = current_user.get("role")
     if role == "koc":
-        target_id = current_user["sub"]
+        user = user_store.get_by_id(current_user["sub"])
+        koc = koc_store.get_by_email(user.email) if user else None
+        target_id = koc.id if koc else ""
     elif role == "merchant":
         m = merchant_store.get_by_user_id(current_user["sub"])
         target_id = m.id if m else ""

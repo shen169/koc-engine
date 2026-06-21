@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getToken } from "@/lib/api";
+import Spark from "@/components/Spark";
 
 export default function AdminMerchants() {
   const [list, setList] = useState<Array<Record<string, unknown>>>([]);
@@ -21,6 +22,12 @@ export default function AdminMerchants() {
         <h1 className="font-extrabold text-zinc-900">Merchants ({list.length})</h1>
       </nav>
       <div className="max-w-4xl mx-auto px-6 py-8">
+        {list.length === 0 ? (
+          <div className="text-center py-12">
+            <Spark size={32} className="mx-auto opacity-30" />
+            <p className="text-zinc-400 text-sm mt-2">No merchants yet. New merchant registrations will appear here.</p>
+          </div>
+        ) : (
         <div className="space-y-3">
           {list.map((m) => (
             <div key={m.id as string} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5">
@@ -40,6 +47,7 @@ export default function AdminMerchants() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );

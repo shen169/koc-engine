@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { kocs, getToken } from "@/lib/api";
+import Spark from "@/components/Spark";
 
 export default function AdminKocList() {
   const [list, setList] = useState<Array<Record<string, unknown>>>([]);
@@ -42,6 +43,12 @@ export default function AdminKocList() {
         </select>
       </nav>
       <div className="max-w-4xl mx-auto px-6 py-8">
+        {filtered.length === 0 ? (
+          <div className="text-center py-12">
+            <Spark size={32} className="mx-auto opacity-30" />
+            <p className="text-zinc-400 text-sm mt-2">No KOCs yet. New KOC applications will appear here after admin approval.</p>
+          </div>
+        ) : (
         <div className="space-y-2">
           {filtered.map((k) => (
             <div key={k.id as string} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 flex items-center justify-between">
@@ -71,6 +78,7 @@ export default function AdminKocList() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );

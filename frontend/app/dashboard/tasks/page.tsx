@@ -10,16 +10,17 @@ export default function MerchantTasksPage() {
   const router = useRouter();
   const token = getToken();
   const role = getRole();
-  if (!token) { router.push("/login"); return null; }
-  if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return null; }
+  const unauthorized = !token || (role && role !== "merchant");
 
   const [taskList, setTaskList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
 
   useEffect(() => {
+    if (!token) { router.push("/login"); return; }
+    if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return; }
     loadTasks();
-  }, []);
+  }, [router, role, token]);
 
   async function loadTasks() {
     setLoading(true);
@@ -56,6 +57,8 @@ export default function MerchantTasksPage() {
         return t.task_status === filter;
       })
     : taskList;
+
+  if (unauthorized) return null;
 
   return (
     <div className="min-h-screen bg-purple-50/30">

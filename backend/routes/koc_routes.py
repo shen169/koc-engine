@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from stores.koc_store import koc_store
+from stores.user_store import user_store
 from auth import get_current_user, require_admin
 
 router = APIRouter(tags=["koc"])
@@ -62,11 +63,34 @@ def get_koc(koc_id: str, current_user: dict = Depends(get_current_user)):
     koc = koc_store.get(koc_id)
     if not koc:
         raise HTTPException(404, "KOC not found")
-    # KOC 只能看自己，admin 看全部
-    if current_user.get("role") not in ("admin",) and current_user.get("sub") != koc_id:
-        # 允许 KOC 看自己的，通过 user.koc_id 检查
-        pass
-    return koc.model_dump()
+
+    role = current_user.get("role")
+    if role == "admin":
+        return koc.model_dump()
+
+    if role == "koc":
+        user = user_store.get_by_id(current_user["sub"])
+        if user and user.email == koc.email:
+            return koc.model_dump()
+        raise HTTPException(403, "Not allowed to view this KOC profile")
+
+    if role == "merchant":
+        return {
+            "id": koc.id,
+            "display_name": koc.display_name or f"Creator_{koc.id[:6]}",
+            "platform": koc.platform,
+            "tier": koc.tier,
+            "niche_tags": koc.niche_tags,
+            "score_total": koc.score_total,
+            "score_reason": koc.score_reason,
+            "avg_rating": koc.avg_rating,
+            "completed_tasks": koc.completed_tasks,
+            "region": koc.region,
+            "follower_count": koc.follower_count,
+            "trust_score": koc.trust_score,
+        }
+
+    raise HTTPException(403, "Not allowed to view this KOC profile")
 
 
 @router.put("/koc/{koc_id}")

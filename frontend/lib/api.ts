@@ -25,9 +25,20 @@ export async function api(path: string, opts: ApiOptions = {}) {
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  const data = await res.json();
+  const text = await res.text();
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { detail: text };
+    }
+  }
   if (!res.ok) {
-    throw new Error(data.detail || `API error: ${res.status}`);
+    const detail = data && typeof data === "object" && "detail" in data
+      ? String((data as { detail?: unknown }).detail)
+      : "";
+    throw new Error(detail || `API error: ${res.status}`);
   }
   return data;
 }

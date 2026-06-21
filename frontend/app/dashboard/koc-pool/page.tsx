@@ -10,16 +10,17 @@ export default function KocPoolPage() {
   const router = useRouter();
   const token = getToken();
   const role = getRole();
-  if (!token) { router.push("/login"); return null; }
-  if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return null; }
+  const unauthorized = !token || (role && role !== "merchant");
 
   const [pool, setPool] = useState<Array<Record<string, unknown>>>([]);
   const [myInterests, setMyInterests] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    if (!token) { router.push("/login"); return; }
+    if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return; }
     kocs.pool(token!).then(setPool).catch(() => {});
     interests.list(token!).then((list) => setMyInterests(new Set((list as Array<Record<string, unknown>>).map((i) => i.to_id as string)))).catch(() => {});
-  }, []);
+  }, [router, role, token]);
 
   async function showInterest(kocId: string) {
     await interests.express(kocId, "koc", token!);
@@ -27,6 +28,8 @@ export default function KocPoolPage() {
   }
 
   const tierBadge: Record<string, string> = { L1: "bg-pink-50 text-pink-700", L2: "bg-purple-50 text-purple-700", L3: "brand-gradient text-white" };
+
+  if (unauthorized) return null;
 
   return (
     <div className="min-h-screen bg-purple-50">

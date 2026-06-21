@@ -39,8 +39,7 @@ export default function MyProducts() {
   const router = useRouter();
   const token = getToken();
   const role = getRole();
-  if (!token) { router.push("/login"); return null; }
-  if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return null; }
+  const unauthorized = !token || (role && role !== "merchant");
 
   const [items, setItems] = useState<Array<Record<string, unknown>>>([]);
   const [matchModal, setMatchModal] = useState<{ productId: string; productName: string } | null>(null);
@@ -50,8 +49,10 @@ export default function MyProducts() {
   const [sendingInterest, setSendingInterest] = useState(false);
 
   useEffect(() => {
+    if (!token) { router.push("/login"); return; }
+    if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return; }
     products.list(token!).then(setItems).catch(() => {});
-  }, []);
+  }, [router, role, token]);
 
   async function toggleStatus(productId: string, currentStatus: string) {
     const newStatus = currentStatus === "active" ? "paused" : "active";
@@ -116,6 +117,8 @@ export default function MyProducts() {
       </span>
     );
   };
+
+  if (unauthorized) return null;
 
   return (
     <div className="min-h-screen bg-slate-50">

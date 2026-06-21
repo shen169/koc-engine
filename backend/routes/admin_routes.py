@@ -161,7 +161,7 @@ def admin_get_withdrawals(status: str = "", current_user: dict = Depends(require
     for w in withdrawals:
         user = user_store.get_by_id(w.user_id)
         d = w.model_dump()
-        d["user_email"] = user.get("email", "") if user else ""
+        d["user_email"] = user.email if user else ""
         result.append(d)
     return result
 

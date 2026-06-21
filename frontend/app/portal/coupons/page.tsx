@@ -11,16 +11,18 @@ export default function CouponsPage() {
   // Role guard — redirect non-KOC users
   const token = getToken();
   const role = getRole();
-  if (!token) { router.push("/login"); return null; }
-  if (role && role !== "koc") { router.push(getConsolePath(role || "")); return null; }
+  const unauthorized = !token || (role && role !== "koc");
 
   const [coupons, setCoupons] = useState<Array<Record<string, unknown>>>([]);
 
   useEffect(() => {
-    const token = getToken();
+    if (!token) { router.push("/login"); return; }
+    if (role && role !== "koc") { router.push(getConsolePath(role || "")); return; }
     fetch("http://localhost:8001/api/coupons", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json()).then(setCoupons).catch(() => {});
-  }, []);
+  }, [router, role, token]);
+
+  if (unauthorized) return null;
 
   return (
     <div className="min-h-screen bg-slate-50">

@@ -11,22 +11,24 @@ export default function ReferralsPage() {
   // Role guard — redirect non-KOC users
   const token = getToken();
   const role = getRole();
-  if (!token) { router.push("/login"); return null; }
-  if (role && role !== "koc") { router.push(getConsolePath(role || "")); return null; }
+  const unauthorized = !token || (role && role !== "koc");
 
   const [code, setCode] = useState("");
   const [stats, setStats] = useState<Record<string, unknown>>({});
   const [list, setList] = useState<Array<Record<string, unknown>>>([]);
 
   useEffect(() => {
-    const token = getToken();
+    if (!token) { router.push("/login"); return; }
+    if (role && role !== "koc") { router.push(getConsolePath(role || "")); return; }
     fetch("http://localhost:8001/api/referrals/code", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json()).then((d) => setCode(d.referral_code)).catch(() => {});
     fetch("http://localhost:8001/api/referrals/stats", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json()).then(setStats).catch(() => {});
     fetch("http://localhost:8001/api/referrals", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json()).then(setList).catch(() => {});
-  }, []);
+  }, [router, role, token]);
+
+  if (unauthorized) return null;
 
   return (
     <div className="min-h-screen bg-slate-50">

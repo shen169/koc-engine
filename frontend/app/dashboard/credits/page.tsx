@@ -11,14 +11,15 @@ export default function MerchantCreditsPage() {
 
   const token = getToken();
   const role = getRole();
-  if (!token) { router.push("/login"); return null; }
-  if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return null; }
+  const unauthorized = !token || (role && role !== "merchant");
 
   const [balanceData, setBalanceData] = useState({ total: 0, withdrawable: 0, bonus: 0 });
   const [history, setHistory] = useState<Array<Record<string, unknown>>>([]);
   const [showCoin, setShowCoin] = useState(false);
 
   useEffect(() => {
+    if (!token) { router.push("/login"); return; }
+    if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return; }
     const token = getToken()!;
     credits.balance(token).then((r) => {
       setBalanceData({ total: r.total, withdrawable: r.withdrawable, bonus: r.bonus });
@@ -28,7 +29,7 @@ export default function MerchantCreditsPage() {
       const recent = (list as Array<Record<string, unknown>>)[0];
       if (recent && (recent.amount as number) > 0) setTimeout(() => setShowCoin(true), 300);
     }).catch(() => {});
-  }, []);
+  }, [router, role, token]);
 
   const typeLabel: Record<string, string> = {
     task_reward: "Task Reward",
@@ -51,6 +52,8 @@ export default function MerchantCreditsPage() {
     admin_adjust: "text-zinc-600",
     withdrawal: "text-rose-600",
   };
+
+  if (unauthorized) return null;
 
   return (
     <div className="min-h-screen bg-purple-50">

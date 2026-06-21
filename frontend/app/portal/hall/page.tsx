@@ -26,8 +26,7 @@ export default function TaskHallPage() {
   // Role guard — redirect non-KOC users
   const token = getToken();
   const role = getRole();
-  if (!token) { router.push("/login"); return null; }
-  if (role && role !== "koc") { router.push(getConsolePath(role || "")); return null; }
+  const unauthorized = !token || (role && role !== "koc");
 
   const [user, setUser] = useState<{ email?: string } | null>(null);
   const [taskList, setTaskList] = useState<any[]>([]);
@@ -41,6 +40,8 @@ export default function TaskHallPage() {
   const [regionReady, setRegionReady] = useState(false);
 
   useEffect(() => {
+    if (!token) { router.push("/login"); return; }
+    if (role && role !== "koc") { router.push(getConsolePath(role || "")); return; }
     auth.me(token!).then((u) => {
       setUser(u);
       // Default to KOC's own region
@@ -52,7 +53,7 @@ export default function TaskHallPage() {
     }).catch(() => {
       setRegionReady(true);
     });
-  }, []);
+  }, [router, role, token]);
 
   useEffect(() => {
     if (!regionReady) return;
@@ -77,6 +78,8 @@ export default function TaskHallPage() {
       setLoading(false);
     }
   }
+
+  if (unauthorized) return null;
 
   return (
     <div className="min-h-screen bg-orange-50/30">

@@ -12,8 +12,7 @@ export default function CreditsPage() {
   // Role guard — redirect non-KOC users
   const token = getToken();
   const role = getRole();
-  if (!token) { router.push("/login"); return null; }
-  if (role && role !== "koc") { router.push(getConsolePath(role || "")); return null; }
+  const unauthorized = !token || (role && role !== "koc");
 
   const [balanceData, setBalanceData] = useState({ total: 0, withdrawable: 0, bonus: 0 });
   const [history, setHistory] = useState<Array<Record<string, unknown>>>([]);
@@ -40,7 +39,11 @@ export default function CreditsPage() {
     credits.withdrawals(t).then((list) => setWithdrawals(list as Array<Record<string, unknown>>)).catch(() => {});
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    if (!token) { router.push("/login"); return; }
+    if (role && role !== "koc") { router.push(getConsolePath(role || "")); return; }
+    loadData();
+  }, [router, role, token]);
 
   const handleWithdraw = async () => {
     setWithdrawError("");
@@ -89,6 +92,8 @@ export default function CreditsPage() {
   };
 
   const paymentLabel: Record<string, string> = { paypal: "PayPal", bank_transfer: "Bank Transfer" };
+
+  if (unauthorized) return null;
 
   return (
     <div className="min-h-screen bg-orange-50">

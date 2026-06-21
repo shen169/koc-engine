@@ -10,20 +10,22 @@ export default function MerchantCouponsPage() {
 
   const token = getToken();
   const role = getRole();
-  if (!token) { router.push("/login"); return null; }
-  if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return null; }
+  const unauthorized = !token || (role && role !== "merchant");
 
   const [coupons, setCoupons] = useState<Array<Record<string, unknown>>>([]);
 
   useEffect(() => {
-    const token = getToken();
+    if (!token) { router.push("/login"); return; }
+    if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return; }
     fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}/api/coupons`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
       .then(setCoupons)
       .catch(() => {});
-  }, []);
+  }, [router, role, token]);
+
+  if (unauthorized) return null;
 
   return (
     <div className="min-h-screen bg-purple-50">

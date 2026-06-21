@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { tasks, getToken } from "@/lib/api";
+import Spark from "@/components/Spark";
 
 export default function AdminTasks() {
   const [list, setList] = useState<Array<Record<string, unknown>>>([]);
@@ -43,7 +44,12 @@ export default function AdminTasks() {
       </nav>
 
       <div className="max-w-4xl mx-auto p-6">
-        {showNew && (
+        {list.length === 0 && !showNew ? (
+          <div className="text-center py-12">
+            <Spark size={32} className="mx-auto opacity-30" />
+            <p className="text-zinc-400 text-sm mt-2">No tasks yet. Tasks will appear here once merchants publish them.</p>
+          </div>
+        ) : (
           <div className="bg-white rounded-xl border border-slate-100 p-5 mb-6">
             <h3 className="font-semibold mb-3">Create Task</h3>
             <div className="grid grid-cols-2 gap-3 mb-3">
@@ -80,6 +86,7 @@ export default function AdminTasks() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );

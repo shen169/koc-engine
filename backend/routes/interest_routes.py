@@ -9,7 +9,10 @@ from stores.koc_store import koc_store
 from stores.user_store import user_store
 from stores.task_store import task_store
 from stores.product_store import product_store
+from stores.credit_store import credit_store
 from auth import get_current_user, require_admin
+from config import PLATFORM_SERVICE_FEE
+from routes.task_routes import _sync_task_status
 
 import re
 
@@ -45,10 +48,25 @@ def _make_slot(koc_id: str, status: str = "accepted") -> dict:
         "content_urls": [],
         "content_data": {},
         "pledge_paid": False,
+        "merchant_pledge_returned": False,
         "commission_paid": False,
         "reject_count": 0,
         "match_score": 0,
     }
+
+
+def _get_koc_user_id(koc_profile_id: str) -> str:
+    koc = koc_store.get(koc_profile_id)
+    if koc and koc.email:
+        user = user_store.get_by_email(koc.email)
+        if user:
+            return user.id
+    return koc_profile_id
+
+
+def _get_merchant_user_id(merchant_id: str) -> str:
+    merchant = merchant_store.get(merchant_id)
+    return merchant.user_id if merchant else merchant_id
 
 
 def auto_assign_koc_to_product(koc_id: str, product_id: str) -> dict | None:
@@ -67,10 +85,25 @@ def auto_assign_koc_to_product(koc_id: str, product_id: str) -> dict | None:
     for t in existing_tasks:
         if t.task_status in ("completed", "disputed"):
             continue
+        # 检查该 KOC 是否已在此任务中有 slot（防重复占用）
+        if any(s.get("koc_id") == koc_id for s in t.koc_slots if s.get("koc_id")):
+            continue
         for i, slot in enumerate(t.koc_slots):
             if not slot.get("koc_id"):
+                koc_uid = _get_koc_user_id(koc_id)
+                if t.pledge_koc > 0:
+                    pledge_result = credit_store.deduct_credits(
+                        koc_uid, t.pledge_koc, "pledge_koc",
+                        t.id, f"Pledge for task: {t.product_name}"
+                    )
+                    if pledge_result is None:
+                        raise HTTPException(400, f"Insufficient credits for KOC pledge ({t.pledge_koc} pt)")
+
                 # 填入已有空位
-                task_store.update_slot(t.id, i, _make_slot(koc_id))
+                new_slot = _make_slot(koc_id)
+                new_slot["pledge_paid"] = t.pledge_koc > 0
+                task_store.update_slot(t.id, i, new_slot)
+                _sync_task_status(t.id)
                 return {"task_id": t.id, "slot_index": i, "action": "filled"}
 
     # 无可用空位 → 自动创建 long_term 任务（含质押）
@@ -90,6 +123,44 @@ def auto_assign_koc_to_product(koc_id: str, product_id: str) -> dict | None:
         commission=parsed_commission,
         created_at=now,
     )
+
+    merchant_uid = _get_merchant_user_id(product.merchant_id)
+    koc_uid = _get_koc_user_id(koc_id)
+
+    fee_result = credit_store.deduct_credits(
+        merchant_uid, PLATFORM_SERVICE_FEE, "platform_fee",
+        task.id, f"Platform service fee for auto-created task: {task.product_name}"
+    )
+    if fee_result is None:
+        raise HTTPException(400, f"Merchant has insufficient credits for platform fee ({PLATFORM_SERVICE_FEE} pt)")
+
+    merchant_pledge_result = credit_store.deduct_credits(
+        merchant_uid, task.pledge_merchant, "pledge_merchant",
+        task.id, f"Merchant pledge for auto-created task: {task.product_name}"
+    )
+    if merchant_pledge_result is None:
+        credit_store.add_credits(
+            merchant_uid, PLATFORM_SERVICE_FEE, "pledge_fee_rollback",
+            task.id, "Rollback: auto-created task merchant pledge failed"
+        )
+        raise HTTPException(400, f"Merchant has insufficient credits for pledge ({task.pledge_merchant} pt)")
+
+    koc_pledge_result = credit_store.deduct_credits(
+        koc_uid, task.pledge_koc, "pledge_koc",
+        task.id, f"Pledge for auto-created task: {task.product_name}"
+    )
+    if koc_pledge_result is None:
+        credit_store.add_credits(
+            merchant_uid, PLATFORM_SERVICE_FEE, "pledge_fee_rollback",
+            task.id, "Rollback: auto-created task KOC pledge failed"
+        )
+        credit_store.add_credits(
+            merchant_uid, task.pledge_merchant, "pledge_merchant_rollback",
+            task.id, "Rollback: auto-created task KOC pledge failed"
+        )
+        raise HTTPException(400, f"Insufficient credits for KOC pledge ({task.pledge_koc} pt)")
+
+    task.koc_slots[0]["pledge_paid"] = task.pledge_koc > 0
     task_store.create(task)
     return {"task_id": task.id, "slot_index": 0, "action": "created"}
 
@@ -142,6 +213,10 @@ def express_interest(data: dict, current_user: dict = Depends(get_current_user))
                         break
         return result
 
+    assign_result = None
+    if role == "koc" and to_type == "product":
+        assign_result = auto_assign_koc_to_product(from_id, to_id)
+
     # 创建意向记录
     interest = Interest(
         from_role=role,
@@ -152,15 +227,10 @@ def express_interest(data: dict, current_user: dict = Depends(get_current_user))
     interest_store.create(interest)
     result = interest.model_dump()
 
-    # ═══════════════════════════════════════════
-    # 自动接单：KOC 对产品感兴趣 → 直接分配任务
-    # ═══════════════════════════════════════════
-    if role == "koc" and to_type == "product":
-        assign_result = auto_assign_koc_to_product(from_id, to_id)
-        if assign_result:
-            result["task_id"] = assign_result["task_id"]
-            result["slot_index"] = assign_result["slot_index"]
-            result["auto_assigned"] = True
+    if assign_result:
+        result["task_id"] = assign_result["task_id"]
+        result["slot_index"] = assign_result["slot_index"]
+        result["auto_assigned"] = True
 
     return result
 

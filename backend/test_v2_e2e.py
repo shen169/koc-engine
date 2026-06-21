@@ -33,6 +33,8 @@ mp = ok(requests.post(BASE + "/merchants", json={
 mid = mp["id"]
 prod = ok(requests.post(BASE + "/products", json={
     "name": "Wireless Earbuds V4",
+    "category": "electronics",
+    "commission_value": "30%",
 }, headers=auth_headers(mt)))
 pid = prod["id"]
 print("   Merchant: trust={}, product={}".format(mp["trust_score"], prod["name"]))
