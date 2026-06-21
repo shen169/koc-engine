@@ -470,6 +470,19 @@ def reject_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
         # 信任分联动校准等级
         sync_koc_tier(koc_id)
 
+    # ── 通知商家：KOC 拒绝了任务 ──
+    if task.merchant_id:
+        m = merchant_store.get(task.merchant_id)
+        if m:
+            notify_user(
+                m.user_id,
+                "deadline",
+                "KOC Declined Task — Slot Released",
+                f"A KOC has declined {task.product_name}. The system will attempt to rematch the slot.",
+                task_id=task_id,
+                resource_path=f"/dashboard/tasks/{task_id}",
+            )
+
     # 标记超时 → 触发重推
     now = datetime.utcnow().isoformat()
     task_store.update_slot(task_id, slot_index, {
@@ -615,6 +628,19 @@ def receive_task(task_id: str, slot_index: int, data: dict, current_user: dict =
 
     # 如果所有 shipped slot 都已 received → 进入 creating
     _sync_task_status(task_id)
+
+    # ── 通知商家：KOC 已确认收货 ──
+    if task.merchant_id:
+        m = merchant_store.get(task.merchant_id)
+        if m:
+            notify_user(
+                m.user_id,
+                "task_shipped",
+                "KOC Confirmed Receipt",
+                f"A KOC has confirmed receipt of {task.product_name}. Content creation in progress.",
+                task_id=task_id,
+                resource_path=f"/dashboard/tasks/{task_id}",
+            )
 
     return {
         "status": "received",
@@ -912,6 +938,30 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
 
                 _sync_task_status(task_id)
 
+                # ── 通知 KOC：AI 推翻商家拒因，内容通过 ──
+                total_earned = (task.commission if slot.get("pledge_paid") else 0) + (KOC_FIXED_PLEDGE - KOC_PLATFORM_FEE)
+                if koc_uid:
+                    notify_user(
+                        koc_uid,
+                        "content_reviewed",
+                        "AI Overruled — Content Approved",
+                        f"{task.product_name}: AI overruled the merchant's rejection. {total_earned}pt credited (commission + pledge return). Reason: {judge_result['reason']}",
+                        task_id=task_id,
+                        resource_path=f"/portal/tasks/{task_id}",
+                    )
+
+                # ── 通知商家：AI 推翻驳回 ──
+                m = merchant_store.get(task.merchant_id)
+                if m and m.user_id:
+                    notify_user(
+                        m.user_id,
+                        "content_reviewed",
+                        "AI Overruled Your Rejection — Content Approved",
+                        f"{task.product_name}: AI reviewed the content and overruled your rejection. Commission released to KOC. Reason: {judge_result['reason']}",
+                        task_id=task_id,
+                        resource_path=f"/dashboard/tasks/{task_id}",
+                    )
+
                 return {
                     "status": "approved",
                     "task_id": task_id,
@@ -948,6 +998,31 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
 
                 _sync_task_disputed(task_id)
 
+                # ── 通知 KOC：AI 终审判不通过 ──
+                if koc_id:
+                    koc_uid = _get_koc_user_id(koc_id)
+                    if koc_uid:
+                        notify_user(
+                            koc_uid,
+                            "violation",
+                            "AI Final Judgment — Content Rejected",
+                            f"{task.product_name}: AI reviewed your content and upheld the merchant's rejection. 10pt pledge forfeited, Trust Score -15. Reason: {judge_result['reason']}",
+                            task_id=task_id,
+                            resource_path=f"/portal/tasks/{task_id}",
+                        )
+
+                # ── 通知商家：AI 终审驳回 KOC ──
+                m_uid = _get_merchant_user_id(task.merchant_id)
+                if m_uid:
+                    notify_user(
+                        m_uid,
+                        "content_reviewed",
+                        "AI Final Judgment — KOC Content Rejected",
+                        f"{task.product_name}: AI upheld your rejection. {task.commission}pt commission refunded. Reason: {judge_result['reason']}",
+                        task_id=task_id,
+                        resource_path=f"/dashboard/tasks/{task_id}",
+                    )
+
                 return {
                     "status": "timed_out",
                     "task_id": task_id,
@@ -964,6 +1039,20 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
             "review_feedback": feedback,
             "revision_count": revision_count,
         })
+
+        # ── 通知 KOC：内容需修改 ──
+        if koc_id:
+            koc_uid = _get_koc_user_id(koc_id)
+            if koc_uid:
+                revisions_left = MAX_REVISIONS + 1 - revision_count
+                notify_user(
+                    koc_uid,
+                    "deadline",
+                    "Content Needs Revision",
+                    f"{task.product_name}: Brand requested revisions. Reason: {feedback}. You have {revisions_left} resubmission attempt(s) remaining. Deadline: 3 days.",
+                    task_id=task_id,
+                    resource_path=f"/portal/tasks/{task_id}",
+                )
 
         return {
             "status": "revision_requested",

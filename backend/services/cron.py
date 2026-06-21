@@ -1,4 +1,4 @@
-"""Cron 周期扫描 V2 — 超时检测 + 自动处理 + 诚信度 + 物流追踪"""
+"""Cron 周期扫描 V2 — 超时检测 + 自动处理 + 诚信度 + 物流追踪 + 通知"""
 
 from datetime import datetime, timedelta, timezone
 from config import GHOSTED_GRACE_DAYS, STALE_DAYS, SLA_CONTENT_REVIEW_DAYS, SLA_REVISION_DAYS, MAX_REVISIONS, KOC_PLATFORM_FEE, KOC_FIXED_PLEDGE
@@ -8,6 +8,7 @@ from stores.merchant_store import merchant_store
 from stores.credit_store import credit_store
 from stores.user_store import user_store
 from services.matcher import rematch_slot
+from services.notifier import notify_user
 
 
 # ═══════════════════════════════════════════
@@ -239,11 +240,11 @@ def check_ghosted_status() -> list[dict]:
                             "days_left": days_left,
                         })
 
-            # KOC 被驳回后未重新提交
+            # KOC 被驳回后未重新提交（修改期 = SLA_REVISION_DAYS）
             if slot_status == "revision_requested":
                 reviewed_at = _parse_ts(slot.get("reviewed_at", ""))
                 if reviewed_at:
-                    days_left = SLA_CONTENT_REVIEW_DAYS - (now - reviewed_at).days
+                    days_left = SLA_REVISION_DAYS - (now - reviewed_at).days
                     if 0 < days_left <= 1:
                         alerts.append({
                             "type": "revision_due_soon",
@@ -325,12 +326,22 @@ def _handle_merchant_ship_timeout(task):
                                          "breach_compensation_koc", task.id,
                                          f"Merchant breach compensation: {task.product_name}",
                                          withdrawable=True)
+                # ── 通知 KOC：商家违约，质押全额退回 ──
+                notify_user(
+                    koc_uid,
+                    "violation",
+                    "Brand Failed to Ship — Pledge Refunded",
+                    f"{task.product_name}: Brand did not ship within 48 hours. Your 10pt pledge has been refunded in full.",
+                    task_id=task.id,
+                    resource_path=f"/portal/tasks/{task.id}",
+                )
             task_store.update_slot(task.id, i, {
                 "status": "timed_out",
                 "pledge_paid": False,
             })
 
-    # 商家不退还佣金池（stays deducted）
+    # 商家不退还佣金池（stays deducted — 违约惩罚）
+
     # 扣商家诚信度
     m = merchant_store.get(task.merchant_id)
     if m:
@@ -339,6 +350,17 @@ def _handle_merchant_ship_timeout(task):
             "total_tasks_disputed": m.total_tasks_disputed + 1,
         })
         sync_merchant_tier(task.merchant_id)
+
+        # ── 通知商家：违约 ──
+        if m.user_id:
+            notify_user(
+                m.user_id,
+                "violation",
+                "Shipping Deadline Missed — Task Disputed",
+                f"You did not ship {task.product_name} within 48 hours. Your Trust Score -20 and the task has been disputed. Commission pool is forfeited.",
+                task_id=task.id,
+                resource_path=f"/dashboard/tasks/{task.id}",
+            )
 
     task_store.update(task.id, {"task_status": "disputed"})
 
@@ -367,6 +389,31 @@ def _handle_submit_timeout(task, slot_index: int, koc_id: str):
     task_store.update_slot(task.id, slot_index, {"status": "timed_out"})
     _sync_task_disputed(task.id)
 
+    # ── 通知 KOC：违约 ──
+    if koc_id:
+        koc_uid = _get_koc_user_id(koc_id)
+        if koc_uid:
+            notify_user(
+                koc_uid,
+                "violation",
+                "Content Submission Timeout — Pledge Forfeited",
+                f"{task.product_name}: You missed the 14-day content submission deadline. Your 10pt pledge has been forfeited and Trust Score -15.",
+                task_id=task.id,
+                resource_path=f"/portal/tasks/{task.id}",
+            )
+
+    # ── 通知商家：KOC 违约，commission 退回 ──
+    m_uid = _get_merchant_user_id(task.merchant_id)
+    if m_uid and task.commission > 0:
+        notify_user(
+            m_uid,
+            "violation",
+            "KOC Missed Submission Deadline — Commission Refunded",
+            f"{task.product_name}: A KOC missed the content submission deadline. {task.commission}pt commission has been refunded to your account.",
+            task_id=task.id,
+            resource_path=f"/dashboard/tasks/{task.id}",
+        )
+
 
 def _handle_auto_approve(task, slot_index: int, koc_id: str):
     """商家超时未审核 KOC 提交内容 → 自动通过 → 佣金给 KOC + 退质押 − 平台费"""
@@ -382,6 +429,7 @@ def _handle_auto_approve(task, slot_index: int, koc_id: str):
 
     # KOC 到手: commission + (KOC_FIXED_PLEDGE − KOC_PLATFORM_FEE)
     koc_uid = _get_koc_user_id(koc_id) if koc_id else ""
+    koc_return = 0
     if slot.get("pledge_paid"):
         if task.commission > 0 and koc_uid:
             credit_store.add_credits(koc_uid, task.commission, "commission_earned",
@@ -418,6 +466,29 @@ def _handle_auto_approve(task, slot_index: int, koc_id: str):
         })
         sync_merchant_tier(task.merchant_id)
 
+    # ── 通知 KOC：自动通过，佣金到账 ──
+    total_earned = (task.commission if slot.get("pledge_paid") else 0) + koc_return
+    if koc_uid:
+        notify_user(
+            koc_uid,
+            "auto_approved",
+            "Content Auto-Approved — Earnings Credited",
+            f"{task.product_name}: Brand did not review within 3 days — content auto-approved. {total_earned}pt credited (commission + pledge return).",
+            task_id=task.id,
+            resource_path=f"/portal/tasks/{task.id}",
+        )
+
+    # ── 通知商家：超时自动通过 ──
+    if m and m.user_id:
+        notify_user(
+            m.user_id,
+            "auto_approved",
+            "Content Auto-Approved — Review Deadline Missed",
+            f"{task.product_name}: You missed the 3-day review window. Content has been auto-approved and commission released to KOC.",
+            task_id=task.id,
+            resource_path=f"/dashboard/tasks/{task.id}",
+        )
+
 
 def _handle_revision_timeout(task, slot_index: int, koc_id: str):
     """商家驳回后 KOC 超时未重新提交 → 按 KOC 违约处理"""
@@ -441,6 +512,31 @@ def _handle_revision_timeout(task, slot_index: int, koc_id: str):
 
     task_store.update_slot(task.id, slot_index, {"status": "timed_out"})
     _sync_task_disputed(task.id)
+
+    # ── 通知 KOC：修改超时，质押没收 ──
+    if koc_id:
+        koc_uid = _get_koc_user_id(koc_id)
+        if koc_uid:
+            notify_user(
+                koc_uid,
+                "violation",
+                "Revision Timeout — Pledge Forfeited",
+                f"{task.product_name}: You missed the 3-day revision deadline. Your 10pt pledge has been forfeited and Trust Score -15.",
+                task_id=task.id,
+                resource_path=f"/portal/tasks/{task.id}",
+            )
+
+    # ── 通知商家：KOC 修改超时，commission 退回 ──
+    m_uid = _get_merchant_user_id(task.merchant_id)
+    if m_uid and task.commission > 0:
+        notify_user(
+            m_uid,
+            "violation",
+            "KOC Missed Revision Deadline — Commission Refunded",
+            f"{task.product_name}: KOC did not resubmit within 3 days. {task.commission}pt commission has been refunded to your account.",
+            task_id=task.id,
+            resource_path=f"/dashboard/tasks/{task.id}",
+        )
 
 
 # ═══════════════════════════════════════════

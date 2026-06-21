@@ -1,4 +1,10 @@
-"""Unified notification helper — creates in-app notification + email/Feishu"""
+"""Unified notification helper — in-app + email + Feishu
+
+三通道通知体系（V2）：
+- KOC：站内信 + 邮件
+- 商家：站内信 + 邮件 + 飞书 Webhook
+- Admin：仅站内信
+"""
 
 import logging
 from models import Notification
@@ -6,10 +12,7 @@ from stores.notification_store import notification_store
 from stores.user_store import user_store
 from stores.koc_store import koc_store
 from stores.merchant_store import merchant_store
-from services.email_service import (
-    send_welcome_email, send_match_email, send_ship_email,
-    send_review_email, send_violation_email, send_warning_email,
-)
+from services.email_service import send_email_async
 from services.lark_notifier import notify_merchant_lark
 
 log = logging.getLogger("notifier")
@@ -24,15 +27,22 @@ def _get_koc_email(user_id: str) -> str | None:
     u = user_store.get_by_id(user_id)
     if not u or u.role != "koc":
         return None
-    # KOC email: check koc_profiles or user table
+    # KOC email: check koc_profiles → user table
     koc_list = koc_store.list_all()
     for k in koc_list:
         if k.email:
-            # Find matching user by email
             ku = user_store.get_by_email(k.email)
             if ku and ku.id == user_id:
                 return k.email
     return u.email
+
+
+def _get_merchant_email(user_id: str) -> str | None:
+    """通过 user_id 获取商家邮箱"""
+    u = user_store.get_by_id(user_id)
+    if not u or u.role != "merchant":
+        return None
+    return u.email or None
 
 
 def _get_merchant_webhook(user_id: str) -> str:
@@ -49,11 +59,14 @@ def notify_user(
     resource_path: str = "",
 ):
     """
-    1. Create in-app notification in notification_store
-    2. Send email to KOC
-    3. Send Feishu to merchant
+    统一通知入口：站内信 + 邮件 + 飞书。
+    - KOC：站内信 + 邮件
+    - 商家：站内信 + 邮件 + 飞书
     """
-    # 1. In-app notification
+    if not user_id:
+        return
+
+    # ① 站内信（所有人）
     notif = Notification(
         user_id=user_id,
         type=ntype,
@@ -66,18 +79,18 @@ def notify_user(
 
     role = _get_user_role(user_id)
 
-    # 2. Email for KOC
+    # ② 邮件（KOC + 商家）
     if role == "koc":
         email = _get_koc_email(user_id)
-        if email:
-            log.info(f"[notify] KOC {user_id} email={email} type={ntype}")
-            # Don't auto-send here — caller provides email param explicitly
-            # We handle specific email sends in the hook points below
-        else:
-            log.warning(f"[notify] KOC {user_id} has no email")
+    elif role == "merchant":
+        email = _get_merchant_email(user_id)
+    else:
+        email = None
 
-    # 3. Feishu for merchant
+    if email:
+        send_email_async(email, title, message)
+
+    # ③ 飞书 Webhook（商家专属）
     if role == "merchant":
         webhook = _get_merchant_webhook(user_id)
         notify_merchant_lark(webhook, title, message, resource_path)
-        log.info(f"[notify] merchant {user_id} lark webhook={'set' if webhook else 'none'}")

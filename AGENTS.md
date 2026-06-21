@@ -223,12 +223,14 @@ koc-engine/
    | Stage | Deadline | Timeout Action |
    |------|------|---------|
    | KOC Accept | 12h | Auto-redistribute (no penalty) |
-   | Merchant Ship | 48h | Violation: return KOC pledge + deduct merchant 20 Trust Score |
+   | Merchant Ship | 48h | Violation: return KOC pledge + deduct merchant 20 Trust Score. Commission pool forfeited (not refunded) |
    | KOC Confirm Receipt | 7d | Auto-confirm receipt |
-   | KOC Submit Content | 14d | Violation: return merchant pledge + deduct KOC 15 Trust Score |
-   | Merchant Review Content | 4d | Auto-approve (return pledge + restore Trust, protects KOC) |
-   | KOC Revision Resubmit | 3d | Timeout treated as KOC violation |
+   | KOC Submit Content | 14d | Violation: return commission to merchant + forfeit KOC 10pt pledge + KOC Trust -15 |
+   | Merchant Review Content | 3d | Auto-approve → KOC gets commission + 9pt, both Trust +3 |
+   | KOC Revision Resubmit | 3d | Timeout → same as submit timeout (KOC violation) |
    | Long-term Empty Slot | 7d | System intervenes with auto-match |
+
+   **AI Content Judgment**: 1 revision allowed. Second merchant rejection → DeepSeek v4 makes final binding decision (approve→force pay / reject→KOC violation).
 
 8. **AI Scoring Fallback**: When DeepSeek API is unavailable, auto-falls back to mock scores (based on handle hash + follower count bonus), does not block application flow.
 
@@ -246,7 +248,38 @@ koc-engine/
     - Receipt verification: KOC can upload `receipt_photo_urls` (unboxing photos) + `receipt_notes`
     - Tracking automation: cron daily queries all shipped slots → carrier confirms delivery → auto-mark received. Supports FedEx/DHL/USPS/UPS/SF-Express and other major carriers, API query + web parsing dual-path fallback, result caching to avoid frequent requests
 
-12. **Red Line Warning System** (V2.2): SLA deadlines are surfaced to users at 3 touchpoints:
+12. **Notification System** (V2.3): Three-channel notification for every lifecycle event:
+    - **KOC**: In-app + Email
+    - **Merchant**: In-app + Email + Feishu Webhook
+    - **Admin**: In-app only
+
+    | Event | KOC | Merchant | Trigger |
+    |------|:--:|:--:|------|
+    | Task accepted | — | ✅ | accept_task |
+    | Task declined | — | ✅ | reject_task |
+    | Sample shipped | ✅ | — | ship_task |
+    | Receipt confirmed | — | ✅ | receive_task |
+    | Content submitted | — | ✅ | submit_content |
+    | Content approved | ✅ | — | review (approve) |
+    | Revision requested | ✅ | — | review (reject 1st) |
+    | AI overruled → approve | ✅ | ✅ | review (reject 2nd) |
+    | AI rejected KOC | ✅ | ✅ | review (reject 2nd) |
+    | Auto-approved (cron) | ✅ | ✅ | cron timeout |
+    | Submit timeout (cron) | ✅ | ✅ | cron timeout |
+    | Revision timeout (cron) | ✅ | ✅ | cron timeout |
+    | Ship timeout (cron) | ✅ | ✅ | cron timeout |
+    | Application approved | ✅ | — | application auto-approve |
+
+    All notifications go through `notify_user()` in `services/notifier.py` — the single entry point. Cron handlers call it directly. Email templates in `services/email_service.py` updated to V2 economic model (1pt=$1, commission + 9pt return, SLA deadlines).
+
+13. **Hook System** — All automated state transitions:
+    - **Cron hooks** (7, every 1h): accept timeout / ship timeout / receive auto-confirm / submit timeout / review auto-approve / revision timeout / long-term idle rematch
+    - **Event hooks** (7, in routes): task publish→auto-match / accept→deduct pledge / reject→rematch / ship→notify / interest→auto-accept / submit→pending review / review→approve|reject|AI judge
+    - **Trust hooks** (2): every trust score change → `sync_koc_tier()` / `sync_merchant_tier()` auto-calibrates tier (bidirectional, can go up or down)
+    - **Performance hook** (1): content metrics update → `_sync_koc_performance()` recalculates performance_score via log-scale normalization
+    - **Tracking hook** (1): daily carrier query → auto-receive on delivery confirmation
+
+14. **Red Line Warning System** (V2.2): SLA deadlines are surfaced to users at 3 touchpoints:
     - **Before action**: `CommitmentConfirm` modal with mandatory checkbox listing commitments, pledge rules, and penalty red lines
     - **During active task**: `DeadlineBadge` countdown timer with 4 states (green >7d, amber 3-7d with pulse, red <3d with pulse, dark red expired)
     - **After violation**: Timed-out state panel showing exact loss breakdown (pledge forfeited, Trust Score deduction, tier impact)
