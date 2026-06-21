@@ -178,10 +178,10 @@ export default function NewTaskPage() {
               </div>
             </div>
 
-            {/* Commission (reference for affiliate link, NOT paid in points) */}
+            {/* Commission (platform points paid to KOC on completion) */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                💰 Commission Reference ($/KOC, for pledge calculation; actual commission via affiliate link)
+                💰 Commission per KOC (pt, paid in platform points on completion)
               </label>
               <input
                 type="number"
@@ -191,7 +191,7 @@ export default function NewTaskPage() {
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
               <p className="text-xs text-gray-400 mt-1">
-                KOCs promote via commission links. Transaction commissions are settled automatically by the affiliate platform. This value is for pledge calculation reference only.
+                KOC receives (commission − 5pt) on merchant approval. Merchant pledge = commission × KOC count (fully refunded on completion). Platform deducts 5pt service fee from KOC payout.
               </p>
             </div>
 

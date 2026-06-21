@@ -465,7 +465,7 @@ export default function KocTaskDetailPage() {
                   pledge={[
                     { icon: "🔒", text: `Accepting freezes ${task?.pledge_koc || 0} pt pledge` },
                     { icon: "💵", text: `${Math.max(0, (task?.pledge_koc || 0) - 5)} pt returned on completion (platform deducts 5 pt service fee)` },
-                    { icon: "💰", text: "Commission via product affiliate link; platform points are not used for commission payouts" },
+                    { icon: "💰", text: "Commission paid in platform points; you receive (pledge − 5pt) on merchant approval" },
                   ]}
                   redlines={[
                     { icon: "⏰", text: `No submission in 14 days: forfeit ${task?.pledge_koc || 0}pt pledge + deduct 15 Trust Score + possible tier downgrade` },
@@ -520,7 +520,7 @@ export default function KocTaskDetailPage() {
                       pledge={[
                         { icon: "🔒", text: `Accepting freezes ${task?.pledge_koc || 0} pt pledge` },
                         { icon: "💵", text: `${Math.max(0, (task?.pledge_koc || 0) - 5)} pt returned on completion (platform deducts 5 pt service fee)` },
-                        { icon: "💰", text: "Commission via product affiliate link; platform points are not used for commission payouts" },
+                        { icon: "💰", text: "Commission paid in platform points; you receive (pledge − 5pt) on merchant approval" },
                       ]}
                       redlines={[
                         { icon: "⏰", text: `No submission in 14 days: forfeit ${task?.pledge_koc || 0}pt pledge + deduct 15 Trust Score + possible tier downgrade` },
@@ -610,7 +610,7 @@ export default function KocTaskDetailPage() {
                   {submitting ? "Submitting..." : "🚀 Submit Content (Complete Fulfillment)"}
                 </button>
                 <p className="text-xs text-gray-400 text-center">
-                  {Math.max(0, (task?.pledge_koc || 0) - 5)} pt returned on submission (pledge {task?.pledge_koc || 0} - platform fee 5), commission via affiliate link
+                  {Math.max(0, (task?.pledge_koc || 0) - 5)} pt returned on approval (pledge {task?.pledge_koc || 0} - platform fee 5), paid in platform points
                 </p>
               </div>
             )}
