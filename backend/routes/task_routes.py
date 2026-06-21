@@ -191,7 +191,6 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
                 "review_feedback": "",
                 "match_score": 0,
             })
-        task_store.update(task.id, {"koc_slots": slots})
 
     result = task_store.get(task.id).model_dump()
     result["matched_kocs"] = matched
@@ -554,7 +553,6 @@ def ship_task(task_id: str, data: dict, current_user: dict = Depends(get_current
                 "carrier": carrier,
                 "shipping_proof_urls": shipping_proof_urls,
             })
-
     # Notification: merchant shipped → notify KOC(s)
     task = task_store.get(task_id)
     koc_profile_ids = [s.get("koc_id") for s in task.koc_slots if s.get("koc_id")]
@@ -813,7 +811,6 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                 "total_collaborations": koc.total_collaborations + 1,
                 "trust_score": new_trust,
             })
-            sync_koc_tier(koc_id)
 
         # 恢复商家信任分 + 统计
         m = merchant_store.get(task.merchant_id)
@@ -824,12 +821,9 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                 "total_tasks_completed": m.total_tasks_completed + 1,
                 "trust_score": new_m_trust,
             })
-            sync_merchant_tier(task.merchant_id)
 
         # 同步 task 整体状态
         _sync_task_status(task_id)
-
-        return {
 
         # Notification: content approved → notify KOC
         if koc_id:
@@ -845,6 +839,8 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                         task_id=task_id,
                         resource_path=f"/portal/tasks/{task_id}",
                     )
+
+        return {
             "status": "approved",
             "task_id": task_id,
             "slot_index": slot_index,
@@ -863,6 +859,8 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                 "status": "timed_out",
                 "reviewed_at": now,
                 "review_feedback": feedback,
+                "revision_count": revision_count,
+            })
 
         # Notification: content rejected → notify KOC
         if koc_id:
@@ -874,13 +872,10 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                         koc_usr.id,
                         "content_reviewed",
                         "Content Needs Revision",
-                        f"Your content for {task.product_name} needs revision: {feedback or "Please review and resubmit."}",
+                        f"Your content for {task.product_name} needs revision: {feedback or 'Please review and resubmit.'}",
                         task_id=task_id,
                         resource_path=f"/portal/tasks/{task_id}",
                     )
-                "revision_count": revision_count,
-            })
-
             # 退商家质押
             merchant_return = _merchant_slot_pledge(task)
             if merchant_return > 0 and not slot.get("merchant_pledge_returned"):
