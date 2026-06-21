@@ -84,9 +84,8 @@ export default function AdminTasks() {
                 )}
               </div>
             </div>
-          ))}
+         ))}
         </div>
-        )}
       </div>
     </div>
   );
