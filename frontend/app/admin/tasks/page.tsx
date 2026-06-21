@@ -68,7 +68,7 @@ export default function AdminTasks() {
 
         <div className="space-y-3">
           {list.map((t) => (
-            <div key={t.id as string} className="bg-white rounded-xl border border-slate-100 p-4 flex justify-between items-center">
+            <Link key={t.id as string} href={`/admin/tasks/${t.id}`} className="bg-white rounded-xl border border-slate-100 p-4 flex justify-between items-center hover:shadow-md transition block">
               <div>
                 <span className="font-semibold text-slate-900">{t.product_name as string || "Task"}</span>
                 <div className="text-xs text-slate-400">{t.koc_id as string} · {t.sample_status as string} · {t.submit_url ? "✓ Submitted" : "No submission"}</div>
@@ -83,7 +83,7 @@ export default function AdminTasks() {
                   </button>
                 )}
               </div>
-            </div>
+            </Link>
          ))}
         </div>
       </div>
