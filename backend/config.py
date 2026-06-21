@@ -42,9 +42,11 @@ SCORE_THRESHOLD_L2 = 65       # ≥65 → L2
 SCORE_THRESHOLD_L3 = 80       # ≥80 → L3
 
 # Platform
-PLATFORM_SERVICE_FEE = 5          # 商家每发一个任务固定扣点（平台服务费）
-KOC_PLATFORM_FEE = 5              # KOC 每接一个 slot 固定扣点（平台服务费）
-PLEDGE_PER_SLOT = 10              # 双方每 slot 质押点数（默认最小值；实际质押以任务佣金值为准）
+PLATFORM_SERVICE_FEE = 5          # 商家每发一个任务固定扣点（平台服务费，不退）
+KOC_PLATFORM_FEE = 1              # KOC 每完成一个 slot 平台抽 1pt
+KOC_FIXED_PLEDGE = 10             # KOC 接单固定质押点（不退则没收，完成退 9pt）
+PT_TO_USD = 1.0                   # 点数兑美金汇率：1pt = $1 USD
+PLEDGE_PER_SLOT = 10              # 双方每 slot 质押点数（默认最小值）
 PLATFORM_PROFIT_RATE = 0.15       # 平台抽佣率（备用）
 
 # Cron
@@ -52,5 +54,6 @@ GHOSTED_GRACE_DAYS = 14       # due_at 过期后宽限天数
 STALE_DAYS = 30               # 无活动标记 stale
 
 # SLA: 内容审核超时
-SLA_CONTENT_REVIEW_DAYS = 4   # 商家审核 KOC 提交内容超时 → 自动通过
-MAX_REVISIONS = 3             # KOC 最多修改重提交次数，超出按违约处理
+SLA_CONTENT_REVIEW_DAYS = 3   # 商家审核 KOC 提交内容超时 → 自动通过
+SLA_REVISION_DAYS = 3          # KOC 驳回后修改超时 → 按违约处理
+MAX_REVISIONS = 1             # KOC 最多修改重提交次数（1 次，第 2 次 reject 触发 AI 终审）

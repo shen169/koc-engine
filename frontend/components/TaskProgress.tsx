@@ -58,7 +58,7 @@ function getSlotDeadline(slot: SlotStatus, pledgeKoc: number = 10): { deadline: 
     case "creating": {
       if (slot.received_at) {
         const ts = new Date(slot.received_at).getTime() + 14 * DAY;
-        const penaltyText = "Late submission: deduct 15 Trust Score + forfeit " + pledgeKoc + "pt pledge";
+        const penaltyText = "Late submission: deduct 15 Trust Score + forfeit 10pt pledge";
         return { deadline: new Date(ts).toISOString(), label: "Submission Deadline", penalty: penaltyText };
       }
       return null;
@@ -66,7 +66,7 @@ function getSlotDeadline(slot: SlotStatus, pledgeKoc: number = 10): { deadline: 
     case "submitted": {
       if (slot.submitted_at) {
         const ts = new Date(slot.submitted_at).getTime() + 4 * DAY;
-        return { deadline: new Date(ts).toISOString(), label: "Review Deadline", penalty: "Auto-approve if merchant doesn't review in 4 days" };
+        return { deadline: new Date(ts).toISOString(), label: "Review Deadline", penalty: "Auto-approve if merchant doesn't review in 3 days" };
       }
       return null;
     }

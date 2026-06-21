@@ -302,7 +302,7 @@ export default function KocTaskDetailPage() {
               <div className="font-bold text-gray-900">${task.commission || 0}</div>
             </div>
             <div className="bg-gray-50 rounded-xl p-3">
-              <div className="text-gray-400 text-xs">Pledge (5 pt returned on completion)</div>
+              <div className="text-gray-400 text-xs">Pledge (9 pt + commission returned on completion)</div>
               <div className="font-bold text-gray-900">{task.pledge_koc || 0} pt</div>
             </div>
             <div className="bg-gray-50 rounded-xl p-3">
@@ -449,7 +449,7 @@ export default function KocTaskDetailPage() {
                   disabled={accepting}
                   className="w-full btn-brand text-white py-3.5 rounded-xl font-semibold text-lg disabled:opacity-50"
                 >
-                  {accepting ? "Accepting..." : `✅ Accept (Pledge ${task?.pledge_koc || 0} pt)`}
+                  {accepting ? "Accepting..." : `✅ Accept (Pledge 10 pt)`}
                 </button>
 
                 {/* Commitment confirm modal */}
@@ -463,15 +463,15 @@ export default function KocTaskDetailPage() {
                     { icon: "📊", text: "Update content performance data on platform after submission" },
                   ]}
                   pledge={[
-                    { icon: "🔒", text: `Accepting freezes ${task?.pledge_koc || 0} pt pledge` },
-                    { icon: "💵", text: `${Math.max(0, (task?.pledge_koc || 0) - 5)} pt returned on completion (platform deducts 5 pt service fee)` },
-                    { icon: "💰", text: "Commission paid in platform points; you receive (pledge − 5pt) on merchant approval" },
+                    { icon: "🔒", text: `Accepting freezes 10 pt pledge` },
+                    { icon: "💵", text: `9 pt returned on completion (platform deducts 1 pt service fee)` },
+                    { icon: "💰", text: `Commission (${task?.commission || 0} pt) paid in platform points on approval` },
                   ]}
                   redlines={[
-                    { icon: "⏰", text: `No submission in 14 days: forfeit ${task?.pledge_koc || 0}pt pledge + deduct 15 Trust Score + possible tier downgrade` },
+                    { icon: "⏰", text: `No submission in 14 days: forfeit 10pt pledge + deduct 15 Trust Score + possible tier downgrade` },
                     { icon: "🚫", text: "Reject task: deduct 3 Trust Score" },
                     { icon: "📋", text: "Maximum 5 concurrent tasks" },
-                    { icon: "🛡️", text: "Merchant doesn't ship in 48h: return your pledge + merchant deduct 20" },
+                    { icon: "🛡️", text: "Merchant doesn't ship in 48h: return your 10pt pledge + merchant deduct 20" },
                   ]}
                   confirmLabel="Confirm Acceptance"
                   onConfirm={handleConfirmAccept}
@@ -486,7 +486,7 @@ export default function KocTaskDetailPage() {
                   {rejecting ? "Rejecting..." : "❌ Reject (-3 Trust Score)"}
                 </button>
                 <p className="text-xs text-gray-400 text-center">
-                  Accepting freezes {task?.pledge_koc || 0} pt pledge; {Math.max(0, (task?.pledge_koc || 0) - 5)} pt returned on completion (platform deducts 5 pt service fee)
+                  Accepting freezes 10 pt pledge; 9 pt + commission returned on completion (platform deducts 1 pt)
                 </p>
               </div>
             )}
@@ -504,7 +504,7 @@ export default function KocTaskDetailPage() {
                       disabled={accepting}
                       className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3.5 rounded-xl font-semibold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 shadow-md shadow-pink-200"
                     >
-                      {accepting ? "Accepting..." : `🚀 Accept (Pledge ${task?.pledge_koc || 0} pt)`}
+                      {accepting ? "Accepting..." : `🚀 Accept (Pledge 10 pt)`}
                     </button>
 
                     {/* Commitment confirm modal for claim path */}
@@ -518,15 +518,15 @@ export default function KocTaskDetailPage() {
                         { icon: "📊", text: "Update content performance data on platform after submission" },
                       ]}
                       pledge={[
-                        { icon: "🔒", text: `Accepting freezes ${task?.pledge_koc || 0} pt pledge` },
-                        { icon: "💵", text: `${Math.max(0, (task?.pledge_koc || 0) - 5)} pt returned on completion (platform deducts 5 pt service fee)` },
-                        { icon: "💰", text: "Commission paid in platform points; you receive (pledge − 5pt) on merchant approval" },
+                        { icon: "🔒", text: `Accepting freezes 10 pt pledge` },
+                        { icon: "💵", text: `9 pt returned on completion (platform deducts 1 pt service fee)` },
+                        { icon: "💰", text: `Commission (${task?.commission || 0} pt) paid in platform points on approval` },
                       ]}
                       redlines={[
-                        { icon: "⏰", text: `No submission in 14 days: forfeit ${task?.pledge_koc || 0}pt pledge + deduct 15 Trust Score + possible tier downgrade` },
+                        { icon: "⏰", text: `No submission in 14 days: forfeit 10pt pledge + deduct 15 Trust Score + possible tier downgrade` },
                         { icon: "🚫", text: "Reject task: deduct 3 Trust Score" },
                         { icon: "📋", text: "Maximum 5 concurrent tasks" },
-                        { icon: "🛡️", text: "Merchant doesn't ship in 48h: return your pledge + merchant deduct 20" },
+                        { icon: "🛡️", text: "Merchant doesn't ship in 48h: return your 10pt pledge + merchant deduct 20" },
                       ]}
                       confirmLabel="Confirm Acceptance"
                       onConfirm={handleConfirmClaim}
@@ -534,7 +534,7 @@ export default function KocTaskDetailPage() {
                     />
 
                     <p className="text-xs text-gray-400 text-center">
-                      Accepting freezes {task?.pledge_koc || 0} pt pledge; {Math.max(0, (task?.pledge_koc || 0) - 5)} pt returned on completion (platform deducts 5 pt service fee)
+                      Accepting freezes 10 pt pledge; 9 pt + commission returned on completion (platform deducts 1 pt)
                     </p>
                   </>
                 ) : (
@@ -610,7 +610,7 @@ export default function KocTaskDetailPage() {
                   {submitting ? "Submitting..." : "🚀 Submit Content (Complete Fulfillment)"}
                 </button>
                 <p className="text-xs text-gray-400 text-center">
-                  {Math.max(0, (task?.pledge_koc || 0) - 5)} pt returned on approval (pledge {task?.pledge_koc || 0} - platform fee 5), paid in platform points
+                  Commission ({task?.commission || 0} pt) + 9 pt returned on approval (pledge 10 pt − 1 pt platform fee)
                 </p>
               </div>
             )}

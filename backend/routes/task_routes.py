@@ -12,9 +12,10 @@ from stores.product_store import product_store
 from services.matcher import match_kocs_for_task, rematch_slot
 from services.cron import sync_koc_tier, sync_merchant_tier
 from auth import get_current_user, require_admin
-from config import PLATFORM_SERVICE_FEE, KOC_PLATFORM_FEE, MAX_REVISIONS
+from config import PLATFORM_SERVICE_FEE, KOC_PLATFORM_FEE, KOC_FIXED_PLEDGE, MAX_REVISIONS
 from models import ContentMetrics
 from services.notifier import notify_user
+from services.content_judge import judge_submission
 
 router = APIRouter(tags=["tasks"])
 
@@ -39,12 +40,6 @@ def _get_current_koc_profile_id(current_user: dict) -> str:
     user = user_store.get_by_id(current_user["sub"])
     koc = koc_store.get_by_email(user.email) if user else None
     return koc.id if koc else current_user["sub"]
-
-
-def _merchant_slot_pledge(task: KocTask) -> int:
-    if task.koc_required > 0:
-        return max(0, task.pledge_merchant // task.koc_required)
-    return max(0, task.pledge_merchant)
 
 
 def _ensure_can_view_task(task: KocTask, current_user: dict):
@@ -89,9 +84,9 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
     koc_required = data.get("koc_required", 1)
     commission = data.get("commission", 30)
 
-    # ── 质押规则（以佣金为基准）──
-    pledge_merchant = commission * koc_required   # 商家质押 = 佣金 × KOC人数
-    pledge_koc = commission                        # KOC 质押 = 佣金值
+    # ── 质押规则 ──
+    pledge_merchant = commission * koc_required   # 商家佣金池（不退，发布时一次扣完）
+    pledge_koc = KOC_FIXED_PLEDGE                  # KOC 固定质押 10pt（完成退 9pt，违约不退）
 
     task = KocTask(
         merchant_id=merchant_id,
@@ -109,7 +104,7 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
     )
     task_store.create(task)
 
-    # ── 平台服务费 + 商家质押：建任务时立即扣除 ──
+    # ── 平台服务费 + 商家佣金池：建任务时立即扣除 ──
     m_uid = _get_merchant_user_id(merchant_id)
 
     # 1️⃣ 平台服务费 5pt（不退还）
@@ -120,16 +115,16 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
     if fee_result is None:
         raise HTTPException(400, f"Insufficient credits for platform fee ({PLATFORM_SERVICE_FEE} pts)")
 
-    # 2️⃣ 商家质押 commission × KOC人数（履约完成后全额退还）
+    # 2️⃣ 商家佣金池 commission × KOC人数（不退，完成时转给 KOC）
     if pledge_merchant > 0:
         pledge_result = credit_store.deduct_credits(
-            m_uid, pledge_merchant, "pledge_merchant",
-            task.id, f"Merchant pledge for task: {task.product_name} ({koc_required} slots × {commission}pt)"
+            m_uid, pledge_merchant, "commission_pool",
+            task.id, f"Commission pool for task: {task.product_name} ({koc_required} slots × {commission}pt)"
         )
         if pledge_result is None:
             # 回退平台费
-            credit_store.add_credits(m_uid, PLATFORM_SERVICE_FEE, "pledge_fee_rollback", task.id, "Rollback: pledge deduction failed")
-            raise HTTPException(400, f"Insufficient credits for merchant pledge ({pledge_merchant} pts for {koc_required} slots × {commission}pt)")
+            credit_store.add_credits(m_uid, PLATFORM_SERVICE_FEE, "pledge_fee_rollback", task.id, "Rollback: commission pool deduction failed")
+            raise HTTPException(400, f"Insufficient credits for commission pool ({pledge_merchant} pts for {koc_required} slots × {commission}pt)")
 
     # 自动匹配引擎：加急任务预填 slot，长线任务留空由 KOC 广场自主接单
     matched = []
@@ -776,7 +771,7 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
     now = datetime.utcnow().isoformat()
 
     if action == "approve":
-        # ── 审核通过 → 完成履约 + 确认佣金 ──
+        # ── 审核通过 → 完成履约 → 从佣金池转 commission 给 KOC + 退 KOC 质押 − 平台费 ──
         task_store.update_slot(task_id, slot_index, {
             "status": "approved",
             "reviewed_at": now,
@@ -784,23 +779,23 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
             "commission_paid": True,
         })
 
-        # 释放 KOC 质押（扣平台费）
+        # KOC 到手: commission(佣金) + (KOC_FIXED_PLEDGE − KOC_PLATFORM_FEE)(质押退回 − 平台费)
         koc_uid = _get_koc_user_id(koc_id) if koc_id else ""
-        if task.pledge_koc > 0 and slot.get("pledge_paid"):
-            koc_return = task.pledge_koc - KOC_PLATFORM_FEE
+        if slot.get("pledge_paid"):
+            # commission 从商家佣金池转给 KOC（withdrawable: KOC 自己挣的）
+            if task.commission > 0 and koc_uid:
+                credit_store.add_credits(koc_uid, task.commission, "commission_earned",
+                                         task_id, f"Commission earned: {task.product_name}",
+                                         withdrawable=True)
+            # 质押退回：10pt − 1pt 平台费 = 9pt（withdrawable: KOC 自己的钱回来）
+            koc_return = KOC_FIXED_PLEDGE - KOC_PLATFORM_FEE
             if koc_return > 0 and koc_uid:
                 credit_store.add_credits(koc_uid, koc_return, "pledge_return_koc",
-                                         task_id, f"Pledge returned (after platform fee): {task.product_name}")
+                                         task_id, f"Pledge returned (after {KOC_PLATFORM_FEE}pt fee): {task.product_name}",
+                                         withdrawable=True)
+            # 平台抽 1pt
             credit_store.add_credits("platform", KOC_PLATFORM_FEE, "koc_platform_fee",
                                      task_id, f"KOC platform fee from: {task.product_name}")
-
-        # 退还商家质押（全额）
-        merchant_return = _merchant_slot_pledge(task)
-        if merchant_return > 0 and not slot.get("merchant_pledge_returned"):
-            m_uid = _get_merchant_user_id(task.merchant_id)
-            credit_store.add_credits(m_uid, merchant_return, "pledge_return_merchant",
-                                     task_id, f"Pledge returned for: {task.product_name}")
-            task_store.update_slot(task_id, slot_index, {"merchant_pledge_returned": True})
 
         # 恢复 KOC 信任分 + 统计
         koc = koc_store.get(koc_id) if koc_id else None
@@ -835,7 +830,7 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                         koc_usr.id,
                         "content_reviewed",
                         "Content Approved",
-                        f"Your content for {task.product_name} has been approved. Pledge refunded.",
+                        f"Your content for {task.product_name} has been approved. {task.commission + koc_return}pt credited.",
                         task_id=task_id,
                         resource_path=f"/portal/tasks/{task_id}",
                     )
@@ -845,65 +840,124 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
             "task_id": task_id,
             "slot_index": slot_index,
             "reviewed_at": now,
-            "pledge_returned_koc": task.pledge_koc - KOC_PLATFORM_FEE if task.pledge_koc > 0 else 0,
-            "pledge_returned_merchant": merchant_return,
+            "commission_earned": task.commission,
+            "pledge_returned_koc": koc_return if slot.get("pledge_paid") else 0,
         }
 
     else:  # reject
-        # ── 驳回 → KOC 修改重交 ──
+        # ── 驳回 → KOC 修改重交（1 次机会）──
         revision_count = slot.get("revision_count", 0) + 1
 
-        if revision_count >= MAX_REVISIONS:
-            # 超出修改次数 → 按 KOC 违约处理
-            task_store.update_slot(task_id, slot_index, {
-                "status": "timed_out",
-                "reviewed_at": now,
-                "review_feedback": feedback,
-                "revision_count": revision_count,
-            })
+        if revision_count > MAX_REVISIONS:
+            # ── 第 2 次 reject → AI 终审 ──
+            koc_for_judge = koc_store.get(koc_id) if koc_id else None
+            judge_result = judge_submission(
+                product_name=task.product_name,
+                product_category="",
+                product_description="",
+                content_urls=slot.get("content_urls", []),
+                content_data=slot.get("content_data", {}),
+                merchant_rejection_reasons=[
+                    slot.get("review_feedback", ""),
+                    feedback,
+                ],
+                koc_handle=koc_for_judge.handle if koc_for_judge else "",
+                koc_follower_count=koc_for_judge.follower_count if koc_for_judge else 0,
+                koc_performance_score=koc_for_judge.performance_score if koc_for_judge else 0.0,
+                koc_completed_tasks=koc_for_judge.completed_tasks if koc_for_judge else 0,
+                accepted_at=slot.get("accepted_at", ""),
+                submitted_at=slot.get("submitted_at", ""),
+            )
 
-        # Notification: content rejected → notify KOC
-        if koc_id:
-            koc_prof = koc_store.get(koc_id)
-            if koc_prof and koc_prof.email:
-                koc_usr = user_store.get_by_email(koc_prof.email)
-                if koc_usr:
-                    notify_user(
-                        koc_usr.id,
-                        "content_reviewed",
-                        "Content Needs Revision",
-                        f"Your content for {task.product_name} needs revision: {feedback or 'Please review and resubmit.'}",
-                        task_id=task_id,
-                        resource_path=f"/portal/tasks/{task_id}",
-                    )
-            # 退商家质押
-            merchant_return = _merchant_slot_pledge(task)
-            if merchant_return > 0 and not slot.get("merchant_pledge_returned"):
-                m_uid = _get_merchant_user_id(task.merchant_id)
-                credit_store.add_credits(m_uid, merchant_return, "breach_compensation_merchant",
-                                         task_id, f"KOC max revisions exceeded: {task.product_name}")
-                task_store.update_slot(task_id, slot_index, {"merchant_pledge_returned": True})
+            if judge_result["verdict"] == "approve":
+                # AI 判 KOC 通过 → 同 approve 流程
+                task_store.update_slot(task_id, slot_index, {
+                    "status": "approved",
+                    "reviewed_at": now,
+                    "review_feedback": f"AI-approved (merchant rejected twice, AI overruled): {judge_result['reason']}",
+                    "commission_paid": True,
+                    "revision_count": revision_count,
+                })
 
-            # 扣 KOC 信任分
-            if koc_id:
-                koc = koc_store.get(koc_id)
-                if koc:
+                koc_uid = _get_koc_user_id(koc_id) if koc_id else ""
+                if slot.get("pledge_paid"):
+                    if task.commission > 0 and koc_uid:
+                        credit_store.add_credits(koc_uid, task.commission, "commission_earned",
+                                                 task_id, f"Commission earned (AI overruled): {task.product_name}",
+                                                 withdrawable=True)
+                    koc_return = KOC_FIXED_PLEDGE - KOC_PLATFORM_FEE
+                    if koc_return > 0 and koc_uid:
+                        credit_store.add_credits(koc_uid, koc_return, "pledge_return_koc",
+                                                 task_id, f"Pledge returned (AI overruled): {task.product_name}",
+                                                 withdrawable=True)
+                    credit_store.add_credits("platform", KOC_PLATFORM_FEE, "koc_platform_fee",
+                                             task_id, f"KOC platform fee (AI overruled): {task.product_name}")
+
+                if koc_for_judge:
                     koc_store.update(koc_id, {
-                        "trust_score": max(0, koc.trust_score - 15),
+                        "completed_tasks": koc_for_judge.completed_tasks + 1,
+                        "total_collaborations": koc_for_judge.total_collaborations + 1,
+                        "trust_score": min(100, koc_for_judge.trust_score + 3),
                     })
                     sync_koc_tier(koc_id)
 
-            _sync_task_disputed(task_id)
+                m = merchant_store.get(task.merchant_id)
+                if m:
+                    merchant_store.update(task.merchant_id, {
+                        "total_collaborations": m.total_collaborations + 1,
+                        "total_tasks_completed": m.total_tasks_completed + 1,
+                        "trust_score": min(100, m.trust_score + 3),
+                    })
+                    sync_merchant_tier(task.merchant_id)
 
-            return {
-                "status": "timed_out",
-                "task_id": task_id,
-                "slot_index": slot_index,
-                "reason": f"Max revisions ({MAX_REVISIONS}) exceeded → KOC defaulted",
-                "revision_count": revision_count,
-            }
+                _sync_task_status(task_id)
 
-        # 正常驳回 → KOC 可修改重交
+                return {
+                    "status": "approved",
+                    "task_id": task_id,
+                    "slot_index": slot_index,
+                    "verdict": "AI overruled merchant rejection",
+                    "ai_reason": judge_result["reason"],
+                    "ai_confidence": judge_result["confidence"],
+                }
+            else:
+                # AI 判 KOC 不通过 → KOC 违约
+                task_store.update_slot(task_id, slot_index, {
+                    "status": "timed_out",
+                    "reviewed_at": now,
+                    "review_feedback": f"AI-rejected: {judge_result['reason']}",
+                    "revision_count": revision_count,
+                })
+
+                # 退还 commission 给商家（该 slot KOC 没完成）
+                m_uid = _get_merchant_user_id(task.merchant_id)
+                credit_store.add_credits(m_uid, task.commission, "commission_returned",
+                                         task_id, f"Commission returned (KOC rejected by AI): {task.product_name}")
+
+                # KOC 质押 10pt 不退 → 全部给平台
+                credit_store.add_credits("platform", KOC_FIXED_PLEDGE, "forfeited_pledge",
+                                         task_id, f"KOC forfeited pledge: {task.product_name}")
+
+                if koc_id:
+                    koc = koc_store.get(koc_id)
+                    if koc:
+                        koc_store.update(koc_id, {
+                            "trust_score": max(0, koc.trust_score - 15),
+                        })
+                        sync_koc_tier(koc_id)
+
+                _sync_task_disputed(task_id)
+
+                return {
+                    "status": "timed_out",
+                    "task_id": task_id,
+                    "slot_index": slot_index,
+                    "verdict": "AI rejected KOC content",
+                    "ai_reason": judge_result["reason"],
+                    "ai_confidence": judge_result["confidence"],
+                }
+
+        # 第 1 次 reject → 正常驳回，KOC 可修改重交
         task_store.update_slot(task_id, slot_index, {
             "status": "revision_requested",
             "reviewed_at": now,
@@ -916,8 +970,8 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
             "task_id": task_id,
             "slot_index": slot_index,
             "revision_count": revision_count,
-            "revisions_remaining": MAX_REVISIONS - revision_count,
-            "message": f"Revision requested. KOC has {MAX_REVISIONS - revision_count} attempt(s) remaining.",
+            "revisions_remaining": MAX_REVISIONS + 1 - revision_count,
+            "message": f"Revision requested. KOC has {MAX_REVISIONS + 1 - revision_count} attempt(s) remaining. Next rejection triggers AI review.",
         }
 
 

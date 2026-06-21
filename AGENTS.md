@@ -7,8 +7,8 @@ Cross-border e-commerce KOC bilateral matching platform V2.
 **Core change (V1→V2):** From Admin manual matching → **auto-accept + Task Hall + pledge economy**.
 - Merchants publish tasks (Urgent = auto-match / Long-term = enter Task Hall)
 - KOCs browse and accept tasks in Task Hall, or express interest in products for auto-assignment
-- Both sides pledge pt → refunded on fulfillment (platform deducts 5pt service fee)
-- Commission paid in platform points: KOC receives (commission − 5pt) on merchant approval, merchant gets full pledge refund
+- Both sides deposit: merchant pre-pays commission pool (non-refundable), KOC puts 10pt pledge (9pt refunded on completion, 1pt platform fee)
+- Commission paid in platform points: KOC receives commission + 9pt on merchant approval
 
 Core rule: **Both sides cannot see each other's contact info**. The platform is the sole intermediary, managing all communication and fulfillment.
 
@@ -107,7 +107,7 @@ Merchant reviews KOC submission:
     ├─ approve → return both pledges + restore Trust Score (+3) + calibrate tier ✅
     ├─ reject → KOC revises and resubmits (max 3 times, exceeded → violation)
     └─ 4 days no review → cron auto-approves (protects KOC from malicious delays)
-Commission: KOC receives (commission − 5pt) platform points on merchant approval (5pt platform fee deducted)
+Commission: KOC receives (commission + 9pt) on merchant approval (from merchant's pre-paid commission pool; 1pt platform fee deducted from 10pt pledge)
 Mutual reviews
 
 Cron periodic scan (every hour; tracking every 24h):
@@ -204,10 +204,11 @@ koc-engine/
 4. **Urgent vs Long-term**: `task_type=urgent` → auto-triggers `match_kocs_for_task()` on publish to fill slots; `task_type=long_term` → creates empty slots for Task Hall, KOCs browse and accept independently, cron intervenes after 7 days if slots remain empty.
 
 5. **Pledge Economy**:
-   - Merchant per task publish: deduct **5pt** platform service fee (non-refundable) + **commission × koc_required** merchant pledge (fully refunded on KOC completion)
-   - Pledge per slot = **commission value** set by merchant at publish (NOT fixed 10pt). Merchant pledge deducted at publish, KOC pledge deducted on accept
-   - KOC submits + merchant approves → refund: KOC gets (commission - 5) pt, merchant gets **full pledge refund**
-   - Commission paid in platform points: KOC receives (commission − 5pt) on approval, merchant gets full pledge refund. The `commission` field on KocTask determines both pledge amounts and the actual KOC payout
+   - Merchant per task publish: deduct **5pt** platform service fee (non-refundable) + **commission × koc_required** commission pool (non-refundable, paid to KOCs on completion)
+   - KOC accept: deduct fixed **10pt** pledge. On completion: KOC gets **commission + 9pt** (10pt − 1pt platform fee). Commission pool is NOT refunded to merchant.
+   - KOC breach: commission returned to merchant, KOC forfeits 10pt pledge. Merchant breach: KOC gets full 10pt pledge back.
+   - AI content judgment: 1 revision allowed. Second merchant rejection → AI (DeepSeek v4) makes final binding decision.
+   - Commission is paid in platform points (withdrawable). 1pt = $1 USD.
 
    - Repeat collaboration bonus: same merchant×KOC history → match score boost (+3 each time, max 15; avg rating ≥4.0 → extra +5)
 
@@ -395,12 +396,14 @@ koc-engine/
 
 | Constant | Value | Description |
 |------|:--:|------|
-| KOC Registration Initial | 1000pt | Granted on registration |
-| Merchant Registration Initial | 5000pt | Granted on registration |
-| Platform Service Fee | 5pt | Deducted per task publish (non-refundable) |
-| KOC Platform Fee | 5pt | Deducted from KOC pledge per slot completion |
-| Per-slot Pledge | commission value | Each side pledges based on task commission (merchant at publish, KOC on accept) |
-| Referral Reward | 10pt | Referrer receives |
+| KOC Registration Initial | 1000pt (bonus) | Granted on registration, non-withdrawable |
+| Merchant Registration Initial | 5000pt (bonus) | Granted on registration, non-withdrawable |
+| Platform Service Fee | 5pt | Deducted from merchant per task publish (non-refundable) |
+| KOC Platform Fee | 1pt | Deducted from KOC pledge per slot completion |
+| KOC Fixed Pledge | 10pt | KOC pays on accept, 9pt returned on completion |
+| Commission Pool | commission × koc_required | Merchant pre-pays at publish, non-refundable, paid to KOCs |
+| Referral Reward | 10pt | Referrer receives (withdrawable) |
+| PT to USD | 1pt = $1 | Exchange rate for withdrawal |
 
 ## Important Notes
 
@@ -412,7 +415,7 @@ koc-engine/
 - Spark particle animation uses CSS custom properties (`--tx` / `--ty`) for directional control
 - `cron.py`'s `calculate_tier` / `sync_koc_tier` / `sync_merchant_tier` are the core Trust Score→tier calibration functions; any operation that modifies Trust Score MUST call them
 - KOC concurrent active task limit = **5 active slots** (enforced in both accept_task and express_interest)
-- Commission is paid in platform points: KOC receives `commission − 5pt` on merchant approval (5pt platform fee). The `commission` field on KocTask determines both pledge amounts and KOC payout. Product's `commission_link` is the product page URL for KOC to promote; actual settlements happen via platform credit system
+- Commission is paid in platform points: KOC receives `commission + 9pt` on merchant approval (from pre-paid commission pool + pledge return minus 1pt fee). The `commission` field on KocTask determines per-KOC payout. Product's `commission_link` is the product page URL for KOC to promote
 - Matching engine `matcher.py` has two layers: rule engine (7-dim weighted) always available → AI re-rank optional (use_ai=true). Task publish auto-matching only uses rule engine
 - **JSON storage thread safety**: Stores use `threading.Lock()` to prevent race conditions, but this is only effective for single-process. Multi-uvicorn-worker deployments have cross-process race condition risk for slot accept operations. Production recommendation: single worker (`--workers 1`) or migrate to database
 - Frontend is fully English (i18n completed June 2026): all UI labels, error messages, commitment modals, SLA warnings, status badges, and navigation items are in English. Use canonical translations: `pt` (not "points"), `Trust Score`, `Pledge`, `Commission`, `Urgent`/`Long-term`, `Task Hall`, tier labels `Partner`/`Creator`/`Explorer` and `Gold`/`Silver`/`Bronze Merchant`

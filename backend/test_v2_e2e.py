@@ -178,10 +178,10 @@ if slot_idx is not None:
     }, headers=auth_headers(mt))
     if r.status_code == 200:
         review = ok(r)
-        print("   Review: status={}, koc_pledge_returned={}, merchant_pledge_returned={}".format(
+        print("   Review: status={}, commission_earned={}, pledge_returned={}".format(
             review["status"],
-            review.get("pledge_returned_koc", 0),
-            review.get("pledge_returned_merchant", 0)))
+            review.get("commission_earned", 0),
+            review.get("pledge_returned_koc", 0)))
     else:
         print("   Review error: {}".format(r.text[:200]))
 else:
@@ -253,6 +253,7 @@ prod3 = ok(requests.post(BASE + "/products", json={
     "name": "Resistance Bands Set",
     "category": "fitness,sports",
     "commission_value": "15% off",
+    "commission_link": "https://example.com/resistance-bands",
 }, headers=auth_headers(m3t)))
 p3id = prod3["id"]
 print("      Product 3: {} (category: {})".format(prod3["name"], prod3["category"]))

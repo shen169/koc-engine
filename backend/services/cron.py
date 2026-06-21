@@ -1,7 +1,7 @@
 """Cron 周期扫描 V2 — 超时检测 + 自动处理 + 诚信度 + 物流追踪"""
 
 from datetime import datetime, timedelta, timezone
-from config import GHOSTED_GRACE_DAYS, STALE_DAYS, SLA_CONTENT_REVIEW_DAYS, MAX_REVISIONS, KOC_PLATFORM_FEE
+from config import GHOSTED_GRACE_DAYS, STALE_DAYS, SLA_CONTENT_REVIEW_DAYS, SLA_REVISION_DAYS, MAX_REVISIONS, KOC_PLATFORM_FEE, KOC_FIXED_PLEDGE
 from stores.koc_store import koc_store
 from stores.task_store import task_store
 from stores.merchant_store import merchant_store
@@ -87,10 +87,10 @@ def run_weekly_scan() -> dict:
                     _handle_auto_approve(task, i, koc_id)
                     result["auto_review_approved"] = result.get("auto_review_approved", 0) + 1
 
-            # 4c. 商家驳回后 KOC 未重新提交（3d 超时 → 视为放弃）
+            # 4c. 商家驳回后 KOC 未重新提交（超时 → 视为放弃）
             if slot_status == "revision_requested":
                 reviewed_at = _parse_ts(slot.get("reviewed_at", ""))
-                if reviewed_at and (now - reviewed_at).days >= SLA_CONTENT_REVIEW_DAYS:
+                if reviewed_at and (now - reviewed_at).days >= SLA_REVISION_DAYS:
                     _handle_revision_timeout(task, i, koc_id)
                     result["koc_defaulted"] += 1
 
@@ -313,24 +313,24 @@ def _handle_long_term_idle(task, slot_index: int):
 
 
 def _handle_merchant_ship_timeout(task):
-    """48h 未发货 → 商家违约 → 退 KOC 质押 + 释放 slot"""
+    """48h 未发货 → 商家违约 → 退 KOC 质押全额 10pt + 释放 slot"""
     now = datetime.utcnow().isoformat()
-    # 退所有 accepted KOC 的质押并释放 slot（不再占用 KOC 的 5 个并行上限）
+    # 退所有 accepted KOC 的质押并释放 slot
     for i, slot in enumerate(task.koc_slots):
         if slot.get("status") == "accepted" and slot.get("pledge_paid"):
             koc_id = slot.get("koc_id", "")
             if koc_id:
                 koc_uid = _get_koc_user_id(koc_id)
-                credit_store.add_credits(koc_uid, task.pledge_koc,
+                credit_store.add_credits(koc_uid, KOC_FIXED_PLEDGE,
                                          "breach_compensation_koc", task.id,
-                                         f"Merchant breach compensation: {task.product_name}")
-            # 释放 slot：标记为 timed_out，解除 pled_paid
+                                         f"Merchant breach compensation: {task.product_name}",
+                                         withdrawable=True)
             task_store.update_slot(task.id, i, {
                 "status": "timed_out",
                 "pledge_paid": False,
             })
 
-    # 商家不退还质押（stays deducted）
+    # 商家不退还佣金池（stays deducted）
     # 扣商家诚信度
     m = merchant_store.get(task.merchant_id)
     if m:
@@ -344,17 +344,17 @@ def _handle_merchant_ship_timeout(task):
 
 
 def _handle_submit_timeout(task, slot_index: int, koc_id: str):
-    """14d 未提交内容 → KOC 违约 → 退商家质押 + 扣 KOC 点"""
-    slot = task.koc_slots[slot_index] if slot_index < len(task.koc_slots) else {}
-    # 退商家质押
-    merchant_return = _merchant_slot_pledge(task)
-    if merchant_return > 0 and not slot.get("merchant_pledge_returned"):
+    """14d 未提交内容 → KOC 违约 → 退 commission 给商家 + KOC 质押 10pt 不退"""
+    # 退还 commission 给商家（KOC 没完成不该收钱）
+    if task.commission > 0:
         m_uid = _get_merchant_user_id(task.merchant_id)
-        credit_store.add_credits(m_uid, merchant_return, "breach_compensation_merchant",
-                                 task.id, f"KOC breach compensation: {task.product_name}")
-        task_store.update_slot(task.id, slot_index, {"merchant_pledge_returned": True})
+        credit_store.add_credits(m_uid, task.commission, "commission_returned",
+                                 task.id, f"Commission returned (KOC submit timeout): {task.product_name}")
 
-    # KOC 质押不退还（stays deducted）
+    # KOC 质押 10pt 不退 → 全部给平台
+    credit_store.add_credits("platform", KOC_FIXED_PLEDGE, "forfeited_pledge",
+                             task.id, f"KOC forfeited pledge (submit timeout): {task.product_name}")
+
     # 扣 KOC 信任分
     if koc_id:
         koc = koc_store.get(koc_id)
@@ -362,7 +362,6 @@ def _handle_submit_timeout(task, slot_index: int, koc_id: str):
             koc_store.update(koc_id, {
                 "trust_score": max(0, koc.trust_score - 15),
             })
-            # 信任分联动降级
             sync_koc_tier(koc_id)
 
     task_store.update_slot(task.id, slot_index, {"status": "timed_out"})
@@ -370,7 +369,7 @@ def _handle_submit_timeout(task, slot_index: int, koc_id: str):
 
 
 def _handle_auto_approve(task, slot_index: int, koc_id: str):
-    """商家 3 天内未审核 KOC 提交内容 → 自动通过 → 退双方押金 + 恢复信任"""
+    """商家超时未审核 KOC 提交内容 → 自动通过 → 佣金给 KOC + 退质押 − 平台费"""
     now = datetime.utcnow().isoformat()
     slot = task.koc_slots[slot_index] if slot_index < len(task.koc_slots) else {}
 
@@ -381,23 +380,20 @@ def _handle_auto_approve(task, slot_index: int, koc_id: str):
         "commission_paid": True,
     })
 
-    # 释放 KOC 质押（扣平台费）
+    # KOC 到手: commission + (KOC_FIXED_PLEDGE − KOC_PLATFORM_FEE)
     koc_uid = _get_koc_user_id(koc_id) if koc_id else ""
-    if task.pledge_koc > 0 and slot.get("pledge_paid"):
-        koc_return = task.pledge_koc - KOC_PLATFORM_FEE
+    if slot.get("pledge_paid"):
+        if task.commission > 0 and koc_uid:
+            credit_store.add_credits(koc_uid, task.commission, "commission_earned",
+                                     task.id, f"Commission earned (auto-approved): {task.product_name}",
+                                     withdrawable=True)
+        koc_return = KOC_FIXED_PLEDGE - KOC_PLATFORM_FEE
         if koc_return > 0 and koc_uid:
             credit_store.add_credits(koc_uid, koc_return, "pledge_return_koc",
-                                     task.id, f"Pledge returned (auto-approved): {task.product_name}")
+                                     task.id, f"Pledge returned (auto-approved): {task.product_name}",
+                                     withdrawable=True)
         credit_store.add_credits("platform", KOC_PLATFORM_FEE, "koc_platform_fee",
                                  task.id, f"KOC platform fee (auto-approved): {task.product_name}")
-
-    # 退还商家质押（全额）
-    merchant_return = _merchant_slot_pledge(task)
-    if merchant_return > 0 and not slot.get("merchant_pledge_returned"):
-        m_uid = _get_merchant_user_id(task.merchant_id)
-        credit_store.add_credits(m_uid, merchant_return, "pledge_return_merchant",
-                                 task.id, f"Pledge returned (auto-approved): {task.product_name}")
-        task_store.update_slot(task.id, slot_index, {"merchant_pledge_returned": True})
 
     # 恢复 KOC 信任分
     if koc_id:
@@ -424,17 +420,17 @@ def _handle_auto_approve(task, slot_index: int, koc_id: str):
 
 
 def _handle_revision_timeout(task, slot_index: int, koc_id: str):
-    """商家驳回后 KOC 3 天内未重新提交 → 按 KOC 违约处理"""
-    slot = task.koc_slots[slot_index] if slot_index < len(task.koc_slots) else {}
-    # 退商家质押
-    merchant_return = _merchant_slot_pledge(task)
-    if merchant_return > 0 and not slot.get("merchant_pledge_returned"):
+    """商家驳回后 KOC 超时未重新提交 → 按 KOC 违约处理"""
+    # 退还 commission 给商家
+    if task.commission > 0:
         m_uid = _get_merchant_user_id(task.merchant_id)
-        credit_store.add_credits(m_uid, merchant_return, "breach_compensation_merchant",
-                                 task.id, f"KOC revision timeout: {task.product_name}")
-        task_store.update_slot(task.id, slot_index, {"merchant_pledge_returned": True})
+        credit_store.add_credits(m_uid, task.commission, "commission_returned",
+                                 task.id, f"Commission returned (KOC revision timeout): {task.product_name}")
 
-    # KOC 质押不退还
+    # KOC 质押 10pt 不退 → 全部给平台
+    credit_store.add_credits("platform", KOC_FIXED_PLEDGE, "forfeited_pledge",
+                             task.id, f"KOC forfeited pledge (revision timeout): {task.product_name}")
+
     if koc_id:
         koc = koc_store.get(koc_id)
         if koc:
@@ -483,12 +479,6 @@ def _get_koc_user_id(koc_profile_id: str) -> str:
 def _get_merchant_user_id(merchant_id: str) -> str:
     m = merchant_store.get(merchant_id)
     return m.user_id if m else merchant_id
-
-
-def _merchant_slot_pledge(task) -> int:
-    if getattr(task, "koc_required", 0) > 0:
-        return max(0, task.pledge_merchant // task.koc_required)
-    return max(0, task.pledge_merchant)
 
 
 # ═══════════════════════════════════════════

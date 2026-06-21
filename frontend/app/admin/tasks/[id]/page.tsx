@@ -88,7 +88,7 @@ export default function AdminTaskDetail() {
               <p className="font-semibold text-zinc-900">{task.koc_required as number || 0}</p>
             </div>
             <div>
-              <span className="text-zinc-400">Merchant Pledge</span>
+              <span className="text-zinc-400">Commission Pool</span>
               <p className="font-semibold text-zinc-900">{task.pledge_merchant as number || 0} pt</p>
             </div>
             <div>

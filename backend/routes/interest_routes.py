@@ -12,7 +12,7 @@ from stores.task_store import task_store
 from stores.product_store import product_store
 from stores.credit_store import credit_store
 from auth import get_current_user, require_admin
-from config import PLATFORM_SERVICE_FEE
+from config import PLATFORM_SERVICE_FEE, KOC_FIXED_PLEDGE
 from routes.task_routes import _sync_task_status
 
 import re
@@ -49,7 +49,6 @@ def _make_slot(koc_id: str, status: str = "accepted") -> dict:
         "content_urls": [],
         "content_data": {},
         "pledge_paid": False,
-        "merchant_pledge_returned": False,
         "commission_paid": False,
         "reject_count": 0,
         "match_score": 0,
@@ -134,8 +133,8 @@ def auto_assign_koc_to_product(koc_id: str, product_id: str) -> dict | None:
         task_status="accepted",
         koc_required=1,
         koc_slots=[_make_slot(koc_id)],
-        pledge_merchant=parsed_commission,   # 商家质押 = 佣金值
-        pledge_koc=parsed_commission,        # KOC 质押 = 佣金值
+        pledge_merchant=parsed_commission,   # 商家佣金池 = 佣金值
+        pledge_koc=KOC_FIXED_PLEDGE,        # KOC 固定质押 10pt
         commission=parsed_commission,
         created_at=now,
     )
