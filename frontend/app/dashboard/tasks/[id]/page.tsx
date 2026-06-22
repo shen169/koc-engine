@@ -7,6 +7,7 @@ import { CARRIER_NAMES, getTrackingUrl } from "@/lib/tracking";
 import NavBar from "@/components/NavBar";
 import TaskProgress from "@/components/TaskProgress";
 import DeadlineBadge from "@/components/DeadlineBadge";
+import StarRating from "@/components/StarRating";
 
 export default function MerchantTaskDetailPage() {
   const router = useRouter();
@@ -28,6 +29,8 @@ export default function MerchantTaskDetailPage() {
   const [shipping, setShipping] = useState(false);
   const [error, setError] = useState("");
   const [reviewing, setReviewing] = useState<Record<number, boolean>>({});
+  // ── Rating (per KOC slot) ──
+  const [ratingSlot, setRatingSlot] = useState<Record<number, { submitting: boolean; error: string; success: string }>>({});
 
   useEffect(() => {
     loadTask();
@@ -81,6 +84,47 @@ export default function MerchantTaskDetailPage() {
     } finally {
       setShipping(false);
     }
+  }
+
+  async function handleRateKoc(slotIndex: number, kocId: string) {
+    return async (rating: number, comment: string) => {
+      setRatingSlot((prev) => ({
+        ...prev,
+        [slotIndex]: { submitting: true, error: "", success: "" },
+      }));
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}/api/reviews`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token!}`,
+            },
+            body: JSON.stringify({
+              task_id: taskId,
+              target_id: kocId,
+              rating,
+              comment,
+              dimensions: {},
+            }),
+          }
+        );
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error((data as any).detail || `Error ${res.status}`);
+        }
+        setRatingSlot((prev) => ({
+          ...prev,
+          [slotIndex]: { submitting: false, error: "", success: `KOC rated ${rating}⭐` },
+        }));
+      } catch (e: any) {
+        setRatingSlot((prev) => ({
+          ...prev,
+          [slotIndex]: { submitting: false, error: e.message || "Rating failed", success: "" },
+        }));
+      }
+    };
   }
 
   async function handleReview(slotIndex: number, action: "approve" | "reject") {
@@ -289,6 +333,32 @@ export default function MerchantTaskDetailPage() {
                 }))}
               />
             </div>
+
+            {/* Rating section for completed/approved KOCs */}
+            {task.task_status === "completed" && kocSlots.filter((s: any) =>
+              s.status === "approved" || s.status === "completed"
+            ).length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                <h2 className="font-semibold text-gray-900 mb-4 text-lg">⭐ Rate Your KOCs</h2>
+                <p className="text-sm text-gray-500 mb-4">Your ratings help the platform match you with the best creators.</p>
+                <div className="space-y-4">
+                  {kocSlots.map((s: any, i: number) => {
+                    if (!["approved", "completed"].includes(s.status)) return null;
+                    const rs = ratingSlot[i] || { submitting: false, error: "", success: "" };
+                    return (
+                      <StarRating
+                        key={i}
+                        targetLabel={`KOC-${(s.koc_id || "----").slice(0, 4).toUpperCase()}`}
+                        onSubmit={handleRateKoc(i, s.koc_id || "")}
+                        submitting={rs.submitting}
+                        error={rs.error}
+                        success={rs.success}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Review section for submitted/revision_requested/approved slots */}
             {kocSlots.filter((s: any) =>

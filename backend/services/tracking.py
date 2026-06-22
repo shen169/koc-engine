@@ -333,14 +333,22 @@ async def check_tracking(tracking_number: str, carrier: str = "") -> dict:
 
 
 def check_tracking_sync(tracking_number: str, carrier: str = "") -> dict:
-    """同步封装的追踪查询（供 cron 使用）"""
+    """同步封装的追踪查询（供 cron 使用）。
+
+    使用 asyncio.run() 在新线程中运行，避免与 FastAPI 主事件循环冲突。
+    """
     import asyncio
+    import concurrent.futures
     try:
-        loop = asyncio.get_event_loop()
+        # Detect if there's a running event loop (e.g., inside FastAPI/uvicorn)
+        asyncio.get_running_loop()
+        # Running loop detected — run in a separate thread with its own loop
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(asyncio.run, check_tracking(tracking_number, carrier))
+            return future.result(timeout=30)
     except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(check_tracking(tracking_number, carrier))
+        # No running loop — safe to use asyncio.run directly
+        return asyncio.run(check_tracking(tracking_number, carrier))
 
 
 # ═══════════════════════════════════════════
@@ -457,11 +465,16 @@ async def run_daily_tracking_check() -> dict:
 
 
 def run_daily_tracking_check_sync() -> dict:
-    """同步封装（供 cron 同步调用）"""
+    """同步封装（供 cron 同步调用）。
+
+    使用 asyncio.run() 在新线程中运行，避免与 FastAPI 主事件循环冲突。
+    """
     import asyncio
+    import concurrent.futures
     try:
-        loop = asyncio.get_event_loop()
+        asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(asyncio.run, run_daily_tracking_check())
+            return future.result(timeout=120)
     except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(run_daily_tracking_check())
+        return asyncio.run(run_daily_tracking_check())

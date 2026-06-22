@@ -23,8 +23,9 @@ def create_review(data: dict, current_user: dict = Depends(get_current_user)):
     task = task_store.get(task_id)
     if not task:
         raise HTTPException(404, "Task not found")
-    if task.task_status not in ("completed", "submitted", "creating"):
-        raise HTTPException(400, f"Task not yet delivered (status: {task.task_status})")
+    # Only allow reviews after task is fully completed
+    if task.task_status != "completed":
+        raise HTTPException(400, f"Task not yet completed (status: {task.task_status})")
 
     if role == "koc":
         user = user_store.get_by_id(current_user["sub"])
@@ -37,7 +38,21 @@ def create_review(data: dict, current_user: dict = Depends(get_current_user)):
         if not m:
             raise HTTPException(404, "Merchant profile not found")
         reviewer_id = m.id
-        target_id = task.koc_id
+        # V2: use target_id from request (tasks have multiple KOC slots, not a single koc_id)
+        target_id = data.get("target_id", "")
+        if not target_id:
+            # Fallback: try V1 task.koc_id or find from slots
+            if task.koc_id:
+                target_id = task.koc_id
+            elif task.koc_slots:
+                # For single-KOC tasks, derive from the only slot with content
+                submitted_slots = [s for s in task.koc_slots if s.get("koc_id") and s.get("status") in ("approved", "completed")]
+                if len(submitted_slots) == 1:
+                    target_id = submitted_slots[0]["koc_id"]
+                else:
+                    raise HTTPException(400, "Multi-KOC task: specify target_id of the KOC to review")
+            else:
+                raise HTTPException(400, "No KOC found for this task — specify target_id")
         dimensions = data.get("dimensions", {})  # 内容质量/配合度/带货效果
 
     review = Review(

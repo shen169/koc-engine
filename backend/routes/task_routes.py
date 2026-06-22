@@ -1,6 +1,7 @@
 """任务/履约路由 V2 — 批量 KOC + 质押 + 全状态机"""
 
 from datetime import datetime, timezone, timedelta
+from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, Query
 from models import KocTask
 from stores.task_store import task_store
@@ -186,6 +187,8 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
                 "review_feedback": "",
                 "match_score": 0,
             })
+        # Persist empty slots to storage (they were created in-memory but never saved)
+        task_store.update(task.id, {"koc_slots": slots})
 
     result = task_store.get(task.id).model_dump()
     result["matched_kocs"] = matched
@@ -485,10 +488,7 @@ def reject_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
 
     # 标记超时 → 触发重推
     now = datetime.utcnow().isoformat()
-    task_store.update_slot(task_id, slot_index, {
-        "status": "timed_out",
-        "reject_count": slot.get("reject_count", 0) + 1,
-    })
+    new_reject_count = slot.get("reject_count", 0) + 1
 
     # 尝试重新匹配
     new_match = rematch_slot(task, slot_index)
@@ -497,14 +497,24 @@ def reject_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
             "koc_id": new_match["koc_id"],
             "status": "assigned",
             "assigned_at": now,
-            "reject_count": slot.get("reject_count", 0) + 1,
+            "reject_count": new_reject_count,
             "match_score": new_match["score"],
         })
+    else:
+        # No eligible KOC for rematch — clear the slot so it can be re-filled later
+        task_store.update_slot(task_id, slot_index, {
+            "koc_id": "",
+            "status": "pending",
+            "assigned_at": "",
+            "reject_count": new_reject_count,
+        })
+    _sync_task_status(task_id)
 
     return {
         "status": "rejected",
         "task_id": task_id,
         "slot_index": slot_index,
+        "rematched": new_match is not None,
         "trust_penalty": -3,
         "new_trust": new_trust if koc_profile else 0,
     }
@@ -695,12 +705,15 @@ def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict
     for url in content_urls:
         if not isinstance(url, str) or not url.strip():
             raise HTTPException(400, f"Invalid content URL: empty or non-string value")
-        url_lower = url.strip().lower()
-        if not url_lower.startswith(("http://", "https://")):
-            raise HTTPException(400, f"URL must start with http:// or https://: {url[:80]}")
-        if not any(d in url_lower for d in VALID_DOMAINS):
+        url_clean = url.strip()
+        if not url_clean.lower().startswith(("http://", "https://")):
+            raise HTTPException(400, f"URL must start with http:// or https://: {url_clean[:80]}")
+        # Extract actual domain via urlparse to prevent substring bypass (e.g. evil.com/tiktok.com)
+        parsed = urlparse(url_clean)
+        hostname = parsed.hostname or ""
+        if not any(hostname == d or hostname.endswith("." + d) for d in VALID_DOMAINS):
             raise HTTPException(400,
-                f"URL domain not recognized as a content platform: {url[:80]}. "
+                f"URL domain not recognized as a content platform: {url_clean[:80]}. "
                 f"Expected one of: {', '.join(VALID_DOMAINS[:8])}...")
 
     # 可选的初始表现数据
@@ -1373,10 +1386,60 @@ def _sync_task_status(task_id: str):
         return
 
     statuses = [s.get("status", "unknown") for s in slots]
+    prev_status = task.task_status
 
     # 全部 slot 已 approved 或 completed → 任务完成
     if all(s in ("approved", "completed") for s in statuses):
         task_store.update(task_id, {"task_status": "completed"})
+
+        # ── 首次完成时发评分提醒 ──
+        if prev_status != "completed":
+            from stores.koc_store import koc_store as _ks
+            from stores.merchant_store import merchant_store as _ms
+            from stores.user_store import user_store as _us
+            from services.notifier import notify_user as _notify
+
+            # 通知商家去评每个 KOC
+            if task.merchant_id:
+                m = _ms.get(task.merchant_id)
+                if m:
+                    for i, slot in enumerate(slots):
+                        kid = slot.get("koc_id", "")
+                        if not kid:
+                            continue
+                        koc = _ks.get(kid)
+                        label = koc.display_name or f"Creator_{kid[:6]}" if koc else f"KOC {kid[:8]}"
+                        _notify(
+                            m.user_id,
+                            "content_reviewed",
+                            f"⭐ Rate {label}",
+                            f"Collaboration on 「{task.product_name}」is complete. How was {label}?",
+                            task_id=task_id,
+                            resource_path=f"/dashboard/tasks/{task_id}?review={i}",
+                        )
+
+            # 通知每个 approved 的 KOC 去评商家
+            for i, slot in enumerate(slots):
+                kid = slot.get("koc_id", "")
+                if not kid or slot.get("status") not in ("approved", "completed"):
+                    continue
+                koc = _ks.get(kid)
+                if koc and koc.email:
+                    koc_user = _us.get_by_email(koc.email)
+                    if koc_user:
+                        brand = task.merchant_id
+                        m = _ms.get(task.merchant_id)
+                        if m:
+                            brand = m.company_name or "Brand"
+                        _notify(
+                            koc_user.id,
+                            "content_reviewed",
+                            f"⭐ Rate {brand}",
+                            f"Collaboration on 「{task.product_name}」is complete. How was your experience with {brand}?",
+                            task_id=task_id,
+                            resource_path=f"/portal/tasks/{task_id}?review={i}",
+                        )
+
     # 有内容在审核或创作中
     elif any(s in ("submitted", "approved", "revision_requested") for s in statuses):
         task_store.update(task_id, {"task_status": "creating"})

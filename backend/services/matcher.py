@@ -16,9 +16,10 @@ MATCHING_PROMPT = """你是一个跨境电商 KOC 匹配专家。
 请根据产品信息和 KOC 创作者资料，计算每个 KOC 与该产品的匹配度。
 
 评分维度：
-1. 品类匹配 (50%): 产品类别与 KOC 擅长领域是否重叠
+1. 品类匹配 (35%): 产品类别与 KOC 擅长领域是否重叠
 2. 内容质量 (25%): KOC 的评分等级和粉丝互动质量
 3. 商业潜力 (25%): KOC 的带货能力和历史合作表现
+4. 其他 (15%): 地区/信任分/内容表现/新品时效
 
 请严格输出 JSON，不要额外文字：
 {"matches": [{"id": "koc_id或product_id", "score": 0-100, "reason": "简短匹配理由"}]}
@@ -451,9 +452,60 @@ def match_products_for_koc(
     if not active_products:
         return []
 
+    # ── 查询合作历史（该 KOC × 各商家）──
+    koc_id = koc.get("id", "")
+    past_collab_counts: dict[str, int] = {}
+    past_collab_ratings: dict[str, float] = {}
+    if koc_id:
+        try:
+            from stores.task_store import task_store
+            from stores.review_store import review_store
+            koc_tasks = task_store.list_by_koc(koc_id)
+            for t in koc_tasks:
+                mid = t.merchant_id
+                if not mid:
+                    continue
+                for slot in t.koc_slots:
+                    if slot.get("koc_id") == koc_id and slot.get("status") in ("approved", "completed"):
+                        past_collab_counts[mid] = past_collab_counts.get(mid, 0) + 1
+            # 查该 KOC 给各商家的历史评价均分
+            all_reviews = review_store.list_all()
+            for r in all_reviews:
+                if r.reviewer_role == "koc" and r.reviewer_id == koc_id:
+                    mid = r.target_id  # target is the merchant
+                    if mid not in past_collab_ratings:
+                        past_collab_ratings[mid] = []
+                    past_collab_ratings[mid].append(r.rating)
+            # 计算均分
+            for mid in list(past_collab_ratings.keys()):
+                ratings = past_collab_ratings[mid]
+                past_collab_ratings[mid] = sum(ratings) / len(ratings)
+        except Exception:
+            pass
+
     scored = []
     for product in active_products:
         result = _rule_score(koc, product)
+        merchant_id = product.get("merchant_id", "")
+
+        # ── 合作过加成（KOC 视角）──
+        past_collabs = past_collab_counts.get(merchant_id, 0)
+        past_rating = past_collab_ratings.get(merchant_id, 0)
+        collab_bonus = 0.0
+        if past_collabs > 0:
+            # 基础加成：每次合作 +3 分，上限 15 分
+            count_bonus = min(15.0, past_collabs * 3.0)
+            # 评价加成：KOC 给该商家均分 ≥4.0 额外 +5，≥3.0 +2
+            rating_bonus = 5.0 if past_rating >= 4.0 else (2.0 if past_rating >= 3.0 else 0)
+            collab_bonus = count_bonus + rating_bonus
+            result["dimensions"]["past_collab_bonus"] = round(collab_bonus, 1)
+            result["reasons"].append(f"🤝 合作过 {past_collabs} 次" + (f" (你评均分 {past_rating:.1f})" if past_rating > 0 else ""))
+        else:
+            result["dimensions"]["past_collab_bonus"] = 0.0
+
+        # 总分 = 规则分 + 合作加成
+        final_score = result["match_score"] + collab_bonus
+
         scored.append({
             "product_id": product.get("id"),
             "product_name": product.get("name"),
@@ -462,8 +514,9 @@ def match_products_for_koc(
             "commission_type": product.get("commission_type", "discount_code"),
             "image_url": product.get("image_url", ""),
             "description": product.get("description", ""),
-            "merchant_id": product.get("merchant_id"),
-            "match_score": result["match_score"],
+            "merchant_id": merchant_id,
+            "past_collabs_with_merchant": past_collabs,
+            "match_score": round(final_score, 1),
             "match_dimensions": result["dimensions"],
             "match_reasons": result["reasons"],
             "source": "rule",
@@ -512,7 +565,13 @@ def match_kocs_for_task(task, count: int = 1, buffer: int = 3) -> list[dict]:
     if not product:
         return []
 
-    all_kocs = [k.model_dump() for k in koc_store.list_all()]
+    # Collect KOC IDs already occupying slots in this task to prevent duplicates
+    occupied_ids = set()
+    for slot in (task.koc_slots or []):
+        if slot.get("koc_id"):
+            occupied_ids.add(slot["koc_id"])
+
+    all_kocs = [k.model_dump() for k in koc_store.list_all() if k.id not in occupied_ids]
     matches = match_kocs_for_product(
         product.model_dump(),
         all_kocs,

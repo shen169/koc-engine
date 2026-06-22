@@ -259,13 +259,16 @@ def decide_application(app_id: str, data: dict, current_user: dict = Depends(req
                     if referrer_user:
                         revoke_user_id = referrer_user.id
                 # 收回奖励（deduct 会优先从 bonus 扣，正好注册奖励是 bonus）
-                credit_store.deduct_credits(
+                revoked = credit_store.deduct_credits(
                     revoke_user_id,
                     DEFAULT_REFERRAL_REWARD_CREDITS,
                     "referral_revoked",
                     ref.id,
                     f"Referral reward revoked: application {app_id} rejected"
                 )
+                if revoked is None:
+                    # Referrer already spent the bonus — log the shortfall but don't block the rejection
+                    print(f"[warn] Could not revoke referral reward from {revoke_user_id}: insufficient balance")
                 # 回退推荐状态，后续可被其他申请人触发
                 referral_store.update(ref.id, {"status": "pending", "referred_koc_id": ""})
 

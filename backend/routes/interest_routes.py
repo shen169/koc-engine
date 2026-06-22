@@ -1,7 +1,7 @@
-from services.notifier import notify_user
 """意向表达 + 匹配路由 — V2：KOC 感兴趣 → 自动接单"""
 
 from datetime import datetime, timezone
+from services.notifier import notify_user
 from fastapi import APIRouter, Depends, HTTPException
 from models import Interest, KocTask
 from stores.interest_store import interest_store
@@ -235,10 +235,19 @@ def express_interest(data: dict, current_user: dict = Depends(get_current_user))
                         break
         return result
 
+    # 创建意向记录 FIRST — before any credit deductions or task creation
+    # (ensures the intent is recorded even if downstream assignment fails)
+    interest = Interest(
+        from_role=role,
+        from_id=from_id,
+        to_id=to_id,
+        to_type=to_type,
+    )
+    interest_store.create(interest)
+
     assign_result = None
     if role == "koc" and to_type == "product":
         assign_result = auto_assign_koc_to_product(from_id, to_id)
-
 
     # Notification: KOC expressed interest → notify merchant
     if role == "koc" and to_type == "product":
@@ -257,14 +266,7 @@ def express_interest(data: dict, current_user: dict = Depends(get_current_user))
                         task_id=assign_result.get("task_id", "") if assign_result else "",
                         resource_path=f"/dashboard/products/{to_id}",
                     )
-    # 创建意向记录
-    interest = Interest(
-        from_role=role,
-        from_id=from_id,
-        to_id=to_id,
-        to_type=to_type,
-    )
-    interest_store.create(interest)
+
     result = interest.model_dump()
 
     if assign_result:

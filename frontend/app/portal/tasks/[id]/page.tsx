@@ -8,6 +8,7 @@ import IntegrityBadge from "@/components/IntegrityBadge";
 import NavBar from "@/components/NavBar";
 import DeadlineBadge from "@/components/DeadlineBadge";
 import CommitmentConfirm from "@/components/CommitmentConfirm";
+import StarRating from "@/components/StarRating";
 
 export default function KocTaskDetailPage() {
   const router = useRouter();
@@ -33,6 +34,10 @@ export default function KocTaskDetailPage() {
   const [updatingMetrics, setUpdatingMetrics] = useState(false);
   const [showCommitment, setShowCommitment] = useState(false);
   const [showClaimCommitment, setShowClaimCommitment] = useState(false);
+  // ── Rating ──
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [ratingError, setRatingError] = useState("");
+  const [ratingSuccess, setRatingSuccess] = useState("");
 
   useEffect(() => {
     const t = getToken();
@@ -214,6 +219,41 @@ export default function KocTaskDetailPage() {
       setError(e.message || "Express interest failed");
     } finally {
       setExpressingInterest(false);
+    }
+  }
+
+  async function handleRateMerchant(rating: number, comment: string) {
+    setRatingSubmitting(true);
+    setRatingError("");
+    setRatingSuccess("");
+    try {
+      const tkn = getToken()!;
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}/api/reviews`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${tkn}`,
+          },
+          body: JSON.stringify({
+            task_id: taskId,
+            target_id: task.merchant_id,
+            rating,
+            comment,
+            dimensions: {},
+          }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as any).detail || `Error ${res.status}`);
+      }
+      setRatingSuccess(`You rated ${task.merchant_company || "the brand"} ${rating}⭐`);
+    } catch (e: any) {
+      setRatingError(e.message || "Rating failed");
+    } finally {
+      setRatingSubmitting(false);
     }
   }
 
@@ -730,20 +770,30 @@ export default function KocTaskDetailPage() {
         )}
 
         {slotStatus === "completed" && (
-          <div className="bg-green-50 rounded-2xl border border-green-100 p-6 text-center mt-4">
-            <div className="text-3xl mb-2">🎉</div>
-            <p className="font-semibold text-green-700 text-lg">Fulfillment Complete!</p>
-            <p className="text-sm text-green-600 mt-1">Pledge returned, Trust Score restored</p>
-            {mySlot?.content_urls && (
-              <div className="mt-4 space-y-1">
-                {(mySlot.content_urls as string[]).map((url: string, i: number) => (
-                  <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                     className="block text-sm text-pink-500 hover:text-pink-600">
-                    🔗 {url}
-                  </a>
-                ))}
-              </div>
-            )}
+          <div className="space-y-4 mt-4">
+            <div className="bg-green-50 rounded-2xl border border-green-100 p-6 text-center">
+              <div className="text-3xl mb-2">🎉</div>
+              <p className="font-semibold text-green-700 text-lg">Fulfillment Complete!</p>
+              <p className="text-sm text-green-600 mt-1">Pledge returned, Trust Score restored</p>
+              {mySlot?.content_urls && (
+                <div className="mt-4 space-y-1">
+                  {(mySlot.content_urls as string[]).map((url: string, i: number) => (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                       className="block text-sm text-pink-500 hover:text-pink-600">
+                      🔗 {url}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Rate the merchant */}
+            <StarRating
+              targetLabel={task.merchant_company || "the Brand"}
+              onSubmit={handleRateMerchant}
+              submitting={ratingSubmitting}
+              error={ratingError}
+              success={ratingSuccess}
+            />
           </div>
         )}
 
