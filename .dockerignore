@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+
+# Python
+**/__pycache__
+**/*.pyc
+**/venv
+**/.venv
+
+# Node
+**/node_modules
+**/.next
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# OS
+.DS_Store
+
+# Runtime data (mounted as volume)
+output/
+
+# Docs
+docs/
+*.md
+!README.md
+
+# Deploy (replaced by Docker)
+deploy/
+
+# Misc
+.claude/
+.gstack/
+.hyperframes/
+video/
+venv/
+*.log
