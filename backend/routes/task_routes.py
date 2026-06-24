@@ -124,7 +124,7 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
         )
         if pledge_result is None:
             # 回退平台费
-            credit_store.add_credits(m_uid, PLATFORM_SERVICE_FEE, "pledge_fee_rollback", task.id, "Rollback: commission pool deduction failed")
+            credit_store.add_credits(m_uid, PLATFORM_SERVICE_FEE, "platform_fee_rollback", task.id, "Rollback: commission pool deduction failed")
             raise HTTPException(400, f"Insufficient credits for commission pool ({pledge_merchant} pts for {koc_required} slots × {commission}pt)")
 
     # 自动匹配引擎：加急任务预填 slot，长线任务留空由 KOC 广场自主接单
@@ -189,6 +189,7 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
             })
         # Persist empty slots to storage (they were created in-memory but never saved)
         task_store.update(task.id, {"koc_slots": slots})
+        _sync_task_status(task.id)
 
     result = task_store.get(task.id).model_dump()
     result["matched_kocs"] = matched
@@ -382,6 +383,11 @@ def accept_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
     slot_koc_id = slot.get("koc_id", "")
     if slot_koc_id and slot_koc_id != koc_id:
         raise HTTPException(403, "This slot is assigned to another KOC")
+
+    # 防止同一个 KOC 接同一任务多个 slot
+    for s in task.koc_slots:
+        if s.get("koc_id") == koc_id and s.get("status") not in ("rejected", "timed_out"):
+            raise HTTPException(400, "You already have a slot in this task")
 
     # 检查同时进行中任务数上限（最多 5 个 active slot）
     active_slots = 0
@@ -912,10 +918,12 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
         if revision_count > MAX_REVISIONS:
             # ── 第 2 次 reject → AI 终审 ──
             koc_for_judge = koc_store.get(koc_id) if koc_id else None
+            # Resolve product info for better AI judgment
+            judge_product = product_store.get(task.product_id) if task.product_id else None
             judge_result = judge_submission(
                 product_name=task.product_name,
-                product_category="",
-                product_description="",
+                product_category=judge_product.category if judge_product else "",
+                product_description=(judge_product.description or "")[:500] if judge_product else "",
                 content_urls=slot.get("content_urls", []),
                 content_data=slot.get("content_data", {}),
                 merchant_rejection_reasons=[
@@ -964,10 +972,10 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
 
                 m = merchant_store.get(task.merchant_id)
                 if m:
+                    # AI overruled merchant's rejection — merchant does NOT earn trust bonus
                     merchant_store.update(task.merchant_id, {
                         "total_collaborations": m.total_collaborations + 1,
                         "total_tasks_completed": m.total_tasks_completed + 1,
-                        "trust_score": min(100, m.trust_score + 3),
                     })
                     sync_merchant_tier(task.merchant_id)
 
@@ -1388,8 +1396,11 @@ def _sync_task_status(task_id: str):
     statuses = [s.get("status", "unknown") for s in slots]
     prev_status = task.task_status
 
+    # 全部 slot 已 assigned（空位待接）→ 进入任务广场
+    if all(s in ("assigned",) for s in statuses) and any(s == "assigned" for s in statuses):
+        task_store.update(task_id, {"task_status": "assigned"})
     # 全部 slot 已 approved 或 completed → 任务完成
-    if all(s in ("approved", "completed") for s in statuses):
+    elif all(s in ("approved", "completed") for s in statuses):
         task_store.update(task_id, {"task_status": "completed"})
 
         # ── 首次完成时发评分提醒 ──

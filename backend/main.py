@@ -1,6 +1,7 @@
 """KOC Engine · FastAPI 主入口"""
 
 import asyncio
+import re
 import bcrypt
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,12 +18,13 @@ app = FastAPI(title="KOC Engine", version="0.1.0")
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://koc-engine.vercel.app",
-        "https://koc-engine-*.vercel.app",
-    ],
+    allow_origin_regex=(
+        r"^(http://localhost:\d+"
+        r"|http://127\.0\.0\.1:\d+"
+        r"|https://koc-engine\.vercel\.app"
+        r"|https://koc-engine-[a-zA-Z0-9-]+\.vercel\.app"
+        r"|https://koc-engine-[a-zA-Z0-9-]+-shen169s-projects\.vercel\.app)$"
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

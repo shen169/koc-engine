@@ -53,6 +53,16 @@ class InterestStore:
             self._save(data)
             return Interest(**data[interest_id])
 
+    def delete(self, interest_id: str) -> bool:
+        """Delete an interest record. Returns True if deleted, False if not found."""
+        with self._lock:
+            data = self._load()
+            if interest_id not in data:
+                return False
+            del data[interest_id]
+            self._save(data)
+        return True
+
     def get_by_ids(self, from_id: str, to_id: str, from_role: str) -> Interest | None:
         """查找是否已存在 from→to 的意向"""
         with self._lock:

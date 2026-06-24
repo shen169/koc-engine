@@ -50,15 +50,19 @@ class CreditStore:
         return self.get_balance(user_id)["withdrawable"]
 
     def set_initial_balance(self, user_id: str, amount: int):
-        """Set registration bonus (non-withdrawable)."""
+        """Set registration bonus (non-withdrawable).  Only sets if user has no balance yet."""
         with self._lock:
             balances = self._load_balances()
-            if user_id not in balances or (isinstance(balances[user_id], int) and balances[user_id] == 0):
+            existing = balances.get(user_id)
+            # Old format (int) or new format (dict) with 0 total — set initial balance
+            is_empty = (
+                existing is None
+                or (isinstance(existing, int) and existing == 0)
+                or (isinstance(existing, dict) and existing.get("total", 0) == 0)
+            )
+            if is_empty:
                 balances[user_id] = {"total": amount, "withdrawable": 0, "bonus": amount}
                 self._save_balances(balances)
-            elif isinstance(balances[user_id], dict):
-                # Already has balance — don't overwrite
-                pass
 
     # ── Transaction methods ──
 

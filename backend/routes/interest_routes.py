@@ -162,7 +162,7 @@ def auto_assign_koc_to_product(koc_id: str, product_id: str) -> dict | None:
     )
     if merchant_pledge_result is None:
         credit_store.add_credits(
-            merchant_uid, PLATFORM_SERVICE_FEE, "pledge_fee_rollback",
+            merchant_uid, PLATFORM_SERVICE_FEE, "platform_fee_rollback",
             task.id, "Rollback: auto-created task merchant pledge failed"
         )
         raise HTTPException(400, f"Merchant has insufficient credits for pledge ({task.pledge_merchant} pt)")
@@ -173,7 +173,7 @@ def auto_assign_koc_to_product(koc_id: str, product_id: str) -> dict | None:
     )
     if koc_pledge_result is None:
         credit_store.add_credits(
-            merchant_uid, PLATFORM_SERVICE_FEE, "pledge_fee_rollback",
+            merchant_uid, PLATFORM_SERVICE_FEE, "platform_fee_rollback",
             task.id, "Rollback: auto-created task KOC pledge failed"
         )
         credit_store.add_credits(
@@ -247,7 +247,12 @@ def express_interest(data: dict, current_user: dict = Depends(get_current_user))
 
     assign_result = None
     if role == "koc" and to_type == "product":
-        assign_result = auto_assign_koc_to_product(from_id, to_id)
+        try:
+            assign_result = auto_assign_koc_to_product(from_id, to_id)
+        except HTTPException:
+            # Auto-assignment failed — clean up the orphaned interest record
+            interest_store.delete(interest.id)
+            raise
 
     # Notification: KOC expressed interest → notify merchant
     if role == "koc" and to_type == "product":

@@ -227,7 +227,13 @@ def auto_express_interest(
             created.append(product_id)
 
             # Then execute auto-assignment (may throw on insufficient credits — interest is already recorded)
-            assign_result = auto_assign_koc_to_product(koc.id, product_id)
+            try:
+                assign_result = auto_assign_koc_to_product(koc.id, product_id)
+            except HTTPException:
+                # Clean up orphaned interest record on auto-assignment failure
+                interest_store.delete(interest.id)
+                created.remove(product_id)
+                raise
 
             if assign_result:
                 auto_assigned.append({

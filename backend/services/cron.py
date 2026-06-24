@@ -455,14 +455,13 @@ def _handle_auto_approve(task, slot_index: int, koc_id: str):
             })
             sync_koc_tier(koc_id)
 
-    # 恢复商家信任分
+    # 商家逾期未审核 → 不奖励信任分（错过 SLA 是负面行为）
+    # 仅标记完成统计；trust_score 不变
     m = merchant_store.get(task.merchant_id)
     if m:
-        new_m_trust = min(100, m.trust_score + 3)
         merchant_store.update(task.merchant_id, {
             "total_collaborations": m.total_collaborations + 1,
             "total_tasks_completed": m.total_tasks_completed + 1,
-            "trust_score": new_m_trust,
         })
         sync_merchant_tier(task.merchant_id)
 

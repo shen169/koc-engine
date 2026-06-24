@@ -16,8 +16,9 @@ if os.path.exists(_ENV_FILE):
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(os.path.dirname(BASE_DIR), "output")
 
-# JWT
-JWT_SECRET = os.getenv("JWT_SECRET", "koc-engine-dev-secret-change-in-production")
+# JWT — must be set via env var in production; dev fallback auto-generated per session
+_JWT_FALLBACK = os.urandom(32).hex() if not os.getenv("JWT_SECRET") else ""
+JWT_SECRET = os.getenv("JWT_SECRET", _JWT_FALLBACK or "koc-engine-dev-secret-change-in-production")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 72
 
