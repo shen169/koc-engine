@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════
-# KOC Engine — VPS 一键部署脚本
+# KOC Engine — VPS 一键部署脚本（前后端合一）
 # 适用于 Ubuntu 22.04/24.04 LTS
-# 用法: chmod +x vps-setup.sh && sudo ./vps-setup.sh
+# 用法: chmod +x vps-setup.sh && sudo ./vps-setup.sh your-domain.com
 # ══════════════════════════════════════════════════════
 set -euo pipefail
 
 APP_NAME="koc-engine"
 APP_DIR="/opt/${APP_NAME}"
-DOMAIN="${1:-kocengine.com}"
+DOMAIN="${1:-}"
 VENV_DIR="${APP_DIR}/venv"
 USER="${APP_NAME}"
 GROUP="${APP_NAME}"
@@ -26,14 +26,25 @@ fail() { echo -e "${RED}[✗]${NC} $*"; exit 1; }
 [[ $EUID -eq 0 ]] || fail "请用 sudo 运行"
 [[ -n "$DOMAIN" ]] || fail "用法: sudo ./vps-setup.sh <your-domain.com>"
 
-log "开始部署 KOC Engine 到 ${DOMAIN}"
+log "开始部署 KOC Engine（前后端合一）到 ${DOMAIN}"
 
 # ══════════════════════════════════════════
 # 1. 系统依赖
 # ══════════════════════════════════════════
 log "安装系统依赖..."
 apt-get update -qq
-apt-get install -y -qq python3 python3-pip python3-venv nginx certbot python3-certbot-nginx git curl ufw
+apt-get install -y -qq \
+    python3 python3-pip python3-venv \
+    nginx certbot python3-certbot-nginx \
+    git curl ufw
+
+# ── 安装 Node.js 20.x（Next.js 需要）──
+if ! command -v node &>/dev/null; then
+    log "安装 Node.js 20.x..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    apt-get install -y -qq nodejs
+fi
+ok "Node.js $(node -v) / npm $(npm -v)"
 
 # ══════════════════════════════════════════
 # 2. 创建专用用户
@@ -56,9 +67,10 @@ else
     git clone https://github.com/shen169/koc-engine.git "${APP_DIR}"
     cd "${APP_DIR}"
 fi
+ok "代码已部署到 ${APP_DIR}"
 
 # ══════════════════════════════════════════
-# 4. Python 虚拟环境
+# 4. Python 虚拟环境 + 后端依赖
 # ══════════════════════════════════════════
 log "配置 Python 环境..."
 python3 -m venv "${VENV_DIR}"
@@ -78,39 +90,59 @@ DEEPSEEK_API_KEY=your-deepseek-api-key-here
 JWT_SECRET=change-this-to-a-random-string
 ACCESS_PASSWORD=change-this-admin-password
 EOF
-    fail ".env 已生成，请编辑 ${APP_DIR}/backend/.env 填入真实 API Key 后重新运行本脚本（或跳过此步骤手动编辑）"
+    fail ".env 已生成，请编辑 ${APP_DIR}/backend/.env 填入真实 API Key 后重新运行本脚本"
 else
     ok "backend/.env 已存在"
 fi
 
 # ══════════════════════════════════════════
-# 6. 创建 output 目录
+# 6. 前端构建
+# ══════════════════════════════════════════
+log "安装前端依赖 + 构建..."
+cd "${APP_DIR}/frontend"
+npm install --prefer-offline
+npm run build
+ok "前端构建完成"
+
+# ══════════════════════════════════════════
+# 7. 创建目录 + 权限
 # ══════════════════════════════════════════
 mkdir -p "${APP_DIR}/output/tasks" "${APP_DIR}/output/users"
 chown -R "${USER}:${GROUP}" "${APP_DIR}"
 
 # ══════════════════════════════════════════
-# 7. systemd 服务
+# 8. systemd 服务
 # ══════════════════════════════════════════
 log "安装 systemd 服务..."
+
+# Backend
 cp "${APP_DIR}/deploy/koc-engine.service" /etc/systemd/system/
+# Frontend
+cp "${APP_DIR}/deploy/koc-engine-frontend.service" /etc/systemd/system/
+
 systemctl daemon-reload
-systemctl enable koc-engine
+systemctl enable koc-engine koc-engine-frontend
 systemctl restart koc-engine
+sleep 2
+systemctl restart koc-engine-frontend
 ok "systemd 服务已启动"
 
 # ══════════════════════════════════════════
-# 8. nginx 反向代理
+# 9. nginx 反向代理
 # ══════════════════════════════════════════
 log "配置 nginx..."
 cp "${APP_DIR}/deploy/nginx-koc-engine.conf" "/etc/nginx/sites-available/${APP_NAME}"
 sed -i "s/YOUR_DOMAIN/${DOMAIN}/g" "/etc/nginx/sites-available/${APP_NAME}"
+
+# 删除默认站点
+rm -f /etc/nginx/sites-enabled/default
+
 ln -sf "/etc/nginx/sites-available/${APP_NAME}" "/etc/nginx/sites-enabled/"
 nginx -t && systemctl reload nginx
 ok "nginx 配置完成"
 
 # ══════════════════════════════════════════
-# 9. SSL 证书（Let's Encrypt）
+# 10. SSL 证书（Let's Encrypt）
 # ══════════════════════════════════════════
 log "申请 SSL 证书..."
 if certbot --nginx -d "${DOMAIN}" --non-interactive --agree-tos --email "admin@${DOMAIN}" --redirect; then
@@ -121,7 +153,7 @@ else
 fi
 
 # ══════════════════════════════════════════
-# 10. 防火墙
+# 11. 防火墙
 # ══════════════════════════════════════════
 ufw allow 80/tcp
 ufw allow 443/tcp
@@ -130,24 +162,38 @@ ufw --force enable
 ok "防火墙已配置（80/443/22）"
 
 # ══════════════════════════════════════════
-# 11. 验证
+# 12. 验证
 # ══════════════════════════════════════════
-sleep 2
+sleep 3
 echo ""
 log "====================================="
 log "  部署完成！"
 log "====================================="
-log "验证后端: curl https://${DOMAIN}/api/health"
-log "验证 systemd: systemctl status koc-engine"
-log "查看日志: journalctl -u koc-engine -f"
+log "后端 API:  https://${DOMAIN}/api/health"
+log "前端页面:  https://${DOMAIN}"
 log ""
-log "前端 Vercel 设置环境变量:"
-log "  NEXT_PUBLIC_API_URL=https://${DOMAIN}"
+log "服务管理:"
+log "  systemctl status koc-engine           # 后端"
+log "  systemctl status koc-engine-frontend  # 前端"
+log "  systemctl restart koc-engine          # 重启后端"
+log "  systemctl restart koc-engine-frontend # 重启前端"
+log "  journalctl -u koc-engine -f           # 后端日志"
+log "  journalctl -u koc-engine-frontend -f  # 前端日志"
 log "====================================="
 
 # 自动验证
+fail_count=0
 if curl -sf "http://localhost:8001/api/health" > /dev/null 2>&1; then
-    ok "后端服务响应正常"
+    ok "后端 :8001 响应正常"
 else
-    fail "后端未响应，检查: journalctl -u koc-engine -n 30"
+    fail "后端未响应 — journalctl -u koc-engine -n 30"
+    fail_count=$((fail_count + 1))
 fi
+
+if curl -sf "http://localhost:3000" > /dev/null 2>&1; then
+    ok "前端 :3000 响应正常"
+else
+    log "前端 :3000 未响应（可能在启动中），检查: journalctl -u koc-engine-frontend -n 30"
+fi
+
+[[ $fail_count -eq 0 ]] || exit 1

@@ -1,6 +1,6 @@
 /** KOC Engine API client */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 interface ApiOptions {
   method?: string;
@@ -8,7 +8,7 @@ interface ApiOptions {
   token?: string;
 }
 
-export async function api(path: string, opts: ApiOptions = {}) {
+export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Promise<T> {
   const { method = "GET", body, token } = opts;
   const headers: Record<string, string> = {};
 
@@ -40,7 +40,7 @@ export async function api(path: string, opts: ApiOptions = {}) {
       : "";
     throw new Error(detail || `API error: ${res.status}`);
   }
-  return data;
+  return data as T;
 }
 
 // Auth helpers
@@ -72,17 +72,17 @@ export function getRole(): string | null {
 // Auth API
 export const auth = {
   register: (email: string, password: string, role: string) =>
-    api("/api/auth/register", { method: "POST", body: { email, password, role } }),
+    api<Record<string, unknown>>("/api/auth/register", { method: "POST", body: { email, password, role } }),
   login: (email: string, password: string) =>
-    api("/api/auth/login", { method: "POST", body: { email, password } }),
-  me: (token: string) => api("/api/auth/me", { token }),
+    api<Record<string, unknown>>("/api/auth/login", { method: "POST", body: { email, password } }),
+  me: (token: string) => api<Record<string, unknown>>("/api/auth/me", { token }),
 };
 
 // Applications
 export const applications = {
   submit: (data: Record<string, unknown>) =>
     api("/api/applications", { method: "POST", body: data }),
-  list: (token: string) => api("/api/applications", { token }),
+  list: (token: string) => api<Array<Record<string, unknown>>>("/api/applications", { token }),
   decide: (appId: string, decision: string, token: string) =>
     api(`/api/applications/${appId}/decision`, { method: "PUT", body: { decision }, token }),
 };
@@ -91,26 +91,26 @@ export const applications = {
 export const kocs = {
   list: (token: string, filters?: Record<string, string>) => {
     const qs = filters ? "?" + new URLSearchParams(filters).toString() : "";
-    return api(`/api/koc${qs}`, { token });
+    return api<Array<Record<string, unknown>>>(`/api/koc${qs}`, { token });
   },
-  pool: (token: string) => api("/api/koc/pool", { token }),
-  get: (id: string, token: string) => api(`/api/koc/${id}`, { token }),
+  pool: (token: string) => api<Array<Record<string, unknown>>>("/api/koc/pool", { token }),
+  get: (id: string, token: string) => api<Record<string, unknown>>(`/api/koc/${id}`, { token }),
 };
 
 // Products
 export const products = {
   create: (data: Record<string, unknown>, token: string) =>
     api("/api/products", { method: "POST", body: data, token }),
-  list: (token: string) => api("/api/products", { token }),
-  get: (id: string, token: string) => api(`/api/products/${id}`, { token }),
+  list: (token: string) => api<Array<Record<string, unknown>>>("/api/products", { token }),
+  get: (id: string, token: string) => api<Record<string, unknown>>(`/api/products/${id}`, { token }),
 };
 
 // Interests
 export const interests = {
   express: (toId: string, toType: string, token: string) =>
     api("/api/interests", { method: "POST", body: { to_id: toId, to_type: toType }, token }),
-  list: (token: string) => api("/api/interests", { token }),
-  matches: (token: string) => api("/api/interests/matches", { token }),
+  list: (token: string) => api<Array<Record<string, unknown>>>("/api/interests", { token }),
+  matches: (token: string) => api<Array<Record<string, unknown>>>("/api/interests/matches", { token }),
   match: (id: string, token: string) =>
     api(`/api/interests/${id}/match`, { method: "PUT", token }),
 };
@@ -141,13 +141,13 @@ export const matching = {
 export const tasks = {
   create: (data: Record<string, unknown>, token: string) =>
     api("/api/tasks", { method: "POST", body: data, token }),
-  list: (token: string) => api("/api/tasks", { token }),
-  mine: (token: string) => api("/api/tasks/mine", { token }),
-  get: (id: string, token: string) => api(`/api/tasks/${id}`, { token }),
+  list: (token: string) => api<Array<Record<string, unknown>>>("/api/tasks", { token }),
+  mine: (token: string) => api<Array<Record<string, unknown>>>("/api/tasks/mine", { token }),
+  get: (id: string, token: string) => api<Record<string, unknown>>(`/api/tasks/${id}`, { token }),
   // V2: Task hall for KOCs
   hall: (token: string, params?: Record<string, string>) => {
     const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-    return api(`/api/tasks/hall${qs}`, { token });
+    return api<Array<Record<string, unknown>>>(`/api/tasks/hall${qs}`, { token });
   },
   // V2: KOC accepts a slot
   accept: (taskId: string, slotIndex: number, token: string) =>
@@ -190,17 +190,17 @@ export const tasks = {
 
 // Credits
 export const credits = {
-  balance: (token: string) => api("/api/credits/balance", { token }),
-  history: (token: string) => api("/api/credits/history", { token }),
+  balance: (token: string) => api<Record<string, unknown>>("/api/credits/balance", { token }),
+  history: (token: string) => api<Array<Record<string, unknown>>>("/api/credits/history", { token }),
   withdraw: (data: { amount: number; payment_method: string; payment_account: string }, token: string) =>
     api("/api/credits/withdraw", { method: "POST", body: data, token }),
-  withdrawals: (token: string) => api("/api/credits/withdrawals", { token }),
+  withdrawals: (token: string) => api<Array<Record<string, unknown>>>("/api/credits/withdrawals", { token }),
 };
 
 // Admin
 export const admin = {
-  stats: (token: string) => api("/api/admin/stats", { token }),
-  users: (token: string) => api("/api/admin/users", { token }),
+  stats: (token: string) => api<Record<string, unknown>>("/api/admin/stats", { token }),
+  users: (token: string) => api<Array<Record<string, unknown>>>("/api/admin/users", { token }),
   rewardCredits: (userId: string, amount: number, note: string, token: string) =>
     api("/api/credits/reward", { method: "POST", body: { user_id: userId, amount, note }, token }),
   withdrawals: (token: string, status?: string) => {
@@ -213,11 +213,11 @@ export const admin = {
 
 // Merchants V2
 export const merchants = {
-  me: (token: string) => api("/api/merchants/me", { token }),
+  me: (token: string) => api<Record<string, unknown>>("/api/merchants/me", { token }),
   create: (data: Record<string, unknown>, token: string) =>
     api("/api/merchants", { method: "POST", body: data, token }),
   getTrust: (merchantId: string, token: string) =>
-    api(`/api/merchants/${merchantId}/trust`, { token }),
+    api<Record<string, unknown>>(`/api/merchants/${merchantId}/trust`, { token }),
   reportFakeLink: (merchantId: string, taskId: string, reason: string, token: string) =>
     api(`/api/merchants/${merchantId}/report-fake-link`, {
       method: "POST", body: { task_id: taskId, reason }, token,
@@ -226,16 +226,16 @@ export const merchants = {
 
 // Landing
 export const landing = {
-  stats: () => api("/api/landing/stats"),
-  products: () => api("/api/landing/products"),
+  stats: () => api<{ total_kocs: number; total_videos: number; active_products: number }>("/api/landing/stats"),
+  products: () => api<Array<Record<string, unknown>>>("/api/landing/products"),
 };
 
 // ── Notifications ──
 export const notifications = {
   list: (token: string, limit = 50) =>
-    api("/api/notifications?limit=" + limit, { token }),
+    api<Array<Record<string, unknown>>>("/api/notifications?limit=" + limit, { token }),
   unreadCount: (token: string) =>
-    api("/api/notifications/unread-count", { token }),
+    api<Record<string, unknown>>("/api/notifications/unread-count", { token }),
   markRead: (id: string, token: string) =>
     api("/api/notifications/" + id + "/read", { method: "PUT", token }),
   markAllRead: (token: string) =>
