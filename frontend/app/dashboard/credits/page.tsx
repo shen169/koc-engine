@@ -20,13 +20,12 @@ export default function MerchantCreditsPage() {
   useEffect(() => {
     if (!token) { router.push("/login"); return; }
     if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return; }
-    const token = getToken()!;
     credits.balance(token).then((r) => {
-      setBalanceData({ total: r.total, withdrawable: r.withdrawable, bonus: r.bonus });
+      setBalanceData({ total: r.total as number, withdrawable: r.withdrawable as number, bonus: r.bonus as number });
     }).catch(() => {});
     credits.history(token).then((list) => {
-      setHistory(list as Array<Record<string, unknown>>);
-      const recent = (list as Array<Record<string, unknown>>)[0];
+      setHistory(list);
+      const recent = list[0];
       if (recent && (recent.amount as number) > 0) setTimeout(() => setShowCoin(true), 300);
     }).catch(() => {});
   }, [router, role, token]);

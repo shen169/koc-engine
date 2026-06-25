@@ -85,7 +85,7 @@ export default function DashboardPage() {
       }
     }).catch(() => { clearToken(); router.push("/login"); })
     .finally(() => setLoadingProfile(false));
-    credits.balance(token).then((r) => setBalance(r.total)).catch(() => {});
+    credits.balance(token).then((r) => setBalance(r.total as number)).catch(() => {});
     tasks.mine(token).then(setTaskList).catch(() => {});
   }, [router]);
 
@@ -132,7 +132,7 @@ export default function DashboardPage() {
 
       if (isEditing) {
         // Update existing profile
-        const result = await api("/api/merchants/me", {
+        const result = await api<Record<string, unknown>>("/api/merchants/me", {
           method: "PUT",
           body: payload,
           token: t,
@@ -140,7 +140,7 @@ export default function DashboardPage() {
         setMerchantProfile(result);
       } else {
         // Create new profile
-        const result = await merchants.create(payload, t);
+        const result = await merchants.create(payload, t) as Record<string, unknown>;
         setMerchantProfile(result);
       }
       setShowProfileForm(false);

@@ -57,8 +57,9 @@ export default function ProductDetail() {
 
     // Fetch match score for this product
     matching.forKoc({ top_n: 20 }, token)
-      .then((res) => {
-        const matches = (res.matches as Array<Record<string, unknown>>) || [];
+      .then((res: unknown) => {
+        const data = res as Record<string, unknown>;
+        const matches = (data.matches as Array<Record<string, unknown>>) || [];
         const m = matches.find((m) => m.product_id === productId);
         if (m) setMatchInfo(m);
       })

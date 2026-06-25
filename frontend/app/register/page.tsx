@@ -29,10 +29,11 @@ function RegisterForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setError(""); setLoading(true);
     try {
-      const res = await auth.register(email, password, role);
-      setToken(res.token);
-      localStorage.setItem("koc_role", res.user.role);
-      if (res.user.role === "merchant") router.push("/dashboard");
+      const res = await auth.register(email, password, role) as Record<string, unknown>;
+      const user = res.user as Record<string, unknown>;
+      setToken(res.token as string);
+      localStorage.setItem("koc_role", user.role as string);
+      if (user.role === "merchant") router.push("/dashboard");
       else router.push("/koc/apply");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Registration failed");

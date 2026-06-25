@@ -1,38 +1,31 @@
-import type { MetadataRoute } from "next";
+import { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://kocengine.com";
 
-  return [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/register`,
-      lastModified: new Date(),
-      changeFrequency: "monthly" as const,
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/login`,
-      lastModified: new Date(),
-      changeFrequency: "monthly" as const,
-      priority: 0.6,
-    },
-    {
-      url: `${baseUrl}/koc/apply`,
-      lastModified: new Date(),
-      changeFrequency: "monthly" as const,
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/guide/koc-marketing-cross-border-ecommerce`,
-      lastModified: new Date(),
-      changeFrequency: "monthly" as const,
-      priority: 0.9,
-    },
-  ];
+  // Core static pages
+  const staticPages = [
+    "",
+    "/login",
+    "/register",
+    "/koc/apply",
+    "/pricing",
+    "/about",
+    "/case-studies",
+    "/guide/koc-marketing-cross-border-ecommerce",
+    "/blog/how-to-prevent-influencer-ghosting",
+    "/blog/influencer-marketing-for-chinese-cross-border-sellers",
+    "/blog/koc-marketing-southeast-asia-guide",
+    "/vs/modash",
+    "/vs/upfluence",
+    "/vs/grin",
+    "/alternatives/amazon-influencer",
+  ].map((route) => ({
+    url: `${baseUrl}${route}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: route === "" ? 1 : 0.8,
+  }));
+
+  return [...staticPages];
 }

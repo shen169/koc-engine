@@ -86,7 +86,7 @@ export default function MerchantTaskDetailPage() {
     }
   }
 
-  async function handleRateKoc(slotIndex: number, kocId: string) {
+  function handleRateKoc(slotIndex: number, kocId: string) {
     return async (rating: number, comment: string) => {
       setRatingSlot((prev) => ({
         ...prev,

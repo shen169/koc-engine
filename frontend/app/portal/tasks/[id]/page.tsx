@@ -69,7 +69,8 @@ export default function KocTaskDetailPage() {
         // KOC hasn't accepted yet — find slot assigned to THIS KOC
         const myProfile = await auth.me(getToken()!);
         const myKocId = (myProfile as any).profile_id || "";
-        const slots = t.koc_slots || [];
+        const taskData = t as Record<string, unknown>;
+        const slots = (taskData.koc_slots as Array<unknown>) || [];
         const myAssignedSlot = slots.find(
           (s: any) => s.status === "assigned" && s.koc_id === myKocId
         );
@@ -80,10 +81,10 @@ export default function KocTaskDetailPage() {
       }
 
       // Load merchant trust
-      if (t.merchant_id) {
+      if ((t as Record<string, unknown>).merchant_id) {
         try {
           const { merchants } = await import("@/lib/api");
-          const trust = await merchants.getTrust(t.merchant_id, getToken()!);
+          const trust = await merchants.getTrust((t as Record<string, unknown>).merchant_id as string, getToken()!);
           setMerchantTrust(trust);
         } catch {}
       }

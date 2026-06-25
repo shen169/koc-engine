@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    body {
+      margin: 0; width: 1920px; height: 1080px; overflow: hidden;
+      background: #E0FBFC; font-family: "Inter", sans-serif; font-weight: 350; color: #293241;
+    }
+    .scene {
+      position: absolute; top: 0; left: 0;
+      width: 1920px; height: 1080px; overflow: hidden; background: #E0FBFC;
+    }
+    #scene1 { z-index: 1; }
+    #scene2 { z-index: 2; opacity: 0; }
+    #scene3 { z-index: 3; opacity: 0; }
+    #scene4 { z-index: 4; opacity: 0; }
+    #scene5 { z-index: 5; opacity: 0; }
+    .scene-content {
+      width: 100%; height: 100%; padding: 110px 150px;
+      display: flex; flex-direction: column; box-sizing: border-box;
+      position: relative; z-index: 3; gap: 28px;
+    }
+    .decor-glow {
+      position: absolute; border-radius: 50%; filter: blur(140px);
+      z-index: 0; pointer-events: none;
+    }
+    .ghost-text {
+      position: absolute; z-index: 1; pointer-events: none;
+      font-family: "Inter", sans-serif; font-weight: 900;
+      color: #3D5A80; opacity: 0.05; white-space: nowrap; user-select: none;
+    }
+    .hairline {
+      position: absolute; height: 2px; background: #98C1D9;
+      z-index: 3; transform-origin: left center;
+    }
+    .grid-pattern { position: absolute; z-index: 0; pointer-events: none; opacity: 0.08; }
+    .phase-badge {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: "JetBrains Mono", monospace; font-size: 20px; font-weight: 600;
+      color: #EE6C4D; letter-spacing: 0.08em; text-transform: uppercase;
+      border: 2px solid #EE6C4D; border-radius: 6px; padding: 8px 18px;
+      width: fit-content; background: rgba(238, 108, 77, 0.08);
+    }
+    .headline {
+      font-family: "Inter", sans-serif; font-weight: 900; font-size: 96px;
+      color: #293241; line-height: 1.08; letter-spacing: -0.03em;
+    }
+    .headline-sm {
+      font-family: "Inter", sans-serif; font-weight: 800; font-size: 64px;
+      color: #293241; line-height: 1.12; letter-spacing: -0.02em;
+    }
+    .subtitle {
+      font-family: "Inter", sans-serif; font-weight: 300; font-size: 32px;
+      color: #4A5568; line-height: 1.45;
+    }
+    .meta-label {
+      font-family: "JetBrains Mono", monospace; font-weight: 400; font-size: 16px;
+      color: #5A6377; letter-spacing: 0.04em;
+    }
+    .card-row { display: flex; gap: 32px; width: 100%; }
+    .card {
+      flex: 1; background: #FFFFFF; border-radius: 8px; padding: 36px 40px;
+      display: flex; flex-direction: column; gap: 16px;
+      box-shadow: 0 2px 12px rgba(41, 50, 65, 0.06), 0 1px 3px rgba(41, 50, 65, 0.04);
+      position: relative; overflow: hidden;
+    }
+    .card-accent {
+      position: absolute; left: 0; top: 0; width: 4px; height: 100%;
+      transform-origin: top center;
+    }
+    .card-icon { font-size: 28px; line-height: 1; }
+    .card-title {
+      font-family: "Inter", sans-serif; font-weight: 700; font-size: 28px;
+      color: #293241; line-height: 1.2;
+    }
+    .card-detail {
+      font-family: "Inter", sans-serif; font-weight: 350; font-size: 20px;
+      color: #4A5568; line-height: 1.45;
+    }
+    .corner-tr { position: absolute; top: 50px; right: 60px; z-index: 5; }
+    .corner-bl { position: absolute; bottom: 50px; left: 60px; z-index: 5; }
+    .corner-br { position: absolute; bottom: 50px; right: 60px; z-index: 5; }
+    .now-dot { width: 10px; height: 10px; border-radius: 50%; background: #EE6C4D; display: inline-block; }
+    .s5-highlight-dot {
+      width: 14px; height: 14px; border-radius: 50%; background: #EE6C4D;
+      display: inline-block; margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div data-hf-id="hf-u6xb" id="root" data-composition-id="main" data-width="1920" data-height="1080" data-start="0" data-duration="38">
+
+    <!-- ══════ SCENE 1：总览 — 本周做了三件事 ══════ -->
+    <div data-hf-id="hf-zet7" id="scene1" class="scene">
+      <div data-hf-id="hf-noqv" class="decor-glow s1-glow" data-layout-allow-overflow="" style="width:900px;height:700px;top:-200px;right:-100px;background:rgba(61,90,128,0.10);"></div>
+      <div data-hf-id="hf-pnmz" class="ghost-text s1-ghost" data-layout-allow-overflow="" style="font-size:200px;top:100px;right:-60px;">迭代</div>
+      <svg data-hf-id="hf-nhud" class="grid-pattern s1-grid" width="1920" height="1080" viewBox="0 0 1920 1080">
+        <defs data-hf-id="hf-mh0t"><pattern data-hf-id="hf-oido" id="g1" width="120" height="120" patternUnits="userSpaceOnUse"><rect data-hf-id="hf-e7pd" width="120" height="120" fill="none" stroke="#98C1D9" stroke-width="0.5" opacity="0.3" /></pattern></defs>
+        <rect data-hf-id="hf-hjiz" width="1920" height="1080" fill="url(#g1)" />
+      </svg>
+      <div data-hf-id="hf-cnuh" class="hairline s1-rule-top" style="top:100px;left:150px;width:600px;background:#98C1D9;"></div>
+
+      <div data-hf-id="hf-zb61" class="scene-content" style="justify-content:center;gap:40px;">
+        <div data-hf-id="hf-bx9u" class="phase-badge s1-badge">本周工作</div>
+        <h1 data-hf-id="hf-hd7i" class="headline s1-headline" style="max-width:1100px;">最近做了<br data-hf-id="hf-x5px">三件事</h1>
+        <div data-hf-id="hf-h0ou" class="hairline s1-rule-title" style="width:400px;background:#3D5A80;position:relative;"></div>
+
+        <div data-hf-id="hf-ahrl" style="display:flex;flex-direction:column;gap:28px;margin-top:8px;">
+          <div data-hf-id="hf-jeod" class="s1-item" style="display:flex;align-items:baseline;gap:24px;">
+            <span data-hf-id="hf-pq2m" style="font-family:'Inter',sans-serif;font-weight:900;font-size:64px;color:#D1503A;line-height:1;">1</span>
+            <div data-hf-id="hf-yeow">
+              <div data-hf-id="hf-iuv0" style="font-family:'Inter',sans-serif;font-weight:700;font-size:34px;color:#293241;">先测试，再上线</div>
+              <div data-hf-id="hf-ivuh" class="subtitle" style="font-size:24px;max-width:700px;">在本地找出系统的安全问题。确保登录没有任何漏洞，再往生产环境推。</div>
+            </div>
+          </div>
+          <div data-hf-id="hf-y3b5" class="s1-item" style="display:flex;align-items:baseline;gap:24px;">
+            <span data-hf-id="hf-q4dn" style="font-family:'Inter',sans-serif;font-weight:900;font-size:64px;color:#D1503A;line-height:1;">2</span>
+            <div data-hf-id="hf-y7yw">
+              <div data-hf-id="hf-5fp6" style="font-family:'Inter',sans-serif;font-weight:700;font-size:34px;color:#293241;">找 Bug，修逻辑</div>
+              <div data-hf-id="hf-qom2" class="subtitle" style="font-size:24px;max-width:700px;">系统性地排查 Bug。找出逻辑缺陷，在生产环境出事之前修掉。</div>
+            </div>
+          </div>
+          <div data-hf-id="hf-za88" class="s1-item" style="display:flex;align-items:baseline;gap:24px;">
+            <span data-hf-id="hf-qioo" style="font-family:'Inter',sans-serif;font-weight:900;font-size:64px;color:#D1503A;line-height:1;">3</span>
+            <div data-hf-id="hf-x11t">
+              <div data-hf-id="hf-gv33" style="font-family:'Inter',sans-serif;font-weight:700;font-size:34px;color:#293241;">Geo 优化与升级</div>
+              <div data-hf-id="hf-09qp" class="subtitle" style="font-size:24px;max-width:700px;">面向全球用户优化性能。降低延迟，升级基础设施支撑跨境规模。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-r49t" class="corner-tr meta-label s1-meta-tr">KOC-Engine</div>
+      <div data-hf-id="hf-qbo3" class="corner-bl meta-label s1-meta-bl">2026年6月22日这周</div>
+      <div data-hf-id="hf-698a" class="corner-br meta-label s1-meta-br">1 / 5</div>
+    </div>
+
+    <!-- ══════ SCENE 2：#1 本地测试 & 登录安全 ══════ -->
+    <div data-hf-id="hf-qqxc" id="scene2" class="scene">
+      <div data-hf-id="hf-sjpr" class="decor-glow s2-glow" data-layout-allow-overflow="" style="width:700px;height:600px;top:50%;left:-200px;background:rgba(61,90,128,0.08);"></div>
+      <div data-hf-id="hf-gvna" class="ghost-text s2-ghost" data-layout-allow-overflow="" style="font-size:190px;bottom:60px;left:-40px;">测试</div>
+      <div data-hf-id="hf-9y6o" class="hairline s2-rule-top" style="top:90px;left:150px;width:400px;background:#98C1D9;"></div>
+      <div data-hf-id="hf-5vea" class="hairline s2-rule-side" style="top:180px;left:90px;width:2px;height:320px;background:#98C1D9;transform-origin:top center;"></div>
+
+      <div data-hf-id="hf-b8wg" class="scene-content" style="justify-content:center;gap:36px;">
+        <div data-hf-id="hf-d5v8" style="display:flex;align-items:center;gap:20px;">
+          <span data-hf-id="hf-pv71" class="phase-badge s2-badge" style="font-size:18px;">#1 · 本地测试</span>
+          <span data-hf-id="hf-lz8v" class="meta-label" style="color:#EE6C4D;"><span data-hf-id="hf-u3j3" class="now-dot" style="margin-right:6px;"></span>进行中</span>
+        </div>
+        <h2 data-hf-id="hf-0aap" class="headline-sm s2-headline" style="max-width:950px;">先测试。<br data-hf-id="hf-rsrt">别急着上线。</h2>
+        <p data-hf-id="hf-67b7" class="subtitle s2-sub" style="max-width:850px;font-size:28px;">生产环境是用户待的地方。每一个安全漏洞都应该在本地被发现，而不是线上。先测透，再自信上线。</p>
+
+        <div data-hf-id="hf-yzhu" class="card-row s2-cards">
+          <div data-hf-id="hf-vn2y" class="card">
+            <div data-hf-id="hf-f5hw" class="card-accent" style="background:#EE6C4D;"></div>
+            <div data-hf-id="hf-tb3q" class="card-icon">🔑</div>
+            <div data-hf-id="hf-64mg" class="card-title">登录安全审计</div>
+            <div data-hf-id="hf-7g5f" class="card-detail">JWT Token 加固 — 过期时间、刷新轮换、签名验证。httpOnly Cookie 存储防止 XSS 窃取 Token。</div>
+          </div>
+          <div data-hf-id="hf-i08u" class="card">
+            <div data-hf-id="hf-q2d0" class="card-accent" style="background:#3D5A80;"></div>
+            <div data-hf-id="hf-sjrf" class="card-icon">🛡️</div>
+            <div data-hf-id="hf-jp46" class="card-title">权限控制验证</div>
+            <div data-hf-id="hf-lte9" class="card-detail">三个角色：KOC、商家、管理员。bcrypt 密码哈希。16 个 API 模块全部加上路由级权限守卫，逐端点验证。</div>
+          </div>
+          <div data-hf-id="hf-iejv" class="card">
+            <div data-hf-id="hf-6yxf" class="card-accent" style="background:#98C1D9;"></div>
+            <div data-hf-id="hf-a260" class="card-icon">📋</div>
+            <div data-hf-id="hf-wu31" class="card-title">会话安全加固</div>
+            <div data-hf-id="hf-783y" class="card-detail">会话超时强制执行。登录尝试频率限制。完整的认证事件日志。任何会话都不能无限存活。</div>
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-omuh" class="corner-tr meta-label s2-meta">2 / 5</div>
+    </div>
+
+    <!-- ══════ SCENE 3：#2 找 Bug & 调试逻辑 ══════ -->
+    <div data-hf-id="hf-ril5" id="scene3" class="scene">
+      <div data-hf-id="hf-qsvi" class="decor-glow s3-glow" data-layout-allow-overflow="" style="width:800px;height:650px;top:-150px;right:-200px;background:rgba(238,108,77,0.07);"></div>
+      <div data-hf-id="hf-639v" class="ghost-text s3-ghost" data-layout-allow-overflow="" style="font-size:190px;top:80px;right:-60px;">DEBUG</div>
+      <div data-hf-id="hf-h9cj" class="hairline s3-rule-top" style="top:90px;left:150px;width:400px;background:#98C1D9;"></div>
+
+      <div data-hf-id="hf-ubag" class="scene-content" style="justify-content:center;gap:36px;">
+        <div data-hf-id="hf-l05o" style="display:flex;align-items:center;gap:20px;">
+          <span data-hf-id="hf-fepl" class="phase-badge s3-badge" style="font-size:18px;">#2 · 找Bug修逻辑</span>
+          <span data-hf-id="hf-8oep" class="meta-label" style="color:#EE6C4D;"><span data-hf-id="hf-gtlr" class="now-dot" style="margin-right:6px;"></span>本周重点</span>
+        </div>
+        <h2 data-hf-id="hf-wj6v" class="headline-sm s3-headline" style="max-width:950px;">找 Bug。<br data-hf-id="hf-szow">修逻辑。</h2>
+        <p data-hf-id="hf-wvr2" class="subtitle s3-sub" style="max-width:850px;font-size:28px;">复杂系统把边缘情况藏在明处。系统性的调试才能找到它们 — 而不是等用户凌晨三点替你发现。</p>
+
+        <div data-hf-id="hf-8cxv" class="card-row s3-cards">
+          <div data-hf-id="hf-isuw" class="card">
+            <div data-hf-id="hf-dcq4" class="card-accent" style="background:#EE6C4D;"></div>
+            <div data-hf-id="hf-z9p5" class="card-icon">🔀</div>
+            <div data-hf-id="hf-yduf" class="card-title">状态机边缘情况</div>
+            <div data-hf-id="hf-95iu" class="card-detail">14 个状态转换端到端验证。防止重复提交。槽位接受的竞态条件防护。全路径质押完整性校验。</div>
+          </div>
+          <div data-hf-id="hf-byql" class="card">
+            <div data-hf-id="hf-6gek" class="card-accent" style="background:#3D5A80;"></div>
+            <div data-hf-id="hf-xuag" class="card-icon">⏱️</div>
+            <div data-hf-id="hf-iwe3" class="card-title">SLA 超时逻辑修复</div>
+            <div data-hf-id="hf-tckn" class="card-detail">7 个 cron 钩子全 SLA 阶段调试完成。超时检测精度提升。自动重分配与违规逻辑全部验证通过。</div>
+          </div>
+          <div data-hf-id="hf-cd1m" class="card">
+            <div data-hf-id="hf-59df" class="card-accent" style="background:#98C1D9;"></div>
+            <div data-hf-id="hf-plcu" class="card-icon">🗄️</div>
+            <div data-hf-id="hf-bdj9" class="card-title">数据一致性检查</div>
+            <div data-hf-id="hf-rknb" class="card-detail">14 个存储模块 threading.Lock 验证。跨存储事务的质押扣减与退款完整性。审核循环逻辑全部通过。</div>
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-z967" class="corner-tr meta-label s3-meta">3 / 5</div>
+    </div>
+
+    <!-- ══════ SCENE 4：#3 Geo 优化与升级 ══════ -->
+    <div data-hf-id="hf-gn3i" id="scene4" class="scene">
+      <div data-hf-id="hf-oolm" class="decor-glow s4-glow" data-layout-allow-overflow="" style="width:750px;height:650px;bottom:-200px;left:50%;background:rgba(61,90,128,0.09);"></div>
+      <div data-hf-id="hf-bj6a" class="ghost-text s4-ghost" data-layout-allow-overflow="" style="font-size:180px;bottom:80px;left:-40px;">GEO</div>
+      <div data-hf-id="hf-vbam" class="hairline s4-rule-top" style="top:90px;left:150px;width:400px;background:#98C1D9;"></div>
+
+      <div data-hf-id="hf-t4dd" class="scene-content" style="justify-content:center;gap:36px;">
+        <div data-hf-id="hf-jt8l" style="display:flex;align-items:center;gap:20px;">
+          <span data-hf-id="hf-3c3m" class="phase-badge s4-badge" style="font-size:18px;">#3 · Geo 优化升级</span>
+          <span data-hf-id="hf-lm2t" class="meta-label" style="color:#EE6C4D;"><span data-hf-id="hf-gfaq" class="now-dot" style="margin-right:6px;"></span>本周重点</span>
+        </div>
+        <h2 data-hf-id="hf-gs3x" class="headline-sm s4-headline" style="max-width:950px;">全球优化。<br data-hf-id="hf-sldv">基础升级。</h2>
+        <p data-hf-id="hf-wt84" class="subtitle s4-sub" style="max-width:850px;font-size:28px;">跨境电商意味着用户遍布每个大洲。地理位置不该是事后才考虑的事 — 它是核心体验的一部分。</p>
+
+        <div data-hf-id="hf-5t9o" class="card-row s4-cards">
+          <div data-hf-id="hf-crcn" class="card">
+            <div data-hf-id="hf-c5t1" class="card-accent" style="background:#EE6C4D;"></div>
+            <div data-hf-id="hf-q1xc" class="card-icon">🌐</div>
+            <div data-hf-id="hf-nyda" class="card-title">多区域路由优化</div>
+            <div data-hf-id="hf-zabs" class="card-detail">按大洲分析 API 延迟。策略性边缘计算部署加速响应。CDN 就近分发静态资源到每个用户身边。</div>
+          </div>
+          <div data-hf-id="hf-d5no" class="card">
+            <div data-hf-id="hf-59hh" class="card-accent" style="background:#3D5A80;"></div>
+            <div data-hf-id="hf-0x4d" class="card-icon">📜</div>
+            <div data-hf-id="hf-dmab" class="card-title">跨境合规适配</div>
+            <div data-hf-id="hf-ra37" class="card-detail">按司法管辖区处理数据驻留要求。区域级速率限制防止跨区滥用。时区感知的 SLA 调度确保全球公平。</div>
+          </div>
+          <div data-hf-id="hf-kse1" class="card">
+            <div data-hf-id="hf-4v2e" class="card-accent" style="background:#98C1D9;"></div>
+            <div data-hf-id="hf-thg7" class="card-icon">⚡</div>
+            <div data-hf-id="hf-fyyz" class="card-title">性能全面升级</div>
+            <div data-hf-id="hf-wgot" class="card-detail">各区域响应时间基准测试。冷启动优化。连接池与 keep-alive 调优，支撑全球持续吞吐量。</div>
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-5ew5" class="corner-tr meta-label s4-meta">4 / 5</div>
+    </div>
+
+    <!-- ══════ SCENE 5：收尾 ══════ -->
+    <div data-hf-id="hf-kl7j" id="scene5" class="scene">
+      <div data-hf-id="hf-roj3" class="decor-glow s5-glow" data-layout-allow-overflow="" style="width:1000px;height:800px;top:50%;left:50%;background:rgba(61,90,128,0.06);"></div>
+      <div data-hf-id="hf-4xtf" class="ghost-text s5-ghost" data-layout-allow-overflow="" style="font-size:160px;top:50%;left:50%;">扎实</div>
+      <div data-hf-id="hf-seol" class="hairline s5-rule-bot" style="bottom:120px;left:50%;width:600px;background:#98C1D9;"></div>
+
+      <div data-hf-id="hf-2l6v" class="scene-content" style="justify-content:center;align-items:center;text-align:center;gap:36px;">
+        <div data-hf-id="hf-fatu" class="meta-label s5-recap" style="color:#EE6C4D;font-weight:600;font-size:20px;letter-spacing:0.08em;">
+          ① 先测试 &#160;·&#160; ② 修 Bug &#160;·&#160; ③ 全球优化
+        </div>
+        <h2 data-hf-id="hf-s20x" class="headline s5-headline" style="font-size:80px;max-width:1000px;">踏实构建。<br data-hf-id="hf-qluq">自信交付。</h2>
+        <p data-hf-id="hf-vam9" class="subtitle s5-sub" style="max-width:750px;font-size:30px;">
+          别急着上线。测好安全。修好逻辑。优化好基础设施。好软件是这么做出来的。
+        </p>
+        <p data-hf-id="hf-qq7a" class="meta-label s5-next" style="font-size:18px;margin-top:8px;">
+          下一步：性能监控 · 压力测试 · 功能打磨
+        </p>
+      </div>
+
+      <div data-hf-id="hf-y0ts" class="corner-bl meta-label s5-meta-bl">KOC-Engine · 2026年6月</div>
+      <div data-hf-id="hf-qs5u" class="corner-br meta-label s5-meta-br">5 / 5</div>
+    </div>
+
+  </div>
+
+  <script>
+    window.__timelines = window.__timelines || {};
+    var tl = gsap.timeline({ paused: true });
+
+    /* ── SCENE 1：总览 (0s – 5.6s) ── */
+    tl.to(".s1-glow", { scale: 1.04, duration: 5, yoyo: true, repeat: 1, ease: "sine.inOut" }, 0);
+    tl.to(".s1-ghost", { x: -30, duration: 5.5, ease: "none" }, 0);
+    tl.fromTo(".s1-grid", { opacity: 0 }, { opacity: 0.08, duration: 1.5, ease: "sine.inOut" }, 0);
+    tl.fromTo(".s1-rule-top", { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power3.out" }, 0.2);
+    tl.fromTo(".s1-badge", { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(2.2)" }, 0.3);
+    tl.fromTo(".s1-headline", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.7, ease: "expo.out" }, 0.6);
+    tl.fromTo(".s1-rule-title", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "power3.out" }, 0.8);
+    tl.fromTo(".s1-item:nth-child(1)", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 1.2);
+    tl.fromTo(".s1-item:nth-child(2)", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 1.55);
+    tl.fromTo(".s1-item:nth-child(3)", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 1.9);
+    tl.fromTo(".s1-meta-tr", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 0.5);
+    tl.fromTo(".s1-meta-bl", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 0.8);
+    tl.fromTo(".s1-meta-br", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 0.6);
+
+    // Transition 1→2
+    tl.to("#scene1", { filter: "blur(10px)", opacity: 0, duration: 0.4, ease: "power2.inOut" }, 5.2);
+    tl.fromTo("#scene2", { filter: "blur(10px)", opacity: 0 }, { filter: "blur(0px)", opacity: 1, duration: 0.4, ease: "power2.inOut" }, 5.2);
+
+    /* ── SCENE 2：#1 本地测试 (5.6s – 14.1s) ── */
+    tl.fromTo(".s2-glow", { yPercent: -50, scale: 1 }, { yPercent: -52, scale: 1.05, duration: 4, yoyo: true, repeat: 1, ease: "sine.inOut" }, 5.6);
+    tl.to(".s2-ghost", { x: 25, duration: 8, ease: "none" }, 5.6);
+    tl.to(".s2-rule-side", { opacity: 0.5, duration: 2, yoyo: true, repeat: 3, ease: "sine.inOut" }, 5.6);
+    tl.fromTo(".s2-rule-top", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "power3.out" }, 5.7);
+    tl.fromTo(".s2-badge", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)" }, 5.9);
+    tl.fromTo(".s2-badge + .meta-label", { opacity: 0, y: -15 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 6.0);
+    tl.fromTo(".s2-headline", { opacity: 0, x: -50 }, { opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }, 6.3);
+    tl.fromTo(".s2-sub", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.5, ease: "sine.inOut" }, 6.8);
+    tl.fromTo(".s2-cards .card:nth-child(1)", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 7.5);
+    tl.fromTo(".s2-cards .card:nth-child(2)", { opacity: 0, y: 60, x: 20 }, { opacity: 1, y: 0, x: 0, duration: 0.5, ease: "power3.out" }, 7.75);
+    tl.fromTo(".s2-cards .card:nth-child(3)", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 8.0);
+    tl.fromTo(".s2-cards .card:nth-child(1) .card-accent", { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: "power2.out" }, 7.75);
+    tl.fromTo(".s2-cards .card:nth-child(2) .card-accent", { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: "power2.out" }, 8.0);
+    tl.fromTo(".s2-cards .card:nth-child(3) .card-accent", { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: "power2.out" }, 8.25);
+    tl.fromTo(".s2-meta", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 6.0);
+
+    // Transition 2→3
+    tl.to("#scene2", { filter: "blur(12px)", opacity: 0, duration: 0.4, ease: "power2.inOut" }, 13.7);
+    tl.fromTo("#scene3", { filter: "blur(12px)", opacity: 0 }, { filter: "blur(0px)", opacity: 1, duration: 0.4, ease: "power2.inOut" }, 13.7);
+
+    /* ── SCENE 3：#2 找Bug修逻辑 (14.1s – 22.6s) ── */
+    tl.to(".s3-glow", { scale: 1.06, duration: 4, yoyo: true, repeat: 1, ease: "sine.inOut" }, 14.1);
+    tl.to(".s3-ghost", { x: -20, y: 15, duration: 8, ease: "none" }, 14.1);
+    tl.fromTo(".s3-rule-top", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "power3.out" }, 14.2);
+    tl.fromTo(".s3-badge", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)" }, 14.4);
+    tl.fromTo(".s3-badge + .meta-label", { opacity: 0, y: -15 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 14.5);
+    tl.fromTo(".s3-headline", { opacity: 0, x: 50 }, { opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }, 14.8);
+    tl.fromTo(".s3-sub", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.5, ease: "sine.inOut" }, 15.3);
+    tl.fromTo(".s3-cards .card:nth-child(1)", { opacity: 0, y: 55, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "power3.out" }, 16.0);
+    tl.fromTo(".s3-cards .card:nth-child(2)", { opacity: 0, y: 45, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "power3.out" }, 16.3);
+    tl.fromTo(".s3-cards .card:nth-child(3)", { opacity: 0, y: 50, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "power3.out" }, 16.6);
+    tl.fromTo(".s3-cards .card:nth-child(1) .card-accent", { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: "power2.out" }, 16.3);
+    tl.fromTo(".s3-cards .card:nth-child(2) .card-accent", { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: "power2.out" }, 16.6);
+    tl.fromTo(".s3-cards .card:nth-child(3) .card-accent", { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: "power2.out" }, 16.9);
+    tl.fromTo(".s3-meta", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 14.5);
+
+    // Transition 3→4
+    tl.to("#scene3", { filter: "blur(12px)", opacity: 0, duration: 0.4, ease: "power2.inOut" }, 22.2);
+    tl.fromTo("#scene4", { filter: "blur(12px)", opacity: 0 }, { filter: "blur(0px)", opacity: 1, duration: 0.4, ease: "power2.inOut" }, 22.2);
+
+    /* ── SCENE 4：#3 Geo优化 (22.6s – 31.1s) ── */
+    tl.fromTo(".s4-glow", { xPercent: -50, scale: 1 }, { xPercent: -50, scale: 1.05, duration: 4, yoyo: true, repeat: 1, ease: "sine.inOut" }, 22.6);
+    tl.to(".s4-ghost", { x: 30, duration: 8, ease: "none" }, 22.6);
+    tl.fromTo(".s4-rule-top", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "power3.out" }, 22.7);
+    tl.fromTo(".s4-badge", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)" }, 22.9);
+    tl.fromTo(".s4-badge + .meta-label", { opacity: 0, y: -15 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 23.0);
+    tl.fromTo(".s4-headline", { opacity: 0, x: -50 }, { opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }, 23.3);
+    tl.fromTo(".s4-sub", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.5, ease: "sine.inOut" }, 23.8);
+    tl.fromTo(".s4-cards .card:nth-child(1)", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 24.5);
+    tl.fromTo(".s4-cards .card:nth-child(2)", { opacity: 0, y: 60, x: 20 }, { opacity: 1, y: 0, x: 0, duration: 0.5, ease: "power3.out" }, 24.75);
+    tl.fromTo(".s4-cards .card:nth-child(3)", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 25.0);
+    tl.fromTo(".s4-cards .card:nth-child(1) .card-accent", { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: "power2.out" }, 24.75);
+    tl.fromTo(".s4-cards .card:nth-child(2) .card-accent", { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: "power2.out" }, 25.0);
+    tl.fromTo(".s4-cards .card:nth-child(3) .card-accent", { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: "power2.out" }, 25.25);
+    tl.fromTo(".s4-meta", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 23.0);
+
+    // Transition 4→5
+    tl.to("#scene4", { filter: "blur(15px)", opacity: 0, duration: 0.5, ease: "power1.inOut" }, 30.6);
+    tl.fromTo("#scene5", { filter: "blur(15px)", opacity: 0 }, { filter: "blur(0px)", opacity: 1, duration: 0.5, ease: "power1.inOut" }, 30.6);
+
+    /* ── SCENE 5：收尾 (31.1s – 38s) ── */
+    tl.fromTo(".s5-glow", { xPercent: -50, yPercent: -50, scale: 1 }, { xPercent: -50, yPercent: -50, scale: 1.04, duration: 5, yoyo: true, repeat: 1, ease: "sine.inOut" }, 31.1);
+    tl.to(".s5-ghost", { scale: 1.05, duration: 6, ease: "none" }, 31.1);
+    tl.fromTo(".s5-recap", { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 31.4);
+    tl.fromTo(".s5-headline", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, 31.9);
+    tl.fromTo(".s5-sub", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.5, ease: "sine.inOut" }, 32.5);
+    tl.fromTo(".s5-next", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 33.0);
+    tl.fromTo(".s5-rule-bot", { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power2.inOut" }, 31.3);
+    tl.fromTo(".s5-meta-bl", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 31.3);
+    tl.fromTo(".s5-meta-br", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 31.3);
+
+    tl.to("#scene5", { filter: "blur(6px)", opacity: 0, duration: 0.8, ease: "sine.inOut" }, 37.2);
+
+    window.__timelines["main"] = tl;
+  </script>
+</body>
+</html>

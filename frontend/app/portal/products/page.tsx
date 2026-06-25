@@ -48,7 +48,7 @@ export default function BrowseProducts() {
     products.list(token).then(setItems).catch(() => {});
     interests.list(token).then((list) => setMyInterests(new Set((list as Array<Record<string, unknown>>).map((i) => i.to_id as string)))).catch(() => {});
     matching.forKoc({ top_n: 10 }, token)
-      .then((res) => setRecommended((res.matches as ProductMatch[]) || []))
+      .then((res: unknown) => setRecommended(((res as Record<string, unknown>).matches as ProductMatch[]) || []))
       .catch(() => {})
       .finally(() => setRecLoading(false));
   }, [router]);

@@ -12,7 +12,7 @@ export default function AdminApplications() {
   useEffect(() => {
     const token = getToken();
     if (!token) return;
-    applications.list(token).then(setApps).catch(() => {});
+    applications.list(token).then((data) => setApps(data as Array<Record<string, unknown>>)).catch(() => {});
   }, []);
 
   const filtered = filter === "all" ? apps : apps.filter((a) => a.decision === filter);

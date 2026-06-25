@@ -138,10 +138,14 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="bg-zinc-900 text-zinc-400 text-center py-8 text-sm">
-        <div className="flex justify-center gap-4 mb-3">
+        <div className="flex justify-center gap-4 mb-3 flex-wrap">
           <Link href="/login" className="hover:text-purple-400 underline">Sign In</Link>
           <Link href="/register" className="hover:text-purple-400 underline">Create Account</Link>
+          <Link href="/pricing" className="hover:text-purple-400 underline">Pricing</Link>
           <Link href="/rules" className="hover:text-purple-400 underline">Platform Rules</Link>
+          <Link href="/about" className="hover:text-purple-400 underline">About</Link>
+          <Link href="/blog" className="hover:text-purple-400 underline">Blog</Link>
+          <Link href="/case-studies" className="hover:text-purple-400 underline">Case Studies</Link>
           <Link href="/guide/koc-marketing-cross-border-ecommerce" className="hover:text-purple-400 underline">KOC Marketing Guide</Link>
         </div>
         <p className="text-zinc-500">KOC Engine — Connecting Cross-Border Brands &amp; Creators</p>

@@ -1,0 +1,62 @@
+# KOC Engine — Full Platform Overview
+
+## What is KOC Engine
+
+KOC Engine is a bilateral matching platform connecting cross-border e-commerce brands with vetted Key Opinion Consumers (KOCs). Built for Amazon sellers and DTC brands expanding into global markets.
+
+## Core Mechanics
+
+### Dual-Pledge Escrow
+- Brand pre-pays commission pool (non-refundable) + 5pt platform service fee per task
+- KOC deposits fixed 10pt pledge per accepted slot
+- On completion: KOC receives commission + 9pt (10pt - 1pt platform fee)
+- If KOC fails to submit: commission returned to brand, KOC forfeits pledge
+- If brand fails to review: auto-approved after 4 days
+
+### AI Smart Matching
+- 7-dimension scoring: niche category overlap, tier bonus, content quality, regional match, collaboration history, trust score, content performance
+- Urgent tasks auto-match on publish; long-term tasks stay in task hall for browsing
+
+### Trust Score System
+- KOC tiers: L1 (0-54) → L2 (55-74, 2+ completed) → L3 (75+, 5+ completed, 4.0+ avg rating)
+- Merchant tiers: M1 (0-54) → M2 (55-74, 3+ completed) → M3 (75+, 10+ completed, 4.0+ avg rating)
+- Trust <40: merchant cannot publish; Trust <30: KOC excluded from matching
+- Complete +3, Ghosted -20, Violation -15, Report upheld -30
+
+### SLA Timeouts
+- KOC Accept: 12h → auto-redistribute
+- Merchant Ship: 48h → violation, return KOC pledge, -20 trust
+- KOC Submit Content: 14d → violation, forfeit pledge, -15 trust
+- Merchant Review: 4d → auto-approve
+- KOC Revision Resubmit: 3d → violation if exceeded
+- Long-term Empty Slot: 7d → system auto-match
+
+### Commission & Points
+- Commission paid in platform points (1pt = $1 USD, withdrawable)
+- KOC registration bonus: 1000pt
+- Merchant registration bonus: 5000pt
+- Referral reward: 10pt per referred KOC (withdrawable)
+
+## Key Pages
+
+| URL | Title | Description |
+|-----|-------|-------------|
+| / | Home | Landing with AI matching overview, value props, FAQ |
+| /login | Sign In | JWT-based auth for koc/merchant/admin roles |
+| /register | Create Account | Role selection: Brand (5000pt) or Creator (1000pt) |
+| /koc/apply | KOC Application | AI-scored creator application with 3D evaluation |
+| /rules | Platform Rules | Full legal/economic rules — commission, pledge, SLA, AI judgment, withdrawal |
+| /guide/koc-marketing-cross-border-ecommerce | KOC Marketing Guide | 8-chapter guide: finding creators, vetting, logistics, ROI |
+| /portal/hall | Task Hall | KOC browses and accepts open brand deals |
+| /dashboard/koc-pool | KOC Pool | Brand browses anonymous creator profiles |
+| /pricing | Pricing | (Coming soon) Transparent fee structure |
+| /case-studies | Case Studies | (Coming soon) Real brand-creator collaboration results |
+| /about | About | (Coming soon) Team and company info |
+
+## Tech Stack
+- Backend: Python 3.12 + FastAPI + uvicorn
+- Frontend: Next.js 16 App Router + React 19 + Tailwind CSS 4
+- AI: DeepSeek v4 (deepseek-chat, OpenAI-compatible)
+- Storage: JSON files + threading.Lock
+- Auth: bcrypt + PyJWT (3 roles)
+- Deploy: Vercel (frontend) + Render/VPS (backend)

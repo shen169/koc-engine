@@ -95,7 +95,7 @@ function ApplyForm() {
         campaign: "baby_products",
         referral_code: refCode,
       };
-      const res = await applications.submit(data);
+      const res = await applications.submit(data) as Record<string, unknown> | null;
       setTimeout(() => { setResult(res); setLoading(false); }, 1500);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Submission failed");

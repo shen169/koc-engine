@@ -79,12 +79,40 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "KOC Engine",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "description": SITE_DESCRIPTION,
+    "offers": {
+      "@type": "Offer",
+      "price": "0.00",
+      "priceCurrency": "USD",
+    },
+    "author": {
+      "@type": "Organization",
+      "name": "KOC Engine",
+      "url": SITE_URL,
+      "sameAs": [
+        "https://github.com/shen169/koc-engine",
+        "https://x.com/kocengine",
+        "https://reddit.com/r/kocengine",
+      ],
+    },
+  };
+
   return (
     <html lang="en" className="h-full antialiased">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
