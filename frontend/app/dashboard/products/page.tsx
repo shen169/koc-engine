@@ -70,7 +70,7 @@ export default function MyProducts() {
     setSelected(new Set());
     setMatchingLoading(true);
     try {
-      const result = await matching.forProduct(productId, { top_n: 10 }, token!);
+      const result = await matching.forProduct(productId, { top_n: 10 }, token!) as Record<string, unknown>;
       setMatches((result.matches as MatchResult[]) || []);
     } catch (err) {
       console.error("Matching failed", err);

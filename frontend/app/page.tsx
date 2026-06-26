@@ -28,12 +28,12 @@ const homeFaqs = [
   {
     question: "How much can creators earn from KOC brand collaborations?",
     answer:
-      "Creators earn through commission links set by brands — typically 15-30% discount codes or flat commission per sale. Platform pledges are fully refundable upon successful content approval. Top performers (L3 tier) get priority matching and appear at the top of merchant search results.",
+      "Creators earn commission paid in platform points — brands set per-KOC commission when publishing tasks (e.g. 30pt = $30). KOC pays a small 10pt pledge refunded on completion (minus 1pt platform fee). Earned points are withdrawable at 1pt = $1 USD. Top performers (L3 tier) get priority matching.",
   },
   {
     question: "How to prevent creators from taking free samples without posting content?",
     answer:
-      "KOC Engine uses a dual-pledge deposit system. Both sides deposit platform credits before collaboration. KOC's deposit is only refunded after the merchant approves their content. If KOC fails to submit within 14 days, deposit is forfeited and trust score drops 15 points.",
+      "KOC Engine uses a deposit + commission pool system. Brands pre-pay the commission pool (non-refundable), KOCs deposit a fixed 10pt pledge. KOC's pledge (9pt) + commission are released after content approval. AI judges disputes if brands reject twice. If KOC fails to submit, commission is returned to brand and KOC forfeits pledge.",
   },
   {
     question: "What is the best platform for cross-border KOC influencer marketing?",
@@ -92,7 +92,7 @@ export default function HomePage() {
           </div>
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-pink-600 uppercase tracking-wide mb-3">🎬 For Creators</h3>
-            {[{ icon: "🏪", title: "Task Hall", desc: "Browse all open brand deals. Filter by category, commission, and region. Accept up to 5 concurrent tasks." }, { icon: "💰", title: "Earn Commission + Free Products", desc: "Keep the products you review. Earn through brand commission links. Top performers unlock L3 priority matching." }, { icon: "⭐", title: "Build Your Reputation", desc: "Trust tiers (L1→L2→L3) based on completed collaborations and ratings. Higher tiers = more brand deals + better matching priority." }].map((v) => (
+            {[{ icon: "🏪", title: "Task Hall", desc: "Browse all open brand deals. Filter by category, commission, and region. Accept up to 5 concurrent tasks." }, { icon: "💰", title: "Earn Commission + Free Products", desc: "Keep the products you review. Earn commission in platform points (1pt = $1). Withdraw earnings anytime. Top performers unlock L3 priority matching." }, { icon: "⭐", title: "Build Your Reputation", desc: "Trust tiers (L1→L2→L3) based on completed collaborations and ratings. Higher tiers = more brand deals + better matching priority." }].map((v) => (
               <div key={v.title} className="bg-white rounded-2xl p-6 border border-pink-100 shadow-sm"><div className="text-3xl mb-3">{v.icon}</div><h4 className="font-bold text-zinc-900 mb-1">{v.title}</h4><p className="text-sm text-zinc-500">{v.desc}</p></div>
             ))}
           </div>
@@ -104,7 +104,7 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto px-6">
           <h2 className="text-3xl font-extrabold text-center text-zinc-900 mb-14">How It Works</h2>
           <div className="grid md:grid-cols-4 gap-6">
-            {[{ step: "1", title: "Brand Posts Task", desc: "Set product, commission, KOC count. Urgent tasks auto-match." }, { step: "2", title: "AI Matches Creators", desc: "7-dimension scoring finds best-fit KOCs by niche and region." }, { step: "3", title: "Both Pledge + Ship", desc: "Dual deposit locks in. Brand ships sample, KOC creates content." }, { step: "4", title: "Review + Track ROI", desc: "Brand approves content. Track views, engagement, conversions." }].map((item) => (
+            {[{ step: "1", title: "Brand Posts Task", desc: "Set product, commission, KOC count. Urgent tasks auto-match." }, { step: "2", title: "AI Matches Creators", desc: "7-dimension scoring finds best-fit KOCs by niche and region." }, { step: "3", title: "Commission Pool + Ship", desc: "Brand pre-pays commission pool. KOC pledges 10pt. Brand ships sample, KOC creates content." }, { step: "4", title: "Review + Track ROI", desc: "Brand approves content. Track views, engagement, conversions." }].map((item) => (
               <div key={item.step} className="text-center"><div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 brand-gradient"><span className="text-white text-xl font-extrabold">{item.step}</span></div><h4 className="font-bold text-zinc-900 mb-1">{item.title}</h4><p className="text-xs text-zinc-500">{item.desc}</p></div>
             ))}
           </div>
@@ -138,9 +138,14 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="bg-zinc-900 text-zinc-400 text-center py-8 text-sm">
-        <div className="flex justify-center gap-4 mb-3">
+        <div className="flex justify-center gap-4 mb-3 flex-wrap">
           <Link href="/login" className="hover:text-purple-400 underline">Sign In</Link>
           <Link href="/register" className="hover:text-purple-400 underline">Create Account</Link>
+          <Link href="/pricing" className="hover:text-purple-400 underline">Pricing</Link>
+          <Link href="/rules" className="hover:text-purple-400 underline">Platform Rules</Link>
+          <Link href="/about" className="hover:text-purple-400 underline">About</Link>
+          <Link href="/blog" className="hover:text-purple-400 underline">Blog</Link>
+          <Link href="/case-studies" className="hover:text-purple-400 underline">Case Studies</Link>
           <Link href="/guide/koc-marketing-cross-border-ecommerce" className="hover:text-purple-400 underline">KOC Marketing Guide</Link>
         </div>
         <p className="text-zinc-500">KOC Engine — Connecting Cross-Border Brands &amp; Creators</p>

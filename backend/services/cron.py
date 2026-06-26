@@ -1,13 +1,14 @@
-"""Cron 周期扫描 V2 — 超时检测 + 自动处理 + 诚信度 + 物流追踪"""
+"""Cron 周期扫描 V2 — 超时检测 + 自动处理 + 诚信度 + 物流追踪 + 通知"""
 
 from datetime import datetime, timedelta, timezone
-from config import GHOSTED_GRACE_DAYS, STALE_DAYS, SLA_CONTENT_REVIEW_DAYS, MAX_REVISIONS, KOC_PLATFORM_FEE
+from config import GHOSTED_GRACE_DAYS, STALE_DAYS, SLA_CONTENT_REVIEW_DAYS, SLA_REVISION_DAYS, MAX_REVISIONS, KOC_PLATFORM_FEE, KOC_FIXED_PLEDGE, NotifType
 from stores.koc_store import koc_store
 from stores.task_store import task_store
 from stores.merchant_store import merchant_store
 from stores.credit_store import credit_store
 from stores.user_store import user_store
 from services.matcher import rematch_slot
+from services.notifier import notify_user
 
 
 # ═══════════════════════════════════════════
@@ -66,6 +67,18 @@ def run_weekly_scan() -> dict:
             # 3. 已发货未确认收货（7d）
             if slot_status == "shipped":
                 shipped_at = _parse_ts(slot.get("shipped_at", ""))
+                if shipped_at:
+                    days_since_ship = (now - shipped_at).days
+                    # ⚠️ 预警：已发货 5 天，2 天后系统自动确认收货
+                    if days_since_ship >= 5:
+                        koc_uid_w = _get_koc_user_id(koc_id) if koc_id else ""
+                        _warn_if_needed(task, i, "receive_5d", days_since_ship < SLA_RECEIVE_DAYS,
+                            NotifType.DEADLINE_WARNING,
+                            "⏰ 2 Days Left — Confirm Receipt",
+                            f"{task.product_name}: You have 2 days left to confirm receipt before the system auto-confirms.",
+                            koc_uid_w, f"/portal/tasks/{task.id}",
+                            koc_name="Creator", days_left=2)
+
                 if shipped_at and (now - shipped_at).days >= SLA_RECEIVE_DAYS:
                     task_store.update_slot(task.id, i, {
                         "status": "received",
@@ -73,9 +86,58 @@ def run_weekly_scan() -> dict:
                     })
                     result["auto_received"] += 1
 
+                    # ── 通知 KOC：系统自动确认收货 ──
+                    if koc_id:
+                        koc_uid = _get_koc_user_id(koc_id)
+                        if koc_uid:
+                            notify_user(
+                                koc_uid,
+                                NotifType.RECEIPT_AUTO,
+                                "Receipt Auto-Confirmed",
+                                f"System auto-confirmed receipt of {task.product_name}. You have 14 days to submit content.",
+                                task_id=task.id,
+                                resource_path=f"/portal/tasks/{task.id}",
+                            )
+
+                    # ── 通知商家：系统自动确认收货 ──
+                    m_uid = _get_merchant_user_id(task.merchant_id)
+                    if m_uid:
+                        notify_user(
+                            m_uid,
+                            NotifType.RECEIPT_AUTO,
+                            "Receipt Auto-Confirmed by System",
+                            f"A KOC's receipt of {task.product_name} has been auto-confirmed. Content creation in progress.",
+                            task_id=task.id,
+                            resource_path=f"/dashboard/tasks/{task.id}",
+                        )
+
             # 4. 已收货未提交内容（14d）
             if slot_status in ("received", "creating"):
                 received_at = _parse_ts(slot.get("received_at", ""))
+                if received_at:
+                    days_since_received = (now - received_at).days
+                    koc_uid_w = _get_koc_user_id(koc_id) if koc_id else ""
+                    koc_prof_w = koc_store.get(koc_id) if koc_id else None
+                    koc_name_w = koc_prof_w.handle if (koc_prof_w and koc_prof_w.handle) else "Creator"
+
+                    # ⚠️ 预警：已收货 7 天，还剩 7 天提交内容
+                    if days_since_received >= 7:
+                        _warn_if_needed(task, i, "submit_7d", days_since_received < SLA_SUBMIT_DAYS,
+                            NotifType.DEADLINE_WARNING,
+                            "⏰ 7 Days Left — Submit Your Content",
+                            f"{task.product_name}: You have 7 days left to submit content. Late submission = 10pt forfeited + Trust Score -15.",
+                            koc_uid_w, f"/portal/tasks/{task.id}",
+                            koc_name=koc_name_w, days_left=SLA_SUBMIT_DAYS - days_since_received)
+
+                    # ⚠️ 预警：已收货 11 天，仅剩 3 天！
+                    if days_since_received >= 11:
+                        _warn_if_needed(task, i, "submit_11d", days_since_received < SLA_SUBMIT_DAYS,
+                            NotifType.DEADLINE_WARNING,
+                            "🚨 3 Days Left — Submit Now or Lose Pledge!",
+                            f"{task.product_name}: ONLY 3 DAYS LEFT! Submit your content now or your 10pt pledge will be forfeited + Trust Score -15.",
+                            koc_uid_w, f"/portal/tasks/{task.id}",
+                            koc_name=koc_name_w, days_left=SLA_SUBMIT_DAYS - days_since_received)
+
                 if received_at and (now - received_at).days >= SLA_SUBMIT_DAYS:
                     _handle_submit_timeout(task, i, koc_id)
                     result["koc_defaulted"] += 1
@@ -83,14 +145,42 @@ def run_weekly_scan() -> dict:
             # 4b. 内容已提交待商家审核（3d 超时 → 自动通过）
             if slot_status == "submitted":
                 submitted_at = _parse_ts(slot.get("submitted_at", ""))
+                if submitted_at:
+                    days_since_submit = (now - submitted_at).days
+                    m_uid_w = _get_merchant_user_id(task.merchant_id)
+
+                    # ⚠️ 预警：已提交 2 天，商家 1 天后自动通过
+                    if days_since_submit >= 2:
+                        _warn_if_needed(task, i, "review_2d", days_since_submit < SLA_CONTENT_REVIEW_DAYS,
+                            NotifType.DEADLINE_WARNING,
+                            "⏰ 1 Day Left — Review Content",
+                            f"{task.product_name}: You have 1 day left to review KOC content before auto-approval. Commission will be released automatically.",
+                            m_uid_w, f"/dashboard/tasks/{task.id}",
+                            koc_name="Brand", days_left=SLA_CONTENT_REVIEW_DAYS - days_since_submit)
+
                 if submitted_at and (now - submitted_at).days >= SLA_CONTENT_REVIEW_DAYS:
                     _handle_auto_approve(task, i, koc_id)
                     result["auto_review_approved"] = result.get("auto_review_approved", 0) + 1
 
-            # 4c. 商家驳回后 KOC 未重新提交（3d 超时 → 视为放弃）
+            # 4c. 商家驳回后 KOC 未重新提交（超时 → 视为放弃）
             if slot_status == "revision_requested":
                 reviewed_at = _parse_ts(slot.get("reviewed_at", ""))
-                if reviewed_at and (now - reviewed_at).days >= SLA_CONTENT_REVIEW_DAYS:
+                if reviewed_at:
+                    days_since_review = (now - reviewed_at).days
+                    koc_uid_w = _get_koc_user_id(koc_id) if koc_id else ""
+                    koc_prof_w = koc_store.get(koc_id) if koc_id else None
+                    koc_name_w = koc_prof_w.handle if (koc_prof_w and koc_prof_w.handle) else "Creator"
+
+                    # ⚠️ 预警：驳回 1 天后，还剩 2 天修改重交
+                    if days_since_review >= 1:
+                        _warn_if_needed(task, i, "revision_1d", days_since_review < SLA_REVISION_DAYS,
+                            NotifType.DEADLINE_WARNING,
+                            "⏰ Revision Due — Resubmit Within {n} Days",
+                            f"{task.product_name}: You have {SLA_REVISION_DAYS - days_since_review} day(s) left to revise and resubmit. Timeout = 10pt forfeited + Trust Score -15.",
+                            koc_uid_w, f"/portal/tasks/{task.id}",
+                            koc_name=koc_name_w, days_left=SLA_REVISION_DAYS - days_since_review)
+
+                if reviewed_at and (now - reviewed_at).days >= SLA_REVISION_DAYS:
                     _handle_revision_timeout(task, i, koc_id)
                     result["koc_defaulted"] += 1
 
@@ -106,9 +196,22 @@ def run_weekly_scan() -> dict:
         # ── 商家发货超时检测（48h from earliest accepted slot） ──
         if task.task_status == "accepted":
             earliest_accepted = _get_earliest_accepted(task.koc_slots)
-            if earliest_accepted and (now - earliest_accepted).total_seconds() > SLA_SHIP_HOURS * 3600:
-                _handle_merchant_ship_timeout(task)
-                result["merchant_defaulted"] += 1
+            if earliest_accepted:
+                hours_since = (now - earliest_accepted).total_seconds() / 3600
+                m_uid_w = _get_merchant_user_id(task.merchant_id)
+
+                # ⚠️ 预警：接单 36h 后，商家仅剩 12h 发货
+                if hours_since >= 36 and hours_since < SLA_SHIP_HOURS:
+                    _warn_if_needed(task, 0, "ship_36h", True,
+                        NotifType.DEADLINE_WARNING,
+                        "🚨 12 Hours Left — Ship or Face Penalty!",
+                        f"{task.product_name}: Only 12 hours left to ship! Timeout = Trust Score -20 + commission pool forfeited + task disputed.",
+                        m_uid_w, f"/dashboard/tasks/{task.id}",
+                        koc_name="Brand", days_left=0)
+
+                if hours_since > SLA_SHIP_HOURS:
+                    _handle_merchant_ship_timeout(task)
+                    result["merchant_defaulted"] += 1
 
     # ── 诚信度阈值检测 ──
     all_merchants = merchant_store.list_all()
@@ -239,11 +342,11 @@ def check_ghosted_status() -> list[dict]:
                             "days_left": days_left,
                         })
 
-            # KOC 被驳回后未重新提交
+            # KOC 被驳回后未重新提交（修改期 = SLA_REVISION_DAYS）
             if slot_status == "revision_requested":
                 reviewed_at = _parse_ts(slot.get("reviewed_at", ""))
                 if reviewed_at:
-                    days_left = SLA_CONTENT_REVIEW_DAYS - (now - reviewed_at).days
+                    days_left = SLA_REVISION_DAYS - (now - reviewed_at).days
                     if 0 < days_left <= 1:
                         alerts.append({
                             "type": "revision_due_soon",
@@ -311,26 +414,60 @@ def _handle_long_term_idle(task, slot_index: int):
                 "assigned_at": now,
             })
 
+            # ── 通知商家：空位已被系统自动匹配 ──
+            m_uid = _get_merchant_user_id(task.merchant_id)
+            if m_uid:
+                notify_user(
+                    m_uid,
+                    NotifType.TASK_REMATCHED,
+                    "Long-Term Slot Auto-Matched",
+                    f"{task.product_name}: An empty slot was auto-matched by the system after 7 days unclaimed.",
+                    task_id=task.id,
+                    resource_path=f"/dashboard/tasks/{task.id}",
+                )
+
+            # ── 通知 KOC：被系统匹配到长线任务 ──
+            koc_uid = _get_koc_user_id(new_match["koc_id"])
+            if koc_uid:
+                notify_user(
+                    koc_uid,
+                    NotifType.KOC_MATCHED,
+                    "New Task Assignment — Long-Term Match",
+                    f"You have been auto-matched to {task.product_name}. The brand will ship within 48h. 10pt pledge required upon acceptance.",
+                    task_id=task.id,
+                    resource_path=f"/portal/tasks/{task.id}",
+                )
+
 
 def _handle_merchant_ship_timeout(task):
-    """48h 未发货 → 商家违约 → 退 KOC 质押 + 释放 slot"""
+    """48h 未发货 → 商家违约 → 退 KOC 质押全额 10pt + 释放 slot"""
     now = datetime.utcnow().isoformat()
-    # 退所有 accepted KOC 的质押并释放 slot（不再占用 KOC 的 5 个并行上限）
+    # 退所有 accepted KOC 的质押并释放 slot
     for i, slot in enumerate(task.koc_slots):
         if slot.get("status") == "accepted" and slot.get("pledge_paid"):
             koc_id = slot.get("koc_id", "")
             if koc_id:
                 koc_uid = _get_koc_user_id(koc_id)
-                credit_store.add_credits(koc_uid, task.pledge_koc,
+                credit_store.add_credits(koc_uid, KOC_FIXED_PLEDGE,
                                          "breach_compensation_koc", task.id,
-                                         f"Merchant breach compensation: {task.product_name}")
-            # 释放 slot：标记为 timed_out，解除 pled_paid
+                                         f"Merchant breach compensation: {task.product_name}",
+                                         withdrawable=True)
+                # ── 通知 KOC：商家违约，质押全额退回 ──
+                notify_user(
+                    koc_uid,
+                    NotifType.VIOLATION,
+                    "Brand Failed to Ship — Pledge Refunded",
+                    f"{task.product_name}: Brand did not ship within 48 hours. Your 10pt pledge has been refunded in full. Trust Score -20 applied to brand.",
+                    task_id=task.id,
+                    resource_path=f"/portal/tasks/{task.id}",
+                )
             task_store.update_slot(task.id, i, {
                 "status": "timed_out",
                 "pledge_paid": False,
             })
 
-    # 商家不退还质押（stays deducted）
+    # 商家不退还佣金池（stays deducted — 违约惩罚）
+
     # 扣商家诚信度
     m = merchant_store.get(task.merchant_id)
     if m:
@@ -340,21 +477,32 @@ def _handle_merchant_ship_timeout(task):
         })
         sync_merchant_tier(task.merchant_id)
 
+        # ── 通知商家：违约 ──
+        if m.user_id:
+            notify_user(
+                m.user_id,
+                NotifType.VIOLATION,
+                "Shipping Deadline Missed — Task Disputed",
+                f"You did not ship {task.product_name} within 48 hours. Your Trust Score -20 and the task has been disputed. Commission pool is forfeited.",
+                task_id=task.id,
+                resource_path=f"/dashboard/tasks/{task.id}",
+            )
+
     task_store.update(task.id, {"task_status": "disputed"})
 
 
 def _handle_submit_timeout(task, slot_index: int, koc_id: str):
-    """14d 未提交内容 → KOC 违约 → 退商家质押 + 扣 KOC 点"""
-    slot = task.koc_slots[slot_index] if slot_index < len(task.koc_slots) else {}
-    # 退商家质押
-    merchant_return = _merchant_slot_pledge(task)
-    if merchant_return > 0 and not slot.get("merchant_pledge_returned"):
+    """14d 未提交内容 → KOC 违约 → 退 commission 给商家 + KOC 质押 10pt 不退"""
+    # 退还 commission 给商家（KOC 没完成不该收钱）
+    if task.commission > 0:
         m_uid = _get_merchant_user_id(task.merchant_id)
-        credit_store.add_credits(m_uid, merchant_return, "breach_compensation_merchant",
-                                 task.id, f"KOC breach compensation: {task.product_name}")
-        task_store.update_slot(task.id, slot_index, {"merchant_pledge_returned": True})
+        credit_store.add_credits(m_uid, task.commission, "commission_returned",
+                                 task.id, f"Commission returned (KOC submit timeout): {task.product_name}")
 
-    # KOC 质押不退还（stays deducted）
+    # KOC 质押 10pt 不退 → 全部给平台
+    credit_store.add_credits("platform", KOC_FIXED_PLEDGE, "forfeited_pledge",
+                             task.id, f"KOC forfeited pledge (submit timeout): {task.product_name}")
+
     # 扣 KOC 信任分
     if koc_id:
         koc = koc_store.get(koc_id)
@@ -362,15 +510,45 @@ def _handle_submit_timeout(task, slot_index: int, koc_id: str):
             koc_store.update(koc_id, {
                 "trust_score": max(0, koc.trust_score - 15),
             })
-            # 信任分联动降级
             sync_koc_tier(koc_id)
 
     task_store.update_slot(task.id, slot_index, {"status": "timed_out"})
     _sync_task_disputed(task.id)
 
+    # ── 通知 KOC：违约 ──
+    if koc_id:
+        koc_uid = _get_koc_user_id(koc_id)
+        if koc_uid:
+            notify_user(
+                koc_uid,
+                NotifType.VIOLATION,
+                "Content Submission Timeout — Pledge Forfeited",
+                f"{task.product_name}: You missed the 14-day content submission deadline. Your 10pt pledge has been forfeited and Trust Score -15.",
+                task_id=task.id,
+                resource_path=f"/portal/tasks/{task.id}",
+                template_name="violation",
+                template_vars={
+                    "koc_name": "Creator",
+                    "reason": "Missed 14-day content submission deadline",
+                    "penalty": "10pt pledge forfeited, Trust Score -15",
+                },
+            )
+
+    # ── 通知商家：KOC 违约，commission 退回 ──
+    m_uid = _get_merchant_user_id(task.merchant_id)
+    if m_uid and task.commission > 0:
+        notify_user(
+            m_uid,
+            NotifType.VIOLATION,
+            "KOC Missed Submission Deadline — Commission Refunded",
+            f"{task.product_name}: A KOC missed the content submission deadline. {task.commission}pt commission has been refunded to your account.",
+            task_id=task.id,
+            resource_path=f"/dashboard/tasks/{task.id}",
+        )
+
 
 def _handle_auto_approve(task, slot_index: int, koc_id: str):
-    """商家 3 天内未审核 KOC 提交内容 → 自动通过 → 退双方押金 + 恢复信任"""
+    """商家超时未审核 KOC 提交内容 → 自动通过 → 佣金给 KOC + 退质押 − 平台费"""
     now = datetime.utcnow().isoformat()
     slot = task.koc_slots[slot_index] if slot_index < len(task.koc_slots) else {}
 
@@ -381,23 +559,21 @@ def _handle_auto_approve(task, slot_index: int, koc_id: str):
         "commission_paid": True,
     })
 
-    # 释放 KOC 质押（扣平台费）
+    # KOC 到手: commission + (KOC_FIXED_PLEDGE − KOC_PLATFORM_FEE)
     koc_uid = _get_koc_user_id(koc_id) if koc_id else ""
-    if task.pledge_koc > 0 and slot.get("pledge_paid"):
-        koc_return = task.pledge_koc - KOC_PLATFORM_FEE
+    koc_return = 0
+    if slot.get("pledge_paid"):
+        if task.commission > 0 and koc_uid:
+            credit_store.add_credits(koc_uid, task.commission, "commission_earned",
+                                     task.id, f"Commission earned (auto-approved): {task.product_name}",
+                                     withdrawable=True)
+        koc_return = KOC_FIXED_PLEDGE - KOC_PLATFORM_FEE
         if koc_return > 0 and koc_uid:
             credit_store.add_credits(koc_uid, koc_return, "pledge_return_koc",
-                                     task.id, f"Pledge returned (auto-approved): {task.product_name}")
+                                     task.id, f"Pledge returned (auto-approved): {task.product_name}",
+                                     withdrawable=True)
         credit_store.add_credits("platform", KOC_PLATFORM_FEE, "koc_platform_fee",
                                  task.id, f"KOC platform fee (auto-approved): {task.product_name}")
-
-    # 退还商家质押（全额）
-    merchant_return = _merchant_slot_pledge(task)
-    if merchant_return > 0 and not slot.get("merchant_pledge_returned"):
-        m_uid = _get_merchant_user_id(task.merchant_id)
-        credit_store.add_credits(m_uid, merchant_return, "pledge_return_merchant",
-                                 task.id, f"Pledge returned (auto-approved): {task.product_name}")
-        task_store.update_slot(task.id, slot_index, {"merchant_pledge_returned": True})
 
     # 恢复 KOC 信任分
     if koc_id:
@@ -411,30 +587,52 @@ def _handle_auto_approve(task, slot_index: int, koc_id: str):
             })
             sync_koc_tier(koc_id)
 
-    # 恢复商家信任分
+    # 商家逾期未审核 → 不奖励信任分（错过 SLA 是负面行为）
+    # 仅标记完成统计；trust_score 不变
     m = merchant_store.get(task.merchant_id)
     if m:
-        new_m_trust = min(100, m.trust_score + 3)
         merchant_store.update(task.merchant_id, {
             "total_collaborations": m.total_collaborations + 1,
             "total_tasks_completed": m.total_tasks_completed + 1,
-            "trust_score": new_m_trust,
         })
         sync_merchant_tier(task.merchant_id)
 
+    # ── 通知 KOC：自动通过，佣金到账 ──
+    total_earned = (task.commission if slot.get("pledge_paid") else 0) + koc_return
+    if koc_uid:
+        notify_user(
+            koc_uid,
+            NotifType.AUTO_APPROVED,
+            "Content Auto-Approved — Earnings Credited",
+            f"{task.product_name}: Brand did not review within 3 days — content auto-approved. {total_earned}pt credited (commission + pledge return).",
+            task_id=task.id,
+            resource_path=f"/portal/tasks/{task.id}",
+        )
+
+    # ── 通知商家：超时自动通过 ──
+    if m and m.user_id:
+        notify_user(
+            m.user_id,
+            NotifType.AUTO_APPROVED,
+            "Content Auto-Approved — Review Deadline Missed",
+            f"{task.product_name}: You missed the 3-day review window. Content has been auto-approved and commission released to KOC.",
+            task_id=task.id,
+            resource_path=f"/dashboard/tasks/{task.id}",
+        )
+
 
 def _handle_revision_timeout(task, slot_index: int, koc_id: str):
-    """商家驳回后 KOC 3 天内未重新提交 → 按 KOC 违约处理"""
-    slot = task.koc_slots[slot_index] if slot_index < len(task.koc_slots) else {}
-    # 退商家质押
-    merchant_return = _merchant_slot_pledge(task)
-    if merchant_return > 0 and not slot.get("merchant_pledge_returned"):
+    """商家驳回后 KOC 超时未重新提交 → 按 KOC 违约处理"""
+    # 退还 commission 给商家
+    if task.commission > 0:
         m_uid = _get_merchant_user_id(task.merchant_id)
-        credit_store.add_credits(m_uid, merchant_return, "breach_compensation_merchant",
-                                 task.id, f"KOC revision timeout: {task.product_name}")
-        task_store.update_slot(task.id, slot_index, {"merchant_pledge_returned": True})
+        credit_store.add_credits(m_uid, task.commission, "commission_returned",
+                                 task.id, f"Commission returned (KOC revision timeout): {task.product_name}")
 
-    # KOC 质押不退还
+    # KOC 质押 10pt 不退 → 全部给平台
+    credit_store.add_credits("platform", KOC_FIXED_PLEDGE, "forfeited_pledge",
+                             task.id, f"KOC forfeited pledge (revision timeout): {task.product_name}")
+
     if koc_id:
         koc = koc_store.get(koc_id)
         if koc:
@@ -445,6 +643,66 @@ def _handle_revision_timeout(task, slot_index: int, koc_id: str):
 
     task_store.update_slot(task.id, slot_index, {"status": "timed_out"})
     _sync_task_disputed(task.id)
+
+    # ── 通知 KOC：修改超时，质押没收 ──
+    if koc_id:
+        koc_uid = _get_koc_user_id(koc_id)
+        if koc_uid:
+            notify_user(
+                koc_uid,
+                NotifType.VIOLATION,
+                "Revision Timeout — Pledge Forfeited",
+                f"{task.product_name}: You missed the 3-day revision deadline. Your 10pt pledge has been forfeited and Trust Score -15.",
+                task_id=task.id,
+                resource_path=f"/portal/tasks/{task.id}",
+                template_name="violation",
+                template_vars={
+                    "koc_name": "Creator",
+                    "reason": "Missed 3-day revision resubmission deadline",
+                    "penalty": "10pt pledge forfeited, Trust Score -15",
+                },
+            )
+
+    # ── 通知商家：KOC 修改超时，commission 退回 ──
+    m_uid = _get_merchant_user_id(task.merchant_id)
+    if m_uid and task.commission > 0:
+        notify_user(
+            m_uid,
+            NotifType.VIOLATION,
+            "KOC Missed Revision Deadline — Commission Refunded",
+            f"{task.product_name}: KOC did not resubmit within 3 days. {task.commission}pt commission has been refunded to your account.",
+            task_id=task.id,
+            resource_path=f"/dashboard/tasks/{task.id}",
+        )
+
+
+# ═══════════════════════════════════════════
+# 主动倒计时预警（超时前推送提醒，避免用户被动踩雷）
+# ═══════════════════════════════════════════
+
+def _warn_if_needed(task, slot_index: int, stage: str, should_warn: bool,
+                    ntype: str, title: str, message: str,
+                    user_id: str, resource_path: str = "", **template_vars):
+    """通用预警：仅在 slot 尚未对该 stage 发过警告时发送，并记录 warned_stages 防重。"""
+    slot = task.koc_slots[slot_index] if slot_index < len(task.koc_slots) else {}
+    warned_stages = list(slot.get("warned_stages", []))
+    if stage in warned_stages or not should_warn:
+        return
+    if not user_id:
+        return
+
+    notify_user(
+        user_id, ntype, title, message,
+        task_id=task.id, resource_path=resource_path,
+        template_name="warning",
+        template_vars={
+            "koc_name": template_vars.get("koc_name", "Creator"),
+            "product_name": task.product_name,
+            "days_left": template_vars.get("days_left", 1),
+        },
+    )
+    warned_stages.append(stage)
+    task_store.update_slot(task.id, slot_index, {"warned_stages": warned_stages})
 
 
 # ═══════════════════════════════════════════
@@ -483,12 +741,6 @@ def _get_koc_user_id(koc_profile_id: str) -> str:
 def _get_merchant_user_id(merchant_id: str) -> str:
     m = merchant_store.get(merchant_id)
     return m.user_id if m else merchant_id
-
-
-def _merchant_slot_pledge(task) -> int:
-    if getattr(task, "koc_required", 0) > 0:
-        return max(0, task.pledge_merchant // task.koc_required)
-    return max(0, task.pledge_merchant)
 
 
 # ═══════════════════════════════════════════
@@ -532,6 +784,19 @@ def sync_koc_tier(koc_id: str) -> dict | None:
                        (old_tier == "L2" and new_tier == "L3") else "↓"
     reason = f"信任={koc.trust_score} 完成={koc.completed_tasks} 均分={koc.avg_rating:.1f}"
     print(f"[tier] {koc.display_name or koc_id[:8]}: {old_tier} {direction} {new_tier} ({reason})")
+
+    # ── 通知 KOC：等级变更 ──
+    if koc.email:
+        koc_usr = user_store.get_by_email(koc.email)
+        if koc_usr:
+            tier_names = {"L1": "Explorer", "L2": "Creator", "L3": "Partner"}
+            notify_user(
+                koc_usr.id,
+                NotifType.TIER_CHANGED,
+                f"Tier {'Upgraded' if direction == '↑' else 'Downgraded'} — {tier_names.get(new_tier, new_tier)}",
+                f"Your tier has changed: {old_tier}→{new_tier}. Trust Score: {koc.trust_score}, Completed: {koc.completed_tasks}, Avg Rating: {koc.avg_rating:.1f}",
+                resource_path="/portal",
+            )
 
     return {
         "koc_id": koc_id,
@@ -585,6 +850,17 @@ def sync_merchant_tier(merchant_id: str) -> dict | None:
     reason = f"信任={m.trust_score} 完成={m.total_tasks_completed} 均分={m.avg_rating:.1f}"
     print(f"[tier:merchant] {m.company_name or merchant_id[:8]}: {old_tier} {direction} {new_tier} ({reason})")
 
+    # ── 通知商家：等级变更 ──
+    if m.user_id:
+        tier_names = {"M1": "Bronze Merchant", "M2": "Silver Merchant", "M3": "Gold Merchant"}
+        notify_user(
+            m.user_id,
+            NotifType.TIER_CHANGED,
+            f"Tier {'Upgraded' if direction == '↑' else 'Downgraded'} — {tier_names.get(new_tier, new_tier)}",
+            f"Your merchant tier has changed: {old_tier}→{new_tier}. Trust Score: {m.trust_score}, Completed: {m.total_tasks_completed}, Avg Rating: {m.avg_rating:.1f}",
+            resource_path="/dashboard",
+        )
+
     return {
         "merchant_id": merchant_id,
         "old_tier": old_tier,
@@ -596,13 +872,14 @@ def sync_merchant_tier(merchant_id: str) -> dict | None:
 
 
 def _sync_task_disputed(task_id: str):
-    """如果大部分 slot 已超时/完成，标记任务为 disputed"""
+    """如果大部分 slot 已超时/完成，标记任务为 disputed。
+    ⚠️ KEEP IN SYNC with task_routes._sync_task_disputed (same function duplicated to avoid circular import)."""
     task = task_store.get(task_id)
     if not task:
         return
     slots = task.koc_slots
     if not slots:
         return
-    active = sum(1 for s in slots if s.get("status") not in ("completed", "timed_out", "rejected"))
+    active = sum(1 for s in slots if s.get("status") not in ("completed", "approved", "timed_out", "rejected"))
     if active == 0:
         task_store.update(task_id, {"task_status": "disputed"})

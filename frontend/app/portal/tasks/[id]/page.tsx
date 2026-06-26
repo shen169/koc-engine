@@ -8,6 +8,7 @@ import IntegrityBadge from "@/components/IntegrityBadge";
 import NavBar from "@/components/NavBar";
 import DeadlineBadge from "@/components/DeadlineBadge";
 import CommitmentConfirm from "@/components/CommitmentConfirm";
+import StarRating from "@/components/StarRating";
 
 export default function KocTaskDetailPage() {
   const router = useRouter();
@@ -33,6 +34,10 @@ export default function KocTaskDetailPage() {
   const [updatingMetrics, setUpdatingMetrics] = useState(false);
   const [showCommitment, setShowCommitment] = useState(false);
   const [showClaimCommitment, setShowClaimCommitment] = useState(false);
+  // ── Rating ──
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [ratingError, setRatingError] = useState("");
+  const [ratingSuccess, setRatingSuccess] = useState("");
 
   useEffect(() => {
     const t = getToken();
@@ -64,7 +69,8 @@ export default function KocTaskDetailPage() {
         // KOC hasn't accepted yet — find slot assigned to THIS KOC
         const myProfile = await auth.me(getToken()!);
         const myKocId = (myProfile as any).profile_id || "";
-        const slots = t.koc_slots || [];
+        const taskData = t as Record<string, unknown>;
+        const slots = (taskData.koc_slots as Array<unknown>) || [];
         const myAssignedSlot = slots.find(
           (s: any) => s.status === "assigned" && s.koc_id === myKocId
         );
@@ -75,10 +81,10 @@ export default function KocTaskDetailPage() {
       }
 
       // Load merchant trust
-      if (t.merchant_id) {
+      if ((t as Record<string, unknown>).merchant_id) {
         try {
           const { merchants } = await import("@/lib/api");
-          const trust = await merchants.getTrust(t.merchant_id, getToken()!);
+          const trust = await merchants.getTrust((t as Record<string, unknown>).merchant_id as string, getToken()!);
           setMerchantTrust(trust);
         } catch {}
       }
@@ -217,6 +223,41 @@ export default function KocTaskDetailPage() {
     }
   }
 
+  async function handleRateMerchant(rating: number, comment: string) {
+    setRatingSubmitting(true);
+    setRatingError("");
+    setRatingSuccess("");
+    try {
+      const tkn = getToken()!;
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}/api/reviews`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${tkn}`,
+          },
+          body: JSON.stringify({
+            task_id: taskId,
+            target_id: task.merchant_id,
+            rating,
+            comment,
+            dimensions: {},
+          }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as any).detail || `Error ${res.status}`);
+      }
+      setRatingSuccess(`You rated ${task.merchant_company || "the brand"} ${rating}⭐`);
+    } catch (e: any) {
+      setRatingError(e.message || "Rating failed");
+    } finally {
+      setRatingSubmitting(false);
+    }
+  }
+
   if (!authorized || loading) return <div className="min-h-screen bg-orange-50/30 flex items-center justify-center text-gray-400">Loading...</div>;
   if (!task) return <div className="min-h-screen bg-orange-50/30 flex items-center justify-center text-gray-400">Task not found</div>;
 
@@ -302,7 +343,7 @@ export default function KocTaskDetailPage() {
               <div className="font-bold text-gray-900">${task.commission || 0}</div>
             </div>
             <div className="bg-gray-50 rounded-xl p-3">
-              <div className="text-gray-400 text-xs">Pledge (5 pt returned on completion)</div>
+              <div className="text-gray-400 text-xs">Pledge (9 pt + commission returned on completion)</div>
               <div className="font-bold text-gray-900">{task.pledge_koc || 0} pt</div>
             </div>
             <div className="bg-gray-50 rounded-xl p-3">
@@ -449,7 +490,7 @@ export default function KocTaskDetailPage() {
                   disabled={accepting}
                   className="w-full btn-brand text-white py-3.5 rounded-xl font-semibold text-lg disabled:opacity-50"
                 >
-                  {accepting ? "Accepting..." : `✅ Accept (Pledge ${task?.pledge_koc || 0} pt)`}
+                  {accepting ? "Accepting..." : `✅ Accept (Pledge 10 pt)`}
                 </button>
 
                 {/* Commitment confirm modal */}
@@ -463,15 +504,15 @@ export default function KocTaskDetailPage() {
                     { icon: "📊", text: "Update content performance data on platform after submission" },
                   ]}
                   pledge={[
-                    { icon: "🔒", text: `Accepting freezes ${task?.pledge_koc || 0} pt pledge` },
-                    { icon: "💵", text: `${Math.max(0, (task?.pledge_koc || 0) - 5)} pt returned on completion (platform deducts 5 pt service fee)` },
-                    { icon: "💰", text: "Commission via product affiliate link; platform points are not used for commission payouts" },
+                    { icon: "🔒", text: `Accepting freezes 10 pt pledge` },
+                    { icon: "💵", text: `9 pt returned on completion (platform deducts 1 pt service fee)` },
+                    { icon: "💰", text: `Commission (${task?.commission || 0} pt) paid in platform points on approval` },
                   ]}
                   redlines={[
-                    { icon: "⏰", text: `No submission in 14 days: forfeit ${task?.pledge_koc || 0}pt pledge + deduct 15 Trust Score + possible tier downgrade` },
+                    { icon: "⏰", text: `No submission in 14 days: forfeit 10pt pledge + deduct 15 Trust Score + possible tier downgrade` },
                     { icon: "🚫", text: "Reject task: deduct 3 Trust Score" },
                     { icon: "📋", text: "Maximum 5 concurrent tasks" },
-                    { icon: "🛡️", text: "Merchant doesn't ship in 48h: return your pledge + merchant deduct 20" },
+                    { icon: "🛡️", text: "Merchant doesn't ship in 48h: return your 10pt pledge + merchant deduct 20" },
                   ]}
                   confirmLabel="Confirm Acceptance"
                   onConfirm={handleConfirmAccept}
@@ -486,7 +527,7 @@ export default function KocTaskDetailPage() {
                   {rejecting ? "Rejecting..." : "❌ Reject (-3 Trust Score)"}
                 </button>
                 <p className="text-xs text-gray-400 text-center">
-                  Accepting freezes {task?.pledge_koc || 0} pt pledge; {Math.max(0, (task?.pledge_koc || 0) - 5)} pt returned on completion (platform deducts 5 pt service fee)
+                  Accepting freezes 10 pt pledge; 9 pt + commission returned on completion (platform deducts 1 pt)
                 </p>
               </div>
             )}
@@ -504,7 +545,7 @@ export default function KocTaskDetailPage() {
                       disabled={accepting}
                       className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3.5 rounded-xl font-semibold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 shadow-md shadow-pink-200"
                     >
-                      {accepting ? "Accepting..." : `🚀 Accept (Pledge ${task?.pledge_koc || 0} pt)`}
+                      {accepting ? "Accepting..." : `🚀 Accept (Pledge 10 pt)`}
                     </button>
 
                     {/* Commitment confirm modal for claim path */}
@@ -518,15 +559,15 @@ export default function KocTaskDetailPage() {
                         { icon: "📊", text: "Update content performance data on platform after submission" },
                       ]}
                       pledge={[
-                        { icon: "🔒", text: `Accepting freezes ${task?.pledge_koc || 0} pt pledge` },
-                        { icon: "💵", text: `${Math.max(0, (task?.pledge_koc || 0) - 5)} pt returned on completion (platform deducts 5 pt service fee)` },
-                        { icon: "💰", text: "Commission via product affiliate link; platform points are not used for commission payouts" },
+                        { icon: "🔒", text: `Accepting freezes 10 pt pledge` },
+                        { icon: "💵", text: `9 pt returned on completion (platform deducts 1 pt service fee)` },
+                        { icon: "💰", text: `Commission (${task?.commission || 0} pt) paid in platform points on approval` },
                       ]}
                       redlines={[
-                        { icon: "⏰", text: `No submission in 14 days: forfeit ${task?.pledge_koc || 0}pt pledge + deduct 15 Trust Score + possible tier downgrade` },
+                        { icon: "⏰", text: `No submission in 14 days: forfeit 10pt pledge + deduct 15 Trust Score + possible tier downgrade` },
                         { icon: "🚫", text: "Reject task: deduct 3 Trust Score" },
                         { icon: "📋", text: "Maximum 5 concurrent tasks" },
-                        { icon: "🛡️", text: "Merchant doesn't ship in 48h: return your pledge + merchant deduct 20" },
+                        { icon: "🛡️", text: "Merchant doesn't ship in 48h: return your 10pt pledge + merchant deduct 20" },
                       ]}
                       confirmLabel="Confirm Acceptance"
                       onConfirm={handleConfirmClaim}
@@ -534,7 +575,7 @@ export default function KocTaskDetailPage() {
                     />
 
                     <p className="text-xs text-gray-400 text-center">
-                      Accepting freezes {task?.pledge_koc || 0} pt pledge; {Math.max(0, (task?.pledge_koc || 0) - 5)} pt returned on completion (platform deducts 5 pt service fee)
+                      Accepting freezes 10 pt pledge; 9 pt + commission returned on completion (platform deducts 1 pt)
                     </p>
                   </>
                 ) : (
@@ -610,7 +651,7 @@ export default function KocTaskDetailPage() {
                   {submitting ? "Submitting..." : "🚀 Submit Content (Complete Fulfillment)"}
                 </button>
                 <p className="text-xs text-gray-400 text-center">
-                  {Math.max(0, (task?.pledge_koc || 0) - 5)} pt returned on submission (pledge {task?.pledge_koc || 0} - platform fee 5), commission via affiliate link
+                  Commission ({task?.commission || 0} pt) + 9 pt returned on approval (pledge 10 pt − 1 pt platform fee)
                 </p>
               </div>
             )}
@@ -730,20 +771,30 @@ export default function KocTaskDetailPage() {
         )}
 
         {slotStatus === "completed" && (
-          <div className="bg-green-50 rounded-2xl border border-green-100 p-6 text-center mt-4">
-            <div className="text-3xl mb-2">🎉</div>
-            <p className="font-semibold text-green-700 text-lg">Fulfillment Complete!</p>
-            <p className="text-sm text-green-600 mt-1">Pledge returned, Trust Score restored</p>
-            {mySlot?.content_urls && (
-              <div className="mt-4 space-y-1">
-                {(mySlot.content_urls as string[]).map((url: string, i: number) => (
-                  <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                     className="block text-sm text-pink-500 hover:text-pink-600">
-                    🔗 {url}
-                  </a>
-                ))}
-              </div>
-            )}
+          <div className="space-y-4 mt-4">
+            <div className="bg-green-50 rounded-2xl border border-green-100 p-6 text-center">
+              <div className="text-3xl mb-2">🎉</div>
+              <p className="font-semibold text-green-700 text-lg">Fulfillment Complete!</p>
+              <p className="text-sm text-green-600 mt-1">Pledge returned, Trust Score restored</p>
+              {mySlot?.content_urls && (
+                <div className="mt-4 space-y-1">
+                  {(mySlot.content_urls as string[]).map((url: string, i: number) => (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                       className="block text-sm text-pink-500 hover:text-pink-600">
+                      🔗 {url}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Rate the merchant */}
+            <StarRating
+              targetLabel={task.merchant_company || "the Brand"}
+              onSubmit={handleRateMerchant}
+              submitting={ratingSubmitting}
+              error={ratingError}
+              success={ratingSuccess}
+            />
           </div>
         )}
 

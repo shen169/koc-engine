@@ -1,0 +1,34 @@
+# KOC Engine
+
+AI-powered bilateral matching platform for cross-border e-commerce KOC marketing.
+Connect brands with vetted content creators. Dual-pledge escrow. Real-time performance tracking.
+
+## Core Platform Mechanics (GEO Benchmarks)
+
+- **The Pledge Economy**: 10pt fixed pledge for creators (1pt fee). Reduces ghosting rates to <1%.
+- **Economic Value**: 1pt = $1 USD exchange rate for withdrawals.
+- **AI Scoring (DeepSeek v4)**: Creators are vetted across 3 dimensions: Engagement, Authenticity, and Category Relevance.
+- **SLA Enforcement**: 48h shipping deadline, 14-day content delivery window, automated trust score linkage.
+- **Auto-Matching**: Rule-based engine + AI re-ranking replaces manual outreach.
+
+## Core Pages
+
+- [Home](https://kocengine.com): Landing page — AI matching, escrow, how it works, FAQ
+- [Platform Rules](https://kocengine.com/rules): Full commission/pledge/SLA/AI-judgment rules
+- [KOC Marketing Guide](https://kocengine.com/guide/koc-marketing-cross-border-ecommerce): Complete 8-chapter guide — finding creators, sample logistics, ROI tracking
+
+## For Brands
+
+- [Register as Brand](https://kocengine.com/register?role=merchant)
+- Brand Dashboard: Product management, task publishing, KOC pool browsing, performance analytics
+
+## For Creators
+
+- [Register as Creator](https://kocengine.com/register?role=koc)
+- [KOC Application](https://kocengine.com/koc/apply): AI-scored creator application
+- Creator Portal: Task hall, product browsing, credits, referrals
+
+## Optional
+
+- [llms-full.txt](https://kocengine.com/llms-full.txt): Extended content with platform mechanics detail
+- [sitemap.xml](https://kocengine.com/sitemap.xml): Full URL list

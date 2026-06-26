@@ -1,5 +1,6 @@
 """管理后台 API"""
 
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from stores.koc_store import koc_store
 from stores.merchant_store import merchant_store
@@ -139,7 +140,7 @@ def review_report(report_id: str, data: dict, current_user: dict = Depends(requi
     if report.status != "pending":
         raise HTTPException(400, f"Report already {report.status}")
 
-    now = __import__("datetime").datetime.utcnow().isoformat()
+    now = datetime.utcnow().isoformat()
     update = {
         "status": decision,
         "reviewed_by": current_user["sub"],
@@ -195,8 +196,6 @@ def admin_get_withdrawals(status: str = "", current_user: dict = Depends(require
 @router.put("/admin/withdrawals/{withdrawal_id}/process")
 def admin_process_withdrawal(withdrawal_id: str, data: dict, current_user: dict = Depends(require_admin)):
     """Approve or reject a withdrawal. data: {decision: 'paid'|'rejected', admin_note: ''}"""
-    from datetime import datetime
-
     decision = data.get("decision", "")
     admin_note = data.get("admin_note", "")
 
@@ -224,5 +223,3 @@ def admin_process_withdrawal(withdrawal_id: str, data: dict, current_user: dict 
 
     updated = withdrawal_store.get_by_id(withdrawal_id)
     return {"status": "ok", "withdrawal": updated.model_dump() if updated else {}}
-from stores.product_store import product_store
-from stores.task_store import task_store

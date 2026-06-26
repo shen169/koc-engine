@@ -178,10 +178,10 @@ export default function NewTaskPage() {
               </div>
             </div>
 
-            {/* Commission (reference for affiliate link, NOT paid in points) */}
+            {/* Commission (platform points paid to KOC on completion) */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                💰 Commission Reference ($/KOC, for pledge calculation; actual commission via affiliate link)
+                💰 Commission per KOC (pt, paid in platform points on completion)
               </label>
               <input
                 type="number"
@@ -191,36 +191,36 @@ export default function NewTaskPage() {
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
               <p className="text-xs text-gray-400 mt-1">
-                KOCs promote via commission links. Transaction commissions are settled automatically by the affiliate platform. This value is for pledge calculation reference only.
+                KOC receives commission + 9pt on approval (platform deducts 1pt from 10pt pledge). Commission pool = commission × KOC count, non-refundable, paid to KOCs on completion.
               </p>
             </div>
 
-            {/* Pledges — based on commission value */}
+            {/* Commission pool + KOC pledge */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
-                <div className="text-xs text-purple-500 font-semibold mb-1">Merchant Pledge (refunded on fulfillment)</div>
+                <div className="text-xs text-purple-500 font-semibold mb-1">Commission Pool (non-refundable)</div>
                 <div className="text-2xl font-extrabold text-purple-700">{form.commission} × {form.koc_required} = {form.commission * form.koc_required} pt</div>
               </div>
               <div className="bg-pink-50 border border-pink-100 rounded-xl p-4">
-                <div className="text-xs text-pink-500 font-semibold mb-1">KOC Pledge per person (refunded on fulfillment)</div>
-                <div className="text-2xl font-extrabold text-pink-700">{form.commission} pt</div>
+                <div className="text-xs text-pink-500 font-semibold mb-1">KOC Pledge per person (9pt + commission returned on completion)</div>
+                <div className="text-2xl font-extrabold text-pink-700">10 pt</div>
               </div>
             </div>
 
             {/* Summary */}
             <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 space-y-1">
-              <div className="font-semibold text-gray-800 mb-2">📊 Cost Estimate (All Deducted on Publish)</div>
+              <div className="font-semibold text-gray-800 mb-2">📊 Cost Estimate (All Deducted on Publish, Non-Refundable)</div>
               <div>
                 Platform Service Fee: 5 pt <span className="text-xs text-gray-400">(non-refundable)</span>
               </div>
               <div>
-                Merchant Pledge: {form.commission} × {form.koc_required} = {form.commission * form.koc_required} pt <span className="text-xs text-gray-400">(deducted now, fully refunded on KOC completion)</span>
+                Commission Pool: {form.commission} × {form.koc_required} = {form.commission * form.koc_required} pt <span className="text-xs text-gray-400">(non-refundable, paid to KOCs on completion)</span>
               </div>
               <div className="text-sm font-bold text-purple-700 mt-2 pt-2 border-t border-gray-200">
                 Total deducted on publish: {5 + form.commission * form.koc_required} pt
               </div>
               <div className="text-xs text-gray-400 mt-2">
-                * KOC pledge of {form.commission} pt frozen on acceptance, {form.commission - 5} pt refunded on completion (Platform deducts 5 pt)
+                * KOC pledge of 10 pt frozen on acceptance, 9 pt returned on completion (Platform deducts 1 pt)
               </div>
             </div>
 
@@ -231,8 +231,8 @@ export default function NewTaskPage() {
               <div className="space-y-2">
                 {[
                   { text: "Ship within 48 hours", sub: "Late: deduct 20 Trust Score + return KOC pledge" },
-                  { text: "Review KOC submissions within 4 days", sub: "Late: auto-approved by system" },
-                  { text: `Total deduction now: 5pt fee + ${form.commission * form.koc_required}pt pledge = ${5 + form.commission * form.koc_required}pt`, sub: "Platform fee non-refundable; pledge fully refunded on KOC completion" },
+                  { text: "Review KOC submissions within 3 days", sub: "Late: auto-approved by system" },
+                  { text: `Total deduction now: 5pt fee + ${form.commission * form.koc_required}pt commission pool = ${5 + form.commission * form.koc_required}pt`, sub: "All non-refundable; commission paid to KOCs on completion. 1 revision + AI final judgment." },
                 ].map((item, i) => (
                   <label key={i} className="flex items-start gap-2 text-sm text-amber-700 cursor-pointer">
                     <span className="mt-0.5 shrink-0">☐</span>

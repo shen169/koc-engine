@@ -88,7 +88,7 @@ export default function AdminTaskDetail() {
               <p className="font-semibold text-zinc-900">{task.koc_required as number || 0}</p>
             </div>
             <div>
-              <span className="text-zinc-400">Merchant Pledge</span>
+              <span className="text-zinc-400">Commission Pool</span>
               <p className="font-semibold text-zinc-900">{task.pledge_merchant as number || 0} pt</p>
             </div>
             <div>
@@ -119,7 +119,7 @@ export default function AdminTaskDetail() {
                 <span className="text-zinc-400">Status</span>
                 <p className="font-semibold text-zinc-900 capitalize">{product.status as string || "—"}</p>
               </div>
-              {product.commission_link && (
+              {Boolean(product.commission_link) && (
                 <div>
                   <span className="text-zinc-400">Commission Link</span>
                   <p className="font-semibold text-zinc-900 text-xs truncate">{product.commission_link as string}</p>
@@ -166,7 +166,7 @@ export default function AdminTaskDetail() {
                     <div>Receive: {slot.received_at ? new Date(slot.received_at as string).toLocaleDateString() : "—"}</div>
                     <div>Submit: {slot.submitted_at ? new Date(slot.submitted_at as string).toLocaleDateString() : "—"}</div>
                   </div>
-                  {slot.tracking_number && (
+                  {Boolean(slot.tracking_number) && (
                     <p className="text-xs text-zinc-400 mt-2">Tracking: {slot.tracking_number as string} ({slot.carrier as string || "—"})</p>
                   )}
                 </div>

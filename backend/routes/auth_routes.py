@@ -1,5 +1,6 @@
 """认证路由"""
 
+import re
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException
 from models import User, UserRegister, UserLogin
@@ -10,9 +11,28 @@ from config import DEFAULT_KOC_INITIAL_CREDITS, DEFAULT_MERCHANT_INITIAL_CREDITS
 
 router = APIRouter(tags=["auth"])
 
+# ── 输入校验 ──
+
+_EMAIL_RE = re.compile(r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+_MIN_PASSWORD_LENGTH = 8
+
+def _validate_email(email: str):
+    if not email or not _EMAIL_RE.match(email):
+        raise HTTPException(400, "Invalid email format")
+    if len(email) > 254:
+        raise HTTPException(400, "Email too long")
+
+def _validate_password(password: str):
+    if not password or len(password) < _MIN_PASSWORD_LENGTH:
+        raise HTTPException(400, f"Password must be at least {_MIN_PASSWORD_LENGTH} characters")
+    if len(password) > 128:
+        raise HTTPException(400, "Password too long")
+
 
 @router.post("/auth/register")
 def register(data: UserRegister):
+    _validate_email(data.email)
+    _validate_password(data.password)
     if data.role not in ("koc", "merchant"):
         raise HTTPException(400, "role must be koc or merchant")
     existing = user_store.get_by_email(data.email)
@@ -38,6 +58,7 @@ def register(data: UserRegister):
 
 @router.post("/auth/login")
 def login(data: UserLogin):
+    _validate_email(data.email)
     user = user_store.get_by_email(data.email)
     if not user:
         raise HTTPException(401, "Invalid email or password")

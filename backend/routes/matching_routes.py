@@ -216,9 +216,7 @@ def auto_express_interest(
         if already:
             skipped.append(product_id)
         else:
-            # V2: 先执行自动接单（可能抛异常，所以放在创建意向之前）
-            assign_result = auto_assign_koc_to_product(koc.id, product_id)
-
+            # Create interest record FIRST — before credit deductions and task creation
             interest = Interest(
                 from_role="koc",
                 from_id=koc.id,
@@ -227,6 +225,15 @@ def auto_express_interest(
             )
             interest_store.create(interest)
             created.append(product_id)
+
+            # Then execute auto-assignment (may throw on insufficient credits — interest is already recorded)
+            try:
+                assign_result = auto_assign_koc_to_product(koc.id, product_id)
+            except HTTPException:
+                # Clean up orphaned interest record on auto-assignment failure
+                interest_store.delete(interest.id)
+                created.remove(product_id)
+                raise
 
             if assign_result:
                 auto_assigned.append({

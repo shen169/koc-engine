@@ -26,7 +26,8 @@ export default function AdminCreditsPage() {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
     auth.me(token).then((u) => {
-      if (u.role !== "admin") { router.push("/dashboard"); return; }
+      const user = u as Record<string, unknown>;
+      if (user.role !== "admin") { router.push("/dashboard"); return; }
       loadData(token);
     }).catch(() => { clearToken(); router.push("/login"); });
   }, [router]);

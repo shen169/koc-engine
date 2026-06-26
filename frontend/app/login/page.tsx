@@ -28,14 +28,15 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setError(""); setLoading(true);
     try {
-      const res = await auth.login(email, password);
-      setToken(res.token);
-      localStorage.setItem("koc_role", res.user.role);
-      if (res.user.role === "admin") { router.push("/admin"); return; }
-      if (res.user.role === "merchant") { router.push("/dashboard"); return; }
+      const res = await auth.login(email, password) as Record<string, unknown>;
+      const user = res.user as Record<string, unknown>;
+      setToken(res.token as string);
+      localStorage.setItem("koc_role", user.role as string);
+      if (user.role === "admin") { router.push("/admin"); return; }
+      if (user.role === "merchant") { router.push("/dashboard"); return; }
       // KOC: check if profile exists
       try {
-        const me = await auth.me(res.token);
+        const me = await auth.me(res.token as string);
         if (!(me as any).koc_profile) {
           router.push("/koc/apply");
         } else {

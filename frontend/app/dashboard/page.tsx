@@ -50,11 +50,8 @@ const ALL_MARKETS = [
 
 export default function DashboardPage() {
   const router = useRouter();
-  const token = getToken();
-  const role = getRole();
-  if (!token) { router.push("/login"); return null; }
-  if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return null; }
 
+  const [authorized, setAuthorized] = useState(false);
   const [user, setUser] = useState<Record<string, unknown> | null>(null);
   const [merchantProfile, setMerchantProfile] = useState<Record<string, unknown> | null>(null);
   const [balance, setBalance] = useState(0);
@@ -72,7 +69,13 @@ export default function DashboardPage() {
   const [profileSubmitting, setProfileSubmitting] = useState(false);
 
   useEffect(() => {
-    auth.me(token!).then((u) => {
+    const token = getToken();
+    const role = getRole();
+    if (!token) { router.push("/login"); return; }
+    if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return; }
+    setAuthorized(true);
+
+    auth.me(token).then((u) => {
       setUser(u);
       const mp = (u as any).merchant_profile;
       if (mp) {
@@ -82,8 +85,8 @@ export default function DashboardPage() {
       }
     }).catch(() => { clearToken(); router.push("/login"); })
     .finally(() => setLoadingProfile(false));
-    credits.balance(token!).then((r) => setBalance(r.total)).catch(() => {});
-    tasks.mine(token!).then(setTaskList).catch(() => {});
+    credits.balance(token).then((r) => setBalance(r.total as number)).catch(() => {});
+    tasks.mine(token).then(setTaskList).catch(() => {});
   }, [router]);
 
   function openEditForm() {
@@ -115,6 +118,8 @@ export default function DashboardPage() {
     setProfileError("");
     if (!validateProfile()) return;
 
+    const t = getToken() || "";
+
     setProfileSubmitting(true);
     try {
       const payload = {
@@ -127,21 +132,21 @@ export default function DashboardPage() {
 
       if (isEditing) {
         // Update existing profile
-        const result = await api("/api/merchants/me", {
+        const result = await api<Record<string, unknown>>("/api/merchants/me", {
           method: "PUT",
           body: payload,
-          token: token!,
+          token: t,
         });
         setMerchantProfile(result);
       } else {
         // Create new profile
-        const result = await merchants.create(payload, token!);
+        const result = await merchants.create(payload, t) as Record<string, unknown>;
         setMerchantProfile(result);
       }
       setShowProfileForm(false);
       setIsEditing(false);
       // Refresh auth.me
-      const me = await auth.me(token!);
+      const me = await auth.me(t);
       setUser(me);
       if ((me as any).merchant_profile) setMerchantProfile((me as any).merchant_profile);
     } catch (err: any) {
@@ -174,7 +179,7 @@ export default function DashboardPage() {
       profileErrors[field] ? "border-red-400 bg-red-50" : "border-slate-200"
     }`;
 
-  if (!user || loadingProfile) return <div className="flex items-center justify-center min-h-screen bg-purple-50 text-zinc-400">Loading...</div>;
+  if (!authorized || !user || loadingProfile) return <div className="flex items-center justify-center min-h-screen bg-purple-50 text-zinc-400">Loading...</div>;
 
   // ── Profile form (create or edit) ──
   if (showProfileForm) {

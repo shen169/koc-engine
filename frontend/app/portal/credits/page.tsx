@@ -30,7 +30,7 @@ export default function CreditsPage() {
 
   const loadData = () => {
     const t = getToken()!;
-    credits.balance(t).then((r) => setBalanceData({ total: r.total ?? 0, withdrawable: r.withdrawable ?? 0, bonus: r.bonus ?? 0 })).catch(() => {});
+    credits.balance(t).then((r) => setBalanceData({ total: (r.total as number) ?? 0, withdrawable: (r.withdrawable as number) ?? 0, bonus: (r.bonus as number) ?? 0 })).catch(() => {});
     credits.history(t).then((list) => {
       setHistory(list as Array<Record<string, unknown>>);
       const recent = (list as Array<Record<string, unknown>>)[0];

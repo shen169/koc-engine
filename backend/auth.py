@@ -3,17 +3,18 @@
 from fastapi import Request, HTTPException
 from jose import jwt, JWTError
 from config import JWT_SECRET, JWT_ALGORITHM
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 def create_token(user_id: str, email: str, role: str) -> str:
     """生成 JWT token"""
+    now = datetime.now(timezone.utc)
     payload = {
         "sub": user_id,
         "email": email,
         "role": role,
-        "iat": datetime.utcnow(),
-        "exp": datetime.utcnow() + timedelta(hours=72),
+        "iat": now,
+        "exp": now + timedelta(hours=72),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 

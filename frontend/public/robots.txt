@@ -1,3 +1,71 @@
+# ── AI Crawlers ──
+# OpenAI
+User-agent: GPTBot
+Allow: /
+Disallow: /portal/
+Disallow: /dashboard/
+Disallow: /admin/
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /portal/
+Disallow: /dashboard/
+Disallow: /admin/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /portal/
+Disallow: /dashboard/
+Disallow: /admin/
+
+# Anthropic
+User-agent: ClaudeBot
+Allow: /
+Disallow: /portal/
+Disallow: /dashboard/
+Disallow: /admin/
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /portal/
+Disallow: /dashboard/
+Disallow: /admin/
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /portal/
+Disallow: /dashboard/
+Disallow: /admin/
+
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+Disallow: /portal/
+Disallow: /dashboard/
+Disallow: /admin/
+
+# Google AI
+User-agent: Google-Extended
+Allow: /
+Disallow: /portal/
+Disallow: /dashboard/
+Disallow: /admin/
+
+# Meta AI
+User-agent: Meta-ExternalAgent
+Allow: /
+Disallow: /portal/
+Disallow: /dashboard/
+Disallow: /admin/
+
+# Cohere
+User-agent: cohere-ai
+Allow: /
+Disallow: /portal/
+Disallow: /dashboard/
+Disallow: /admin/
+
+# ── Everyone else ──
 User-agent: *
 Allow: /
 Disallow: /portal/

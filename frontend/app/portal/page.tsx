@@ -54,7 +54,7 @@ export default function PortalDashboard() {
         router.push("/koc/apply");
       }
     }).catch(() => { clearToken(); router.push("/login"); });
-    credits.balance(token).then((r) => setBalance(r.total)).catch(() => {});
+    credits.balance(token).then((r) => setBalance(r.total as number)).catch(() => {});
     tasks.mine(token).then(setTaskList).catch(() => {});
   }, [router]);
 
