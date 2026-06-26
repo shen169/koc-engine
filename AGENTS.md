@@ -23,45 +23,64 @@ Core rule: **Both sides cannot see each other's contact info**. The platform is 
 
 ## Start
 
+### Docker (Recommended)
 ```bash
-# Backend (MUST start from backend/ directory, otherwise relative imports fail)
+cp backend/.env.example backend/.env   # then edit backend/.env
+docker compose up -d --build
+# Backend:  http://localhost/api/health
+# Frontend: http://localhost
+```
+
+### Local dev (bare metal)
+```bash
+# Backend (MUST start from backend/ directory)
 cd backend && source ../venv/bin/activate && uvicorn main:app --port 8001 --reload
 
 # Frontend
-cd frontend && npm run dev
+cd frontend && NEXT_PUBLIC_API_URL=http://localhost:8001 npm run dev
 ```
 
 ## Deploy
 
-### Frontend → Vercel
+### Docker Compose → VPS (推荐)
+
 ```bash
-cd frontend
-# Set env vars then one-click deploy
-vercel --prod -e NEXT_PUBLIC_API_URL=https://your-domain.com
+# 1. VPS 装 Docker
+curl -fsSL https://get.docker.com | sudo bash
+
+# 2. 克隆 + 配置
+git clone https://github.com/shen169/koc-engine.git && cd koc-engine
+cp backend/.env.example backend/.env
+nano backend/.env   # 填 DEEPSEEK_API_KEY
+
+# 3. 启动（4 容器：nginx + backend + frontend + certbot）
+sudo docker compose up -d --build
+
+# 4. DNS A 记录 → VPS IP，然后配 HTTPS
+sudo ./ssl-init.sh your-domain.com
 ```
 
-### Backend → VPS (Recommended)
-VPS deploy scripts in `deploy/` directory, one-click setup:
-```bash
-# Run on VPS (Ubuntu 22.04/24.04)
-git clone https://github.com/shen169/koc-engine.git
-cd koc-engine && chmod +x deploy/vps-setup.sh
-sudo ./deploy/vps-setup.sh your-domain.com
+**架构：**
 ```
-Script automates: system deps → create user → deploy code → Python venv → systemd service → nginx reverse proxy → Let's Encrypt SSL → firewall
-
-**Deploy architecture:**
-```
-Vercel (Frontend) ─→ nginx (VPS) ─→ uvicorn:8001 (systemd)
-                         │
-                         └── Let's Encrypt SSL
+                      ┌─────────────────────────┐
+                      │   nginx (80/443)         │
+                      │   /api/* → backend:8001  │
+                      │   /*     → frontend:3000 │
+                      └─────────────────────────┘
+                             ↑              ↑
+                        FastAPI    Next.js (standalone)
+                       (Python 3.12)  (Node 20)
+                      ┌─────────────────────────┐
+                      │  certbot (auto-renew)    │
+                      └─────────────────────────┘
 ```
 
-**Service management (on VPS):**
+**管理：**
 ```bash
-systemctl status koc-engine   # check status
-journalctl -u koc-engine -f   # live logs
-systemctl restart koc-engine  # restart
+sudo docker compose ps          # 容器状态
+sudo docker compose logs -f     # 所有日志
+sudo docker compose restart     # 重启全部
+sudo docker compose up -d --build   # 代码更新后重建
 ```
 
 ## Environment Variables
