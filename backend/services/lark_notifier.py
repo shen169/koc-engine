@@ -12,7 +12,7 @@ log = logging.getLogger("lark_notifier")
 DEFAULT_WEBHOOK = os.getenv("FEISHU_BOT_WEBHOOK", "")
 
 
-def _send_lark_sync(webhook_url: str, title: str, content: str, resource_path: str = ""):
+def _send_lark_sync(webhook_url: str, title: str, content: str, resource_path: str = "", color: str = "green"):
     """Send Feishu rich card via webhook."""
     if not webhook_url:
         log.info(f"[lark disabled] Title: {title}")
@@ -23,9 +23,7 @@ def _send_lark_sync(webhook_url: str, title: str, content: str, resource_path: s
         "card": {
             "header": {
                 "title": {"tag": "plain_text", "content": title},
-                "template": "blue" if "approved" in title.lower() or "accept" in title.lower()
-                           else "red" if "reject" in title.lower() or "violation" in title.lower()
-                           else "green"
+                "template": color
             },
             "elements": [
                 {"tag": "div", "text": {"tag": "lark_md", "content": content}},
@@ -50,12 +48,12 @@ def _send_lark_sync(webhook_url: str, title: str, content: str, resource_path: s
         log.info(f"[lark fallback]\n{title}\n{content}")
 
 
-def notify_merchant_lark(webhook_url: str, title: str, content: str, resource_path: str = ""):
+def notify_merchant_lark(webhook_url: str, title: str, content: str, resource_path: str = "", color: str = "green"):
     """Send Feishu notification in background thread."""
     if not webhook_url:
         webhook_url = DEFAULT_WEBHOOK
     if not webhook_url:
         log.info(f"[lark skipped — no webhook] Title: {title}")
         return
-    t = threading.Thread(target=_send_lark_sync, args=(webhook_url, title, content, resource_path), daemon=True)
+    t = threading.Thread(target=_send_lark_sync, args=(webhook_url, title, content, resource_path, color), daemon=True)
     t.start()

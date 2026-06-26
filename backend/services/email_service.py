@@ -193,3 +193,59 @@ Submit now: https://kocengine.com/portal/tasks
 — KOC Engine Team
 """
     send_email_async(koc_email, subject, body)
+
+
+# ═══════════════════════════════════════════
+# 模板调度器 — 供 notifier.py 统一调用
+# ═══════════════════════════════════════════
+
+def send_template_email_async(to_email: str, template_name: str, **kwargs):
+    """
+    根据模板名称调度到对应的邮件模板函数。
+    支持的模板：
+    - "welcome": koc_name, tier
+    - "match": koc_name, product_name, company_name
+    - "ship": koc_name, product_name, tracking, carrier
+    - "review_approved": koc_name, product_name
+    - "review_revision": koc_name, product_name, note
+    - "violation": koc_name, reason, penalty
+    - "warning": koc_name, product_name, days_left
+    - "application_approved": koc_name, tier
+    - "receipt_confirmed": koc_name, product_name
+    """
+    koc_name = kwargs.get("koc_name", "Creator")
+    product_name = kwargs.get("product_name", "")
+    company_name = kwargs.get("company_name", "")
+    tracking = kwargs.get("tracking", "")
+    carrier = kwargs.get("carrier", "")
+    reason = kwargs.get("reason", "")
+    penalty = kwargs.get("penalty", "")
+    days_left = kwargs.get("days_left", 0)
+    tier = kwargs.get("tier", "L1")
+    note = kwargs.get("note", "")
+    task_name = kwargs.get("task_name", product_name)
+
+    template_dispatch = {
+        "welcome": lambda: send_welcome_email(to_email, koc_name, tier),
+        "match": lambda: send_match_email(to_email, koc_name, product_name, company_name),
+        "ship": lambda: send_ship_email(to_email, koc_name, product_name, tracking, carrier),
+        "review_approved": lambda: send_review_email(to_email, koc_name, product_name, "approved"),
+        "review_revision": lambda: send_review_email(to_email, koc_name, product_name, "revision", note),
+        "violation": lambda: send_violation_email(to_email, koc_name, reason, penalty),
+        "warning": lambda: send_warning_email(to_email, koc_name, task_name, days_left or 3),
+        "application_approved": lambda: send_welcome_email(to_email, koc_name, tier),
+        "receipt_confirmed": lambda: send_email_async(
+            to_email,
+            f"Receipt confirmed — {task_name}",
+            f"Hi {koc_name},\n\nYour receipt of **{task_name}** has been confirmed. You have 14 days to create and submit your content.\n\nSubmit at: https://kocengine.com/portal/tasks\n\n— KOC Engine Team",
+        ),
+    }
+
+    fn = template_dispatch.get(template_name)
+    if fn:
+        fn()
+    else:
+        # Unknown template — still send a basic email so nothing is dropped
+        subject = kwargs.get("subject", "KOC Engine Notification")
+        body = kwargs.get("body", str(kwargs))
+        send_email_async(to_email, subject, body)

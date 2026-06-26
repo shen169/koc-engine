@@ -58,3 +58,27 @@ STALE_DAYS = 30               # 无活动标记 stale
 SLA_CONTENT_REVIEW_DAYS = 3   # 商家审核 KOC 提交内容超时 → 自动通过
 SLA_REVISION_DAYS = 3          # KOC 驳回后修改超时 → 按违约处理
 MAX_REVISIONS = 1             # KOC 最多修改重提交次数（1 次，第 2 次 reject 触发 AI 终审）
+
+# ═══════════════════════════════════════════
+# 通知类型常量（V2.3 统一枚举）
+# ═══════════════════════════════════════════
+class NotifType:
+    """通知类型枚举 — 所有 notify_user() 调用必须使用这些常量"""
+    TASK_ACCEPTED = "task_accepted"           # KOC 接受任务
+    TASK_DECLINED = "task_declined"           # KOC 拒绝任务
+    TASK_SHIPPED = "task_shipped"             # 商家已发货
+    RECEIPT_CONFIRMED = "receipt_confirmed"   # KOC 确认收货
+    RECEIPT_AUTO = "receipt_auto"             # 自动收货（物流跟踪）
+    CONTENT_SUBMITTED = "content_submitted"   # KOC 提交内容
+    CONTENT_APPROVED = "content_approved"     # 内容审核通过
+    CONTENT_REVISION = "content_revision"     # 内容需修改
+    CONTENT_AI_OVERRULE = "content_ai_overrule"  # AI 终审推翻
+    AUTO_APPROVED = "auto_approved"           # 超时自动通过
+    VIOLATION = "violation"                   # 违约通知
+    APPLICATION_APPROVED = "application_approved"  # KOC 申请通过
+    INTEREST_RECEIVED = "interest_received"   # 收到意向表达
+    KOC_MATCHED = "koc_matched"               # KOC 被匹配
+    TIER_CHANGED = "tier_changed"             # 等级变更
+    TASK_REMATCHED = "task_rematched"         # 长期空位重匹配
+    DEADLINE_WARNING = "deadline_warning"     # SLA 截止预警
+    PLATFORM_ANNOUNCEMENT = "platform_announcement"  # 平台公告

@@ -10,7 +10,7 @@ from stores.credit_store import credit_store
 from stores.referral_store import referral_store
 from auth import get_current_user, require_admin
 from services.scorer import score_application
-from config import DEFAULT_KOC_INITIAL_CREDITS, DEFAULT_REFERRAL_REWARD_CREDITS
+from config import DEFAULT_KOC_INITIAL_CREDITS, DEFAULT_REFERRAL_REWARD_CREDITS, NotifType
 from services.notifier import notify_user
 
 router = APIRouter(tags=["applications"])
@@ -144,9 +144,14 @@ def submit_application(data: dict):
     koc_name = data.get("name", "User")
     notify_user(
         existing_user.id,
-        "auto_approved",
+        NotifType.APPLICATION_APPROVED,
         "Application Approved",
         f"Your creator application has been approved. You are now a {scoring['tier']} creator.",
+        template_name="application_approved",
+        template_vars={
+            "koc_name": koc_name,
+            "tier": scoring.get("tier", "L1"),
+        },
     )
 
     # Referral reward (immediate on auto-approve)

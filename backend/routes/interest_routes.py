@@ -12,7 +12,7 @@ from stores.task_store import task_store
 from stores.product_store import product_store
 from stores.credit_store import credit_store
 from auth import get_current_user, require_admin
-from config import PLATFORM_SERVICE_FEE, KOC_FIXED_PLEDGE
+from config import KOC_FIXED_PLEDGE, PLATFORM_SERVICE_FEE, NotifType
 from routes.task_routes import _sync_task_status
 
 import re
@@ -119,11 +119,17 @@ def auto_assign_koc_to_product(koc_id: str, product_id: str) -> dict | None:
                     merchant_name = m.company_name if m else "Brand"
                     notify_user(
                         koc_user,
-                        "koc_matched",
+                        NotifType.KOC_MATCHED,
                         "You've Been Matched!",
-                        f"You've been matched with {merchant_name} for {t.product_name}. Start creating!",
+                        f"You've been matched with {merchant_name} for {t.product_name}. 10pt pledge deducted. Brand will ship within 48h.",
                         task_id=t.id,
                         resource_path=f"/portal/tasks/{t.id}",
+                        template_name="match",
+                        template_vars={
+                            "koc_name": "Creator",
+                            "product_name": t.product_name,
+                            "company_name": merchant_name,
+                        },
                     )
                 
                 return {"task_id": t.id, "slot_index": i, "action": "filled"}
@@ -265,12 +271,23 @@ def express_interest(data: dict, current_user: dict = Depends(get_current_user))
                 if merchant_usr:
                     notify_user(
                         merchant_usr.id,
-                        "interest",
+                        NotifType.INTEREST_RECEIVED,
                         "New Interest Signal",
                         f"A KOC ({data.get("platform", "")} creator) has expressed interest in {product.name}",
                         task_id=assign_result.get("task_id", "") if assign_result else "",
                         resource_path=f"/dashboard/products/{to_id}",
                     )
+
+        # Notification: KOC → also confirm interest has been registered
+        if current_user.get("role") == "koc":
+            notify_user(
+                current_user["sub"],
+                NotifType.INTEREST_RECEIVED,
+                "Interest Registered",
+                f"You have expressed interest in {product.name}. The brand will be notified.",
+                task_id=assign_result.get("task_id", "") if assign_result else "",
+                resource_path=f"/portal/products/{to_id}",
+            )
 
     result = interest.model_dump()
 
