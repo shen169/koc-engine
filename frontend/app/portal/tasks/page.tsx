@@ -172,7 +172,7 @@ export default function KocMyTasksPage() {
 
                     {/* Links */}
                     <div className="flex flex-wrap gap-3 pt-3 border-t border-gray-100">
-                      {task.product_url && (
+                      {(task.product_url as string) && (
                         <a
                           href={task.product_url as string}
                           target="_blank"

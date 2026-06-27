@@ -185,7 +185,7 @@ export default function MerchantTaskDetailPage() {
               <p className="text-sm text-gray-500 mt-1">
                 Commission {task.commission || 0} pt/KOC · {kocFilled}/{task.koc_required || 1} KOCs
               </p>
-              {task.product_url && (
+              {(task.product_url as string) && (
                 <a
                   href={task.product_url as string}
                   target="_blank"

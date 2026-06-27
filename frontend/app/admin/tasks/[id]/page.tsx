@@ -114,7 +114,7 @@ export default function AdminTaskDetail() {
               <span className="text-zinc-400">Category</span>
               <p className="font-semibold text-zinc-900">{task.product_category as string || (product?.category as string) || "—"}</p>
             </div>
-            {task.product_url && (
+            {(task.product_url as string) && (
               <div className="col-span-2">
                 <span className="text-zinc-400">Product URL</span>
                 <a

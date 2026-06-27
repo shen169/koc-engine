@@ -339,7 +339,7 @@ export default function KocTaskDetailPage() {
           )}
 
           {/* Product URL */}
-          {task.product_url && (
+          {(task.product_url as string) && (
             <a
               href={task.product_url as string}
               target="_blank"
