@@ -3,7 +3,8 @@
 import json
 import os
 import threading
-from config import OUTPUT_DIR
+from datetime import datetime, timezone, timedelta
+from config import OUTPUT_DIR, KOC_REGISTRATION_IP_WINDOW_DAYS
 from models import User
 
 USERS_FILE = os.path.join(OUTPUT_DIR, "users", "users.json")
@@ -51,6 +52,33 @@ class UserStore:
         with self._lock:
             data = self._load()
         return [User(**u) for u in data.values()]
+
+    def get_by_ip(self, ip: str) -> list[User]:
+        """查找同 IP 注册的所有用户（用于防双角色注册）"""
+        if not ip:
+            return []
+        with self._lock:
+            data = self._load()
+        return [User(**u) for u in data.values() if u.get("registration_ip") == ip]
+
+    def count_recent_koc_by_ip(self, ip: str, window_days: int = None) -> int:
+        """统计同 IP 在时间窗口内注册的 KOC 数量（用于防多号注册）"""
+        if not ip:
+            return 0
+        if window_days is None:
+            window_days = KOC_REGISTRATION_IP_WINDOW_DAYS
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=window_days)).isoformat()
+        with self._lock:
+            data = self._load()
+        count = 0
+        for u in data.values():
+            if u.get("registration_ip") != ip:
+                continue
+            if u.get("role") != "koc":
+                continue
+            if u.get("created_at", "") >= cutoff:
+                count += 1
+        return count
 
 
 user_store = UserStore()

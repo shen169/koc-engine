@@ -1,13 +1,11 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { applications } from "@/lib/api";
 import { SparkEnter } from "@/components/Spark";
 
 function ApplyForm() {
-  const searchParams = useSearchParams();
-  const refCode = searchParams.get("ref") || "";
   const router = useRouter();
 
   const [form, setForm] = useState({
@@ -93,7 +91,6 @@ function ApplyForm() {
         profile_url: form.profile_url.trim(),
         past_video_urls: pastUrls,
         campaign: "baby_products",
-        referral_code: refCode,
       };
       const res = await applications.submit(data) as Record<string, unknown> | null;
       setTimeout(() => { setResult(res); setLoading(false); }, 1500);
@@ -154,7 +151,6 @@ function ApplyForm() {
       <div className="max-w-lg mx-auto bg-white rounded-2xl shadow-sm border border-rose-100 p-8">
         <h1 className="text-2xl font-extrabold text-zinc-900 mb-1">Creator Application</h1>
         <p className="text-sm text-zinc-500 mb-6">Tell us about yourself. AI scores your profile instantly.</p>
-        {refCode && <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4 text-sm text-emerald-800">🎉 Referred by a friend!</div>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name */}

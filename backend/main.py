@@ -37,7 +37,7 @@ app.add_middleware(
 async def startup():
     """创建 admin 用户 + 输出目录 + 启动 cron 定时器"""
     for sub in ["users", "merchants", "koc_profiles", "applications", "products",
-                 "interests", "tasks", "credits", "coupons", "referrals", "reviews", "blacklist"]:
+                 "interests", "tasks", "credits", "coupons", "reviews", "blacklist"]:
         os.makedirs(os.path.join(OUTPUT_DIR, sub), exist_ok=True)
 
     existing = user_store.get_by_email(ADMIN_EMAIL)
@@ -86,7 +86,6 @@ from routes.interest_routes import router as interest_router
 from routes.task_routes import router as task_router
 from routes.credit_routes import router as credit_router
 from routes.coupon_routes import router as coupon_router
-from routes.referral_routes import router as referral_router
 from routes.review_routes import router as review_router
 from routes.blacklist_routes import router as blacklist_router
 from routes.scoring_routes import router as scoring_router
@@ -104,7 +103,6 @@ app.include_router(interest_router, prefix="/api")
 app.include_router(task_router, prefix="/api")
 app.include_router(credit_router, prefix="/api")
 app.include_router(coupon_router, prefix="/api")
-app.include_router(referral_router, prefix="/api")
 app.include_router(review_router, prefix="/api")
 app.include_router(blacklist_router, prefix="/api")
 app.include_router(scoring_router, prefix="/api")

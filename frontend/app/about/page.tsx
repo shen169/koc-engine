@@ -132,6 +132,13 @@ export default function AboutPage() {
           <p className="font-bold text-pink-700 mb-2">Want to learn more about how the pledge economy works?</p>
           <Link href="/guide/koc-marketing-cross-border-ecommerce" className="inline-block bg-gradient-to-r from-pink-500 to-purple-500 text-white px-8 py-3 rounded-full font-bold shadow-lg shadow-pink-200 hover:opacity-90 transition">Read the Complete Guide →</Link>
         </section>
+
+        <footer className="text-center text-sm text-zinc-400 pb-12 pt-8 border-t border-zinc-100 mt-12">
+          <p>
+            Questions or issues? Contact admin:{" "}
+            <a href="mailto:honghuishen24@gmail.com" className="text-pink-500 hover:text-pink-600 underline">honghuishen24@gmail.com</a>
+          </p>
+        </footer>
       </main>
     </>
   );

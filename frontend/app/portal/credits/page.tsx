@@ -82,8 +82,8 @@ export default function CreditsPage() {
     }
   };
 
-  const typeLabel: Record<string, string> = { task_reward: "🎬 Task Reward", referral_reward: "👥 Referral Bonus", manual: "💎 Manual Top-up", admin_adjust: "⚙ Adjustment" };
-  const typeColor: Record<string, string> = { task_reward: "text-emerald-600", referral_reward: "text-purple-600", manual: "text-cyan-600", admin_adjust: "text-zinc-600" };
+  const typeLabel: Record<string, string> = { task_reward: "🎬 Task Reward", manual: "💎 Manual Top-up", admin_adjust: "⚙ Adjustment" };
+  const typeColor: Record<string, string> = { task_reward: "text-emerald-600", manual: "text-cyan-600", admin_adjust: "text-zinc-600" };
 
   const withdrawalStatusBadge: Record<string, { label: string; cls: string }> = {
     pending: { label: "⏳ Pending", cls: "bg-amber-100 text-amber-700 border-amber-300" },
@@ -132,15 +132,26 @@ export default function CreditsPage() {
           <div className="mt-4 pt-4 border-t border-zinc-100 space-y-1">
             <p className="text-xs text-zinc-400 flex justify-between">
               <span>Withdrawable</span>
-              <span className="font-bold text-emerald-600">= Earned credits (can withdraw)</span>
+              <span className="font-bold text-emerald-600">= Commission earnings (90%)</span>
             </p>
             <p className="text-xs text-zinc-400 flex justify-between">
               <span>Bonus</span>
-              <span className="font-bold text-amber-600">= Promotional / referral credits</span>
+              <span className="font-bold text-amber-600">= Registration bonus + pledge returns</span>
             </p>
             <p className="text-xs text-zinc-400 flex justify-between">
               <span>Total</span>
               <span className="font-bold text-zinc-700">= Withdrawable + Bonus</span>
+            </p>
+          </div>
+
+          {/* Withdrawal rules info */}
+          <div className="mt-4 pt-4 border-t border-zinc-100">
+            <p className="text-xs text-zinc-500 mb-2 font-semibold">Withdrawal Requirements:</p>
+            <p className="text-xs text-zinc-400">✅ Complete at least <strong>3 tasks</strong></p>
+            <p className="text-xs text-zinc-400">✅ Accumulate <strong>≥100pt withdrawable</strong></p>
+            <p className="text-xs text-zinc-400">✅ Daily cap: <strong>500pt per 24 hours</strong></p>
+            <p className="text-xs text-zinc-400 mt-1">
+              At 30pt commission: you earn 27pt/task → need 4 completions (108pt).
             </p>
           </div>
 
@@ -154,6 +165,12 @@ export default function CreditsPage() {
           >
             💸 Withdraw
           </button>
+
+          {/* Contact admin */}
+          <p className="text-xs text-zinc-400 text-center mt-4">
+            Issues with withdrawal? Contact{" "}
+            <a href="mailto:honghuishen24@gmail.com" className="text-pink-500 underline">honghuishen24@gmail.com</a>
+          </p>
         </div>
 
         {/* Transaction History */}

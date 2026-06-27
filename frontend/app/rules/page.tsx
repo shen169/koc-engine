@@ -37,19 +37,20 @@ export default function RulesPage() {
 
           <ExampleBox>
             <div className="text-sm space-y-1">
-              <div className="text-gray-500">Example: <strong>commission = 30pt, 5 KOCs needed</strong></div>
-              <FlowStep actor="Brand" action={`Pays 5pt platform fee + (30pt × 5 KOCs) = 155pt total`} />
-              <FlowStep actor="KOC" action="Pays 10pt pledge on accept" />
-              <FlowStep actor="Platform" action="Collects 5pt (brand) + 1pt × 5 (KOC) = 10pt per task" />
-              <FlowStep actor="KOC" action={`Receives 30pt commission + 9pt pledge return = 39pt on completion`} highlight />
-              <FlowStep actor="Brand" action={`Net cost: 155pt. 5 KOCs × 30pt = 150pt goes to KOCs.`} />
+              <div className="text-gray-500">Example: <strong>commission = 30pt, 3 KOCs needed</strong></div>
+              <FlowStep actor="Brand" action={`Pays 5pt platform fee + (30pt × 3 KOCs) = 95pt total`} />
+              <FlowStep actor="KOC" action="Pays 10pt pledge on accept (from bonus)" />
+              <FlowStep actor="KOC" action={`Receives 27pt withdrawable (90%) + 10pt pledge returned (bonus) = 37pt total`} highlight />
+              <FlowStep actor="Platform" action="Earns 5pt service fee + 3pt × 3 = 14pt (10% commission fee, min 1pt)" />
+              <FlowStep actor="Brand" action={`Net cost: 95pt. Commission range: 20–50pt per KOC.`} />
             </div>
           </ExampleBox>
 
           <ul className="space-y-2 text-sm text-gray-600 mt-4">
-            <li>• Commission pool is <strong>non-refundable</strong> — brands pre-pay at task creation</li>
-            <li>• Commission is paid to KOC only after content is approved (merchant approval, AI judgment, or auto-approve)</li>
-            <li>• Earned commission points are <strong>withdrawable</strong> (unlike registration bonus points)</li>
+            <li>• Commission pool is <strong>non-refundable</strong> — brands pre-pay at task creation. If KOC defaults, commission is refunded as bonus to brand.</li>
+            <li>• Commission is paid to KOC only after content is approved (brand approval, AI judgment, or auto-approve)</li>
+            <li>• Earned commission points (90%) are <strong>withdrawable</strong> by KOCs. Pledge returned as <strong>bonus</strong> (non-withdrawable).</li>
+            <li>• <strong>Brands can never withdraw</strong> — all brand points are for publishing tasks only.</li>
           </ul>
         </RuleSection>
 
@@ -81,14 +82,20 @@ export default function RulesPage() {
                 <td className="py-3 pr-4 font-medium">KOC</td>
                 <td className="py-3 pr-4">Accept task</td>
                 <td className="py-3 pr-4">10pt fixed</td>
-                <td className="py-3 text-green-600">Yes — 9pt (after 1pt fee)</td>
+                <td className="py-3 text-green-600">Yes — 10pt fully returned (bonus)</td>
+              </tr>
+              <tr>
+                <td className="py-3 pr-4 font-medium">Platform</td>
+                <td className="py-3 pr-4">Task completion</td>
+                <td className="py-3 pr-4">10% of commission (min 1pt)</td>
+                <td className="py-3 text-red-500">No — platform revenue</td>
               </tr>
             </tbody>
           </table>
 
           <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-xl text-sm text-amber-800">
             <strong>⚠️ Pledge loss scenarios:</strong> KOC loses 10pt if they fail to submit content within 14 days,
-            exceed revision limits, or are rejected by AI final judgment. Brand loses commission pool only on their own breach (48h shipping timeout).
+            exceed revision limits, or are rejected by AI final judgment. Brand loses commission pool only on their own breach (48h shipping timeout). Brand can never withdraw — all refunds go to bonus balance for reuse.
           </div>
         </RuleSection>
 
@@ -172,29 +179,36 @@ export default function RulesPage() {
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
               <div className="text-sm font-semibold text-blue-800 mb-2">🎁 Bonus Points</div>
               <div className="text-xs text-blue-700 space-y-1">
-                <p>• Registration bonus (KOC: 1,000pt, Brand: 5,000pt)</p>
+                <p>• Registration bonus (KOC: 200pt, Brand: 100pt)</p>
                 <p>• <strong>Cannot be withdrawn</strong></p>
-                <p>• Can be used as pledge collateral</p>
+                <p>• Used for pledges (KOC) and task publishing (Brand)</p>
+                <p>• Pledge returns go back to bonus</p>
                 <p>• Platform-gifted, not earned</p>
               </div>
             </div>
             <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
               <div className="text-sm font-semibold text-emerald-800 mb-2">💵 Earned Points (Withdrawable)</div>
               <div className="text-xs text-emerald-700 space-y-1">
-                <p>• Commission from completed tasks</p>
-                <p>• Pledge returns (9pt per slot)</p>
-                <p>• Referral rewards (10pt)</p>
+                <p>• Commission from completed tasks (90%)</p>
                 <p>• <strong>Can be withdrawn at 1pt = $1 USD</strong></p>
+                <p>• KOC only — Brands cannot withdraw</p>
               </div>
             </div>
           </div>
 
           <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 space-y-2">
-            <div className="font-medium text-gray-800">Withdrawal Rules:</div>
-            <p>• Only <strong>withdrawable</strong> points can be cashed out (earned commission + pledge returns + referrals)</p>
-            <p>• Bonus points (registration gift) are <strong>not withdrawable</strong> but can be used as pledge</p>
-            <p>• Withdraw via PayPal or bank transfer from your Credits page</p>
+            <div className="font-medium text-gray-800">Withdrawal Rules (KOC only):</div>
+            <p>• Must complete <strong>≥3 tasks</strong> to unlock withdrawal</p>
+            <p>• Must have <strong>≥100pt withdrawable balance</strong> to initiate withdrawal</p>
+            <p>• Only <strong>withdrawable</strong> points can be cashed out (commission earnings)</p>
+            <p>• Bonus points (registration gift + pledge returns) are <strong>not withdrawable</strong></p>
+            <p>• <strong>Daily withdrawal cap: 500pt</strong> — maximum per 24-hour window</p>
+            <p>• <strong>Brands can never withdraw</strong> — points are for task publishing only</p>
+            <p>• Withdraw via PayPal or bank transfer from KOC Credits page</p>
             <p>• Exchange rate: <strong>1pt = $1.00 USD</strong></p>
+            <p className="text-xs text-amber-600 mt-2">
+              ⚠️ Minimum withdrawal: 100pt. Example: at 30pt commission, KOC earns 27pt/task → needs 4 completions (108pt) to reach threshold.
+            </p>
           </div>
         </RuleSection>
 
@@ -261,12 +275,16 @@ export default function RulesPage() {
             <tbody className="text-gray-700">
               {[
                 ["Brand platform fee (per task)", "5pt (non-refundable)"],
-                ["KOC platform fee (per slot)", "1pt (from pledge)"],
-                ["KOC fixed pledge", "10pt (9pt returned on completion)"],
+                ["Platform commission fee (per slot)", "10% of commission (min 1pt)"],
+                ["KOC fixed pledge", "10pt (fully returned as bonus on completion)"],
                 ["Commission pool", "commission × KOC count (brand pre-pays)"],
-                ["KOC registration bonus", "1,000pt (non-withdrawable)"],
-                ["Brand registration bonus", "5,000pt (non-withdrawable)"],
-                ["Referral reward", "10pt (withdrawable)"],
+                ["Commission range", "20–50pt per KOC"],
+                ["KOC commission take-home", "90% of commission (withdrawable)"],
+                ["KOC registration bonus", "200pt (non-withdrawable)"],
+                ["Brand registration bonus", "100pt (non-withdrawable)"],
+                ["KOC withdrawal unlock", "≥3 completed tasks + ≥100pt withdrawable"],
+                ["KOC daily withdrawal cap", "500pt per 24 hours"],
+                ["Brand withdrawal", "Not allowed — points for publishing only"],
                 ["Exchange rate", "1pt = $1.00 USD"],
                 ["Max concurrent KOC tasks", "5 active slots"],
                 ["Max revisions before AI judgment", "1"],
@@ -275,6 +293,7 @@ export default function RulesPage() {
                 ["Shipping deadline", "48 hours"],
                 ["Accept deadline", "12 hours"],
                 ["Submit deadline", "14 days"],
+                ["Contact admin", "honghuishen24@gmail.com"],
               ].map(([item, value], i) => (
                 <tr key={i} className="border-b border-gray-100">
                   <td className="py-2.5 pr-4">{item}</td>
@@ -286,8 +305,12 @@ export default function RulesPage() {
         </RuleSection>
 
         {/* Footer */}
-        <footer className="text-center text-sm text-gray-400 pt-8 border-t border-gray-200">
+        <footer className="text-center text-sm text-gray-400 pt-8 border-t border-gray-200 space-y-1 pb-12">
           <p>Last updated: June 2026 · <Link href="/" className="text-pink-500 hover:text-pink-600">Back to Home</Link></p>
+          <p>
+            Questions or issues? Contact admin:{" "}
+            <a href="mailto:honghuishen24@gmail.com" className="text-pink-500 hover:text-pink-600 underline">honghuishen24@gmail.com</a>
+          </p>
         </footer>
       </main>
     </div>

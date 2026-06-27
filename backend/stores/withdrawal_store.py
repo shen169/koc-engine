@@ -3,6 +3,7 @@
 import json
 import os
 import threading
+from datetime import datetime, timezone, timedelta
 from config import OUTPUT_DIR
 from models import WithdrawalRequest
 
@@ -61,6 +62,22 @@ class WithdrawalStore:
                     self._save(data)
                     return WithdrawalRequest(**w)
         return None
+
+    def get_daily_total(self, user_id: str) -> int:
+        """汇总最近 24h 该用户所有非 rejected 提现的总金额"""
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        with self._lock:
+            data = self._load()
+        total = 0
+        for w in data:
+            if w.get("user_id") != user_id:
+                continue
+            if w.get("status") == "rejected":
+                continue
+            created = w.get("created_at", "")
+            if created >= cutoff:
+                total += w.get("amount", 0)
+        return total
 
 
 withdrawal_store = WithdrawalStore()

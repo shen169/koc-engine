@@ -7,10 +7,9 @@ from stores.application_store import application_store
 from stores.koc_store import koc_store
 from stores.user_store import user_store
 from stores.credit_store import credit_store
-from stores.referral_store import referral_store
 from auth import get_current_user, require_admin
 from services.scorer import score_application
-from config import DEFAULT_KOC_INITIAL_CREDITS, DEFAULT_REFERRAL_REWARD_CREDITS, NotifType
+from config import DEFAULT_KOC_INITIAL_CREDITS, NotifType
 from services.notifier import notify_user
 
 router = APIRouter(tags=["applications"])
@@ -89,6 +88,23 @@ def submit_application(data: dict):
     handle = data["handle"].strip()
     niche = ", ".join(niche_tags) if niche_tags else "general"
 
+    # ── 社交账号唯一性校验（防多号）──
+    existing_by_handle = koc_store.get_by_handle_any_platform(handle)
+    if existing_by_handle:
+        raise HTTPException(
+            409,
+            f"Social handle '@{handle}' is already registered on {existing_by_handle.platform}. "
+            f"Each creator may only have one KOC account."
+        )
+
+    existing_by_url = koc_store.get_by_profile_url(profile_url)
+    if existing_by_url:
+        raise HTTPException(
+            409,
+            f"Profile URL is already linked to another KOC account (handle: @{existing_by_url.handle}). "
+            f"Each social account may only be linked to one KOC account."
+        )
+
     # AI 评分
     scoring = score_application(handle, platform, video_links, niche, profile_url, follower_count)
 
@@ -96,7 +112,6 @@ def submit_application(data: dict):
     app = Application(
         raw_form=data,
         campaign=data.get("campaign", ""),
-        referral_code=data.get("referral_code", ""),
         ai_score=scoring["total"],
         ai_reason=scoring["reason"],
         decision="approved",
@@ -126,7 +141,7 @@ def submit_application(data: dict):
     # 绑定 koc_id 到申请
     application_store.update(app.id, {"koc_id": koc.id})
 
-    # Auto-approve: grant initial credits + referral reward
+    # Auto-approve: grant initial credits
     email = data.get("email", "")
     koc_email = email
 
@@ -153,32 +168,6 @@ def submit_application(data: dict):
             "tier": scoring.get("tier", "L1"),
         },
     )
-
-    # Referral reward (immediate on auto-approve)
-    ref_code = data.get("referral_code", "")
-    if ref_code:
-        ref = referral_store.get_by_code(ref_code)
-        if ref and ref.status == "pending":
-            referral_store.update(ref.id, {
-                "referred_email": data.get("email", ""),
-                "referred_koc_id": koc.id,
-                "status": "completed",
-            })
-            # Bridge KOC profile ID → user ID for referral reward
-            referrer_user_id = ref.referrer_koc_id  # fallback
-            referrer_koc = koc_store.get(ref.referrer_koc_id)
-            if referrer_koc and referrer_koc.email:
-                referrer_user = user_store.get_by_email(referrer_koc.email)
-                if referrer_user:
-                    referrer_user_id = referrer_user.id
-            credit_store.add_credits(
-                referrer_user_id,
-                DEFAULT_REFERRAL_REWARD_CREDITS,
-                "referral_reward",
-                ref.id,
-                f"Referral reward: {koc.id}"
-            )
-
 
     return {
         "application_id": app.id,
@@ -229,52 +218,7 @@ def decide_application(app_id: str, data: dict, current_user: dict = Depends(req
             if existing_user:
                 credit_store.set_initial_balance(existing_user.id, DEFAULT_KOC_INITIAL_CREDITS)
 
-        # 裂变奖励：被推荐人审核通过 → 给推荐人奖励
-        if app.referral_code:
-            ref = referral_store.get_by_code(app.referral_code)
-            if ref and ref.status == "joined":
-                referral_store.update(ref.id, {"status": "completed"})
-                # Bridge KOC profile ID → user ID for referral reward
-                referrer_user_id = ref.referrer_koc_id  # fallback
-                referrer_koc = koc_store.get(ref.referrer_koc_id)
-                if referrer_koc and referrer_koc.email:
-                    referrer_user = user_store.get_by_email(referrer_koc.email)
-                    if referrer_user:
-                        referrer_user_id = referrer_user.id
-                credit_store.add_credits(
-                    referrer_user_id,
-                    DEFAULT_REFERRAL_REWARD_CREDITS,
-                    "referral_reward",
-                    ref.id,
-                    f"Referral reward: {app.koc_id}"
-                )
-
     elif decision == "rejected" and app.koc_id:
         koc_store.update(app.koc_id, {"status": "Ghosted"})
-
-        # 收回已发放的推荐奖励（auto-approve 时已发，驳回需收回）
-        if app.referral_code:
-            ref = referral_store.get_by_code(app.referral_code)
-            if ref and ref.status == "completed" and ref.referred_koc_id == app.koc_id:
-                # 通过 KOC profile → user 桥接找到推荐人账户
-                revoke_user_id = ref.referrer_koc_id  # fallback
-                referrer_koc = koc_store.get(ref.referrer_koc_id)
-                if referrer_koc and referrer_koc.email:
-                    referrer_user = user_store.get_by_email(referrer_koc.email)
-                    if referrer_user:
-                        revoke_user_id = referrer_user.id
-                # 收回奖励（deduct 会优先从 bonus 扣，正好注册奖励是 bonus）
-                revoked = credit_store.deduct_credits(
-                    revoke_user_id,
-                    DEFAULT_REFERRAL_REWARD_CREDITS,
-                    "referral_revoked",
-                    ref.id,
-                    f"Referral reward revoked: application {app_id} rejected"
-                )
-                if revoked is None:
-                    # Referrer already spent the bonus — log the shortfall but don't block the rejection
-                    print(f"[warn] Could not revoke referral reward from {revoke_user_id}: insufficient balance")
-                # 回退推荐状态，后续可被其他申请人触发
-                referral_store.update(ref.id, {"status": "pending", "referred_koc_id": ""})
 
     return {"status": "ok", "decision": decision}
