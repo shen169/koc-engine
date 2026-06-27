@@ -46,6 +46,16 @@ class TaskStore:
             self._save(data)
             return KocTask(**data[task_id])
 
+    def delete(self, task_id: str) -> bool:
+        """Remove a task from storage. Returns True if deleted, False if not found."""
+        with self._lock:
+            data = self._load()
+            if task_id not in data:
+                return False
+            del data[task_id]
+            self._save(data)
+            return True
+
     # ── V2 新增：Slot 级别操作 ──
 
     def update_slot(self, task_id: str, slot_index: int, slot_updates: dict) -> KocTask | None:
@@ -270,7 +280,7 @@ class TaskStore:
         with self._lock:
             data = self._load()
         return [KocTask(**t) for t in data.values()
-                if t.get("task_status") not in ("completed", "disputed")]
+                if t.get("task_status") not in ("completed", "disputed", "cancelled")]
 
 
 task_store = TaskStore()

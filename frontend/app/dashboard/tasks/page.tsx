@@ -34,6 +34,31 @@ export default function MerchantTasksPage() {
     }
   }
 
+  function canDelete(task: any): boolean {
+    if (["completed", "disputed", "cancelled"].includes(task.task_status)) return false;
+    const slots = task.koc_slots || [];
+    if (slots.length === 0) return true;
+    const BLOCKED = ["accepted", "shipped", "received", "creating", "submitted", "approved", "revision_requested"];
+    return slots.every((s: any) => !BLOCKED.includes(s.status || ""));
+  }
+
+  const [deleting, setDeleting] = useState<Record<string, boolean>>({});
+
+  async function handleDelete(taskId: string, productName: string) {
+    if (!confirm(`Delete task "${productName}"?\n\nThis will refund your commission pool + 5pt platform fee.\nThis action cannot be undone.`)) {
+      return;
+    }
+    setDeleting((prev) => ({ ...prev, [taskId]: true }));
+    try {
+      await tasks.delete(taskId, token!);
+      await loadTasks();
+    } catch (e: any) {
+      alert(e.message || "Delete failed");
+    } finally {
+      setDeleting((prev) => ({ ...prev, [taskId]: false }));
+    }
+  }
+
   const statusCounts = {
     all: taskList.length,
     pending: taskList.filter((t: any) => t.task_status === "pending" || t.task_status === "assigned").length,
@@ -132,6 +157,9 @@ export default function MerchantTasksPage() {
                 }}
                 mode="merchant"
                 token={token!}
+                canDelete={canDelete(t)}
+                isDeleting={!!deleting[t.id || t.task_id]}
+                onDelete={() => handleDelete(t.id || t.task_id, t.product_name)}
               />
             ))}
           </div>

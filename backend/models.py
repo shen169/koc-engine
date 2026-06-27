@@ -164,7 +164,7 @@ class KocTask(BaseModel):
 
     # ── V2 新增：任务类型 + 状态 ──
     task_type: str = "urgent"       # urgent | long_term
-    task_status: str = "pending"    # pending|assigned|accepted|shipped|creating|completed|disputed
+    task_status: str = "pending"    # pending|assigned|accepted|shipped|creating|completed|disputed|cancelled
 
     # ── V2 新增：批量 KOC ──
     koc_required: int = 1           # 需要几个 KOC
@@ -362,7 +362,7 @@ VALID_PRODUCT_STATUSES = ["active", "paused", "archived"]
 
 # ── V2 任务状态机 ──
 TASK_TYPES = ["urgent", "long_term"]
-TASK_STATUSES = ["pending", "assigned", "accepted", "shipped", "creating", "completed", "disputed"]
+TASK_STATUSES = ["pending", "assigned", "accepted", "shipped", "creating", "completed", "disputed", "cancelled"]
 SLOT_STATUSES = ["pending", "assigned", "accepted", "shipped", "received", "creating", "submitted", "approved", "revision_requested", "completed", "rejected", "timed_out"]
 VALID_WITHDRAWAL_STATUSES = ["pending", "paid", "rejected"]
 

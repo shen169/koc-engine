@@ -40,6 +40,8 @@ _LARK_COLOR_MAP = {
     NotifType.TASK_REMATCHED: "blue",
     NotifType.DEADLINE_WARNING: "red",
     NotifType.PLATFORM_ANNOUNCEMENT: "blue",
+    NotifType.TASK_IDLE_WARNING: "red",
+    NotifType.TASK_DELETED: "blue",
 }
 
 

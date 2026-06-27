@@ -378,6 +378,95 @@ def get_task(task_id: str, current_user: dict = Depends(get_current_user)):
 
 
 # ═══════════════════════════════════════════
+# 商家删除任务（仅限无人接单时，全额退款）
+# ═══════════════════════════════════════════
+
+@router.delete("/tasks/{task_id}")
+def delete_task(task_id: str, current_user: dict = Depends(get_current_user)):
+    """商家删除自己的任务。只有所有 slot 均未被 KOC 接受时才能删除。
+    删除时退还佣金池 + 平台服务费 5pt。"""
+    if current_user.get("role") not in ("merchant", "admin"):
+        raise HTTPException(403, "Only merchant can delete tasks")
+
+    task = task_store.get(task_id)
+    if not task:
+        raise HTTPException(404, "Task not found")
+
+    # Verify ownership
+    if current_user.get("role") == "merchant":
+        m = merchant_store.get_by_user_id(current_user["sub"])
+        if not m or m.id != task.merchant_id:
+            raise HTTPException(403, "Not your task")
+
+    # Cannot delete completed / disputed / already cancelled
+    if task.task_status in ("completed", "disputed", "cancelled"):
+        raise HTTPException(400, f"Cannot delete task in '{task.task_status}' status")
+
+    # ── Core check: all slots must NOT be in accepted-or-beyond status ──
+    BLOCKED_STATUSES = {
+        "accepted", "shipped", "received", "creating",
+        "submitted", "approved", "revision_requested",
+    }
+    for i, slot in enumerate(task.koc_slots):
+        if slot.get("status") in BLOCKED_STATUSES:
+            raise HTTPException(
+                400,
+                f"Cannot delete: slot {i} is '{slot.get('status')}' "
+                f"(KOC has already accepted). Only tasks with no accepted slots can be deleted."
+            )
+
+    # ── Refunds ──
+    m_uid = _get_merchant_user_id(task.merchant_id)
+
+    # 1. Refund commission pool (pledge_merchant)
+    if task.pledge_merchant > 0:
+        credit_store.add_credits(
+            m_uid, task.pledge_merchant, "commission_returned",
+            task_id,
+            f"Commission pool refunded (task deleted): {task.product_name} "
+            f"({task.koc_required} slots × {task.commission}pt)",
+            withdrawable=False,
+        )
+
+    # 2. Refund platform service fee
+    credit_store.add_credits(
+        m_uid, PLATFORM_SERVICE_FEE, "platform_fee_rollback",
+        task_id,
+        f"Platform service fee refunded (task deleted): {task.product_name}",
+        withdrawable=False,
+    )
+
+    # Mark refunded + cancelled
+    task_store.update(task_id, {
+        "refunded": True,
+        "task_status": "cancelled",
+    })
+
+    # Notify merchant
+    total_refunded = task.pledge_merchant + PLATFORM_SERVICE_FEE
+    m = merchant_store.get(task.merchant_id)
+    if m:
+        notify_user(
+            m.user_id,
+            NotifType.TASK_DELETED,
+            "Task Deleted — Credits Refunded",
+            f"Your task \"{task.product_name}\" has been deleted. "
+            f"{total_refunded}pt refunded ({task.pledge_merchant}pt commission pool + {PLATFORM_SERVICE_FEE}pt platform fee).",
+            task_id=task_id,
+            resource_path="/dashboard/tasks",
+        )
+
+    return {
+        "status": "cancelled",
+        "task_id": task_id,
+        "refunded_commission_pool": task.pledge_merchant,
+        "refunded_platform_fee": PLATFORM_SERVICE_FEE,
+        "total_refunded": total_refunded,
+        "message": f"Task deleted. {total_refunded}pt refunded to your account.",
+    }
+
+
+# ═══════════════════════════════════════════
 # KOC 接单
 # ═══════════════════════════════════════════
 

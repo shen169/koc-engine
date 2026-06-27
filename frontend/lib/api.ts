@@ -185,6 +185,10 @@ export const tasks = {
   // V2: Admin force rematch
   forceRematch: (taskId: string, slotIndex: number, token: string) =>
     api(`/api/tasks/${taskId}/force-rematch/${slotIndex}`, { method: "POST", token }),
+  // V2: Merchant deletes own task (only if no KOC has accepted)
+  delete: (taskId: string, token: string) =>
+    api<Record<string, unknown>>(`/api/tasks/${taskId}`, { method: "DELETE", token }),
+
   // Deprecated compat
   submitLegacy: (id: string, submitUrl: string, token: string) =>
     api(`/api/tasks/${id}/submit`, { method: "PUT", body: { submit_url: submitUrl }, token }),

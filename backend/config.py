@@ -99,3 +99,5 @@ class NotifType:
     TASK_REMATCHED = "task_rematched"         # 长期空位重匹配
     DEADLINE_WARNING = "deadline_warning"     # SLA 截止预警
     PLATFORM_ANNOUNCEMENT = "platform_announcement"  # 平台公告
+    TASK_IDLE_WARNING = "task_idle_warning"       # 长线任务 7 天空位提醒商家
+    TASK_DELETED = "task_deleted"                 # 任务被商家删除（含退款）

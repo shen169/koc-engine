@@ -62,6 +62,32 @@ export default function MerchantTaskDetailPage() {
     }
   }
 
+  function canDeleteTask(): boolean {
+    if (!task) return false;
+    if (["completed", "disputed", "cancelled"].includes(task.task_status)) return false;
+    const slots = task.koc_slots || [];
+    if (slots.length === 0) return true;
+    const BLOCKED = ["accepted", "shipped", "received", "creating", "submitted", "approved", "revision_requested"];
+    return slots.every((s: any) => !BLOCKED.includes(s.status || ""));
+  }
+
+  const [deletingTask, setDeletingTask] = useState(false);
+
+  async function handleDeleteTask() {
+    if (!confirm(`Delete this task?\n\nThis will refund your commission pool + 5pt platform fee.\nThis action cannot be undone.`)) {
+      return;
+    }
+    setDeletingTask(true);
+    setError("");
+    try {
+      await tasks.delete(taskId, token!);
+      router.push("/dashboard/tasks");
+    } catch (e: any) {
+      setError(e.message || "Delete failed");
+      setDeletingTask(false);
+    }
+  }
+
   async function handleShip() {
     if (!trackingNumber.trim()) {
       setError("Please enter tracking number");
@@ -194,6 +220,26 @@ export default function MerchantTaskDetailPage() {
                 >
                   🔗 View Product Page ↗
                 </a>
+              )}
+
+              {/* Delete task button — only when no KOC accepted */}
+              {canDeleteTask() && (
+                <div className="mt-3">
+                  {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+                  <button
+                    onClick={handleDeleteTask}
+                    disabled={deletingTask}
+                    className="flex items-center gap-2 text-sm text-red-500 border border-red-200 hover:bg-red-50 px-4 py-2 rounded-xl font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Only available when no KOC has accepted"
+                  >
+                    {deletingTask ? "⏳ Deleting..." : "🗑️ Delete Task"}
+                  </button>
+                  {!deletingTask && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Refund: commission pool + 5pt platform fee
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 

@@ -413,41 +413,41 @@ def _handle_accept_timeout(task, slot_index: int, old_koc_id: str):
 
 
 def _handle_long_term_idle(task, slot_index: int):
-    """长线任务空位 7 天无人接 → 系统介入自动匹配 KOC"""
-    refreshed = task_store.get(task.id)
-    if refreshed:
-        new_match = rematch_slot(refreshed, slot_index)
-        if new_match:
-            now = datetime.utcnow().isoformat()
-            task_store.update_slot(task.id, slot_index, {
-                "koc_id": new_match["koc_id"],
-                "status": "assigned",
-                "assigned_at": now,
-            })
+    """长线任务空位 7 天无人接 → 通知商家建议放弃（不再强制匹配 KOC）。
 
-            # ── 通知商家：空位已被系统自动匹配 ──
-            m_uid = _get_merchant_user_id(task.merchant_id)
-            if m_uid:
-                notify_user(
-                    m_uid,
-                    NotifType.TASK_REMATCHED,
-                    "Long-Term Slot Auto-Matched",
-                    f"{task.product_name}: An empty slot was auto-matched by the system after 7 days unclaimed.",
-                    task_id=task.id,
-                    resource_path=f"/dashboard/tasks/{task.id}",
-                )
+    商家可选择：1) 手动删除任务拿回退款  2) 继续等待  3) 改为加急触发匹配。
+    """
+    # ── 防重复：每个 slot 只通知一次 ──
+    slots = task.koc_slots or []
+    if slot_index < len(slots):
+        warned = list(slots[slot_index].get("warned_stages", []))
+        if "long_term_idle_7d" in warned:
+            return
+        warned.append("long_term_idle_7d")
+        task_store.update_slot(task.id, slot_index, {"warned_stages": warned})
 
-            # ── 通知 KOC：被系统匹配到长线任务 ──
-            koc_uid = _get_koc_user_id(new_match["koc_id"])
-            if koc_uid:
-                notify_user(
-                    koc_uid,
-                    NotifType.KOC_MATCHED,
-                    "New Task Assignment — Long-Term Match",
-                    f"You have been auto-matched to {task.product_name}. The brand will ship within 48h. 10pt pledge required upon acceptance.",
-                    task_id=task.id,
-                    resource_path=f"/portal/tasks/{task.id}",
-                )
+    # ── 统计空 slot 数量 ──
+    total_slots = len(slots)
+    empty_slots = sum(
+        1 for s in slots
+        if not s.get("koc_id") or s.get("status") in ("pending", "assigned", "rejected", "timed_out")
+    )
+
+    # ── 通知商家：不再自动匹配，建议主动决策 ──
+    m_uid = _get_merchant_user_id(task.merchant_id)
+    if m_uid:
+        notify_user(
+            m_uid,
+            NotifType.TASK_IDLE_WARNING,
+            "Task Idle for 7 Days — Consider Abandoning",
+            f"Your task \"{task.product_name}\" has been idle for 7 days "
+            f"with {empty_slots} empty slot(s) out of {total_slots}. "
+            f"The system will NOT auto-force-match a KOC. "
+            f"You may: (1) Delete the task to get a full refund ({task.pledge_merchant}pt commission pool + 5pt platform fee), "
+            f"(2) Wait longer for KOCs, or (3) Recreate as Urgent for auto-matching.",
+            task_id=task.id,
+            resource_path=f"/dashboard/tasks/{task.id}",
+        )
 
 
 def _handle_merchant_ship_timeout(task):

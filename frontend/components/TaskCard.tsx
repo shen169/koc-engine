@@ -31,9 +31,12 @@ interface TaskCardProps {
   };
   mode: "hall" | "merchant";
   token: string;
+  canDelete?: boolean;
+  isDeleting?: boolean;
+  onDelete?: () => void;
 }
 
-export default function TaskCard({ task, mode, token }: TaskCardProps) {
+export default function TaskCard({ task, mode, token, canDelete, isDeleting, onDelete }: TaskCardProps) {
   const router = useRouter();
   const isUrgent = task.task_type === "urgent";
   const remaining = task.koc_required - task.koc_filled;
@@ -122,6 +125,23 @@ export default function TaskCard({ task, mode, token }: TaskCardProps) {
               style={{ width: `${progressPct}%` }}
             />
           </div>
+        </div>
+      )}
+
+      {/* Delete button (merchant mode, only when no KOC accepted) */}
+      {mode === "merchant" && canDelete && onDelete && (
+        <div className="mt-3 pt-3 border-t border-gray-50">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            disabled={isDeleting}
+            className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Only available when no KOC has accepted"
+          >
+            {isDeleting ? "⏳ Deleting..." : "🗑️ Delete Task"}
+          </button>
         </div>
       )}
 
