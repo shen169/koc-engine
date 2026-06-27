@@ -125,7 +125,7 @@ def run_weekly_scan() -> dict:
                         _warn_if_needed(task, i, "submit_7d", days_since_received < SLA_SUBMIT_DAYS,
                             NotifType.DEADLINE_WARNING,
                             "⏰ 7 Days Left — Submit Your Content",
-                            f"{task.product_name}: You have 7 days left to submit content. Late submission = 10pt forfeited + Trust Score -15.",
+                            f"{task.product_name}: You have 7 days left to submit content. Late submission = {task.pledge_koc}pt forfeited + Trust Score -15.",
                             koc_uid_w, f"/portal/tasks/{task.id}",
                             koc_name=koc_name_w, days_left=SLA_SUBMIT_DAYS - days_since_received)
 
@@ -134,7 +134,7 @@ def run_weekly_scan() -> dict:
                         _warn_if_needed(task, i, "submit_11d", days_since_received < SLA_SUBMIT_DAYS,
                             NotifType.DEADLINE_WARNING,
                             "🚨 3 Days Left — Submit Now or Lose Pledge!",
-                            f"{task.product_name}: ONLY 3 DAYS LEFT! Submit your content now or your 10pt pledge will be forfeited + Trust Score -15.",
+                            f"{task.product_name}: ONLY 3 DAYS LEFT! Submit your content now or your {task.pledge_koc}pt pledge will be forfeited + Trust Score -15.",
                             koc_uid_w, f"/portal/tasks/{task.id}",
                             koc_name=koc_name_w, days_left=SLA_SUBMIT_DAYS - days_since_received)
 
@@ -468,7 +468,7 @@ def _handle_merchant_ship_timeout(task):
                     koc_uid,
                     NotifType.VIOLATION,
                     "Brand Failed to Ship — Pledge Refunded",
-                    f"{task.product_name}: Brand did not ship within 48 hours. Your 10pt pledge has been refunded in full. Trust Score -20 applied to brand.",
+                    f"{task.product_name}: Brand did not ship within 48 hours. Your {task.pledge_koc}pt pledge has been refunded in full. Trust Score -20 applied to brand.",
                     task_id=task.id,
                     resource_path=f"/portal/tasks/{task.id}",
                 )
@@ -535,14 +535,14 @@ def _handle_submit_timeout(task, slot_index: int, koc_id: str):
                 koc_uid,
                 NotifType.VIOLATION,
                 "Content Submission Timeout — Pledge Forfeited",
-                f"{task.product_name}: You missed the 14-day content submission deadline. Your 10pt pledge has been forfeited and Trust Score -15.",
+                f"{task.product_name}: You missed the 14-day content submission deadline. Your {task.pledge_koc}pt pledge has been forfeited and Trust Score -15.",
                 task_id=task.id,
                 resource_path=f"/portal/tasks/{task.id}",
                 template_name="violation",
                 template_vars={
                     "koc_name": "Creator",
                     "reason": "Missed 14-day content submission deadline",
-                    "penalty": "10pt pledge forfeited, Trust Score -15",
+                    "penalty": f"{task.pledge_koc}pt pledge forfeited, Trust Score -15",
                 },
             )
 
@@ -679,14 +679,14 @@ def _handle_revision_timeout(task, slot_index: int, koc_id: str):
                 koc_uid,
                 NotifType.VIOLATION,
                 "Revision Timeout — Pledge Forfeited",
-                f"{task.product_name}: You missed the 3-day revision deadline. Your 10pt pledge has been forfeited and Trust Score -15.",
+                f"{task.product_name}: You missed the 3-day revision deadline. Your {task.pledge_koc}pt pledge has been forfeited and Trust Score -15.",
                 task_id=task.id,
                 resource_path=f"/portal/tasks/{task.id}",
                 template_name="violation",
                 template_vars={
                     "koc_name": "Creator",
                     "reason": "Missed 3-day revision resubmission deadline",
-                    "penalty": "10pt pledge forfeited, Trust Score -15",
+                    "penalty": f"{task.pledge_koc}pt pledge forfeited, Trust Score -15",
                 },
             )
 

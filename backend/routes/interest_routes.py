@@ -105,7 +105,7 @@ def auto_assign_koc_to_product(koc_id: str, product_id: str) -> dict | None:
                         koc_user,
                         NotifType.KOC_MATCHED,
                         "You've Been Matched!",
-                        f"You've been matched with {merchant_name} for {t.product_name}. 10pt pledge deducted. Brand will ship within 48h.",
+                        f"You've been matched with {merchant_name} for {t.product_name}. {t.pledge_koc}pt pledge deducted. Brand will ship within 48h.",
                         task_id=t.id,
                         resource_path=f"/portal/tasks/{t.id}",
                         template_name="match",

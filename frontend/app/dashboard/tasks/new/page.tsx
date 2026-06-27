@@ -309,7 +309,9 @@ export default function NewTaskPage() {
                 {[
                   { text: "Ship within 48 hours", sub: "Late: deduct 20 Trust Score + return KOC pledge" },
                   { text: "Review KOC submissions within 3 days", sub: "Late: auto-approved by system" },
-                  { text: `Total deduction now: 5pt fee + ${form.commission * form.koc_required}pt commission pool = ${5 + form.commission * form.koc_required}pt`, sub: "All non-refundable; commission paid to KOCs on completion. 1 revision + AI final judgment." },
+                  form.task_mode === "sample"
+                    ? { text: "Total deduction now: 5pt platform fee", sub: `Non-refundable. KOC receives free product (pledge: 5pt). 1 revision + AI final judgment.` }
+                    : { text: `Total deduction now: 5pt fee + ${form.commission * form.koc_required}pt commission pool = ${5 + form.commission * form.koc_required}pt`, sub: "All non-refundable; commission paid to KOCs on completion. 1 revision + AI final judgment." },
                 ].map((item, i) => (
                   <label key={i} className="flex items-start gap-2 text-sm text-amber-700 cursor-pointer">
                     <span className="mt-0.5 shrink-0">☐</span>
