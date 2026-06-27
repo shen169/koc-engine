@@ -1,21 +1,54 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Spark from "@/components/Spark";
-import { clearToken, getConsolePath } from "@/lib/api";
+import { auth, credits, clearToken, getConsolePath, getToken } from "@/lib/api";
 import NotificationBell from "@/components/Notifications";
 
 interface NavBarProps {
-  user: { email?: string } | null;
+  user?: { email?: string } | null;  // optional override (legacy)
   role: string;
-  balance?: number;
+  balance?: number;                   // optional override (legacy)
   title?: string;
 }
 
-export default function NavBar({ user, role, balance, title }: NavBarProps) {
+export default function NavBar({ user: propUser, role, balance: propBalance, title }: NavBarProps) {
   const router = useRouter();
   const consolePath = getConsolePath(role);
+
+  const [email, setEmail] = useState(propUser?.email || "");
+  const [balance, setBalance] = useState<number | undefined>(propBalance);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+
+    // Fetch user info + balance
+    if (!propUser?.email || propBalance === undefined) {
+      Promise.all([
+        auth.me(token).catch(() => null),
+        credits.balance(token).catch(() => null),
+      ]).then(([userData, balanceData]) => {
+        if (userData && !propUser?.email) {
+          setEmail((userData as any).email || "");
+        }
+        if (balanceData && propBalance === undefined) {
+          setBalance((balanceData as any).balance as number);
+        }
+      }).catch(() => {});
+    }
+  }, []);
+
+  // Sync from props if provided
+  useEffect(() => {
+    if (propUser?.email) setEmail(propUser.email);
+  }, [propUser?.email]);
+
+  useEffect(() => {
+    if (propBalance !== undefined) setBalance(propBalance);
+  }, [propBalance]);
 
   function handleSignOut() {
     clearToken();
@@ -43,7 +76,7 @@ export default function NavBar({ user, role, balance, title }: NavBarProps) {
       </div>
       <div className="flex items-center gap-4 text-sm">
         <NotificationBell role={role} />
-        {user?.email && <span className="text-zinc-400">{user.email}</span>}
+        {email && <span className="text-zinc-400">{email}</span>}
         {balance !== undefined && (
           <span className="bg-pink-50 text-pink-700 px-3 py-1 rounded-full font-bold text-xs">
             🪙 {balance} pts
