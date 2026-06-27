@@ -15,23 +15,7 @@ from auth import get_current_user, require_admin
 from config import KOC_FIXED_PLEDGE, PLATFORM_SERVICE_FEE, NotifType
 from routes.task_routes import _sync_task_status
 
-import re
-
 router = APIRouter(tags=["interests"])
-
-
-def _parse_commission(value: str) -> int:
-    """从 commission_value 字符串中提取数值。支持格式：'15% off', '$20', '10', '15%'。失败返回 30。"""
-    if not value:
-        return 30
-    # 尝试直接整数解析
-    if value.strip().isdigit():
-        return max(1, int(value.strip()))
-    # 提取第一个数字
-    m = re.search(r'(\d+)', value)
-    if m:
-        return max(1, int(m.group(1)))
-    return 30
 
 
 def _make_slot(koc_id: str, status: str = "accepted") -> dict:
@@ -136,7 +120,6 @@ def auto_assign_koc_to_product(koc_id: str, product_id: str) -> dict | None:
 
     # 无可用空位 → 自动创建 long_term 任务（含质押）
     now = datetime.now(timezone.utc).isoformat()
-    parsed_commission = _parse_commission(product.commission_value or "")
     task = KocTask(
         merchant_id=product.merchant_id,
         product_id=product_id,
@@ -146,9 +129,9 @@ def auto_assign_koc_to_product(koc_id: str, product_id: str) -> dict | None:
         task_status="accepted",
         koc_required=1,
         koc_slots=[_make_slot(koc_id)],
-        pledge_merchant=parsed_commission,   # 商家佣金池 = 佣金值
+        pledge_merchant=30,                 # 默认佣金池 30pt（商家发布时可自定义）
         pledge_koc=KOC_FIXED_PLEDGE,        # KOC 固定质押 10pt
-        commission=parsed_commission,
+        commission=30,                      # 默认佣金 30pt
         created_at=now,
     )
 

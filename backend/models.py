@@ -110,9 +110,9 @@ class Product(BaseModel):
     name: str
     image_url: str = ""
     category: str = ""
-    commission_type: str = "discount_code"  # discount_code | affiliate
-    commission_value: str = ""  # e.g. "15% off"
-    commission_link: str = ""  # affiliate / tracking link — Amazon Associates, ShareASale, CJ, Impact, Refersion, etc.
+    commission_type: str = ""  # DEPRECATED: V2 uses platform points, set at task level
+    commission_value: str = ""  # DEPRECATED: V2 uses platform points, set at task level
+    commission_link: str = ""  # DEPRECATED: V2 uses platform points, set at task level
     description: str = ""
     target_market: str = ""  # target market (US/UK/CA/AU/EU/JP/KR/SEA/CN), matched with KOC.region
     status: str = "active"  # active | paused | archived

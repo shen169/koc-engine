@@ -165,33 +165,6 @@ export default function ProductDetail() {
               </div>
             )}
 
-            {/* Commission Info */}
-            <div className="bg-zinc-50 rounded-2xl p-4 space-y-3">
-              <h3 className="text-sm font-semibold text-zinc-600">🔗 Product URL</h3>
-
-              {product.commission_link ? (
-                <a
-                  href={product.commission_link as string}
-                  target="_blank"
-                  rel="noopener"
-                  className="flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700 font-medium break-all"
-                >
-                  🔗 Product Page ↗
-                </a>
-              ) : (
-                <p className="text-xs text-zinc-400">Merchant has not provided a commission link yet</p>
-              )}
-
-              <div className="flex items-center gap-2 text-sm">
-                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-bold text-xs">
-                  {product.commission_type === "affiliate" ? "🔗 Affiliate Commission" : "🏷 Discount Code"}
-                </span>
-                <span className="font-extrabold text-zinc-900">
-                  {product.commission_value as string || "15% off"}
-                </span>
-              </div>
-            </div>
-
             {product.description ? (
               <div>
                 <h3 className="text-sm font-semibold text-zinc-600 mb-2">📝 Product Description</h3>

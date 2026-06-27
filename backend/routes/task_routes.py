@@ -263,12 +263,6 @@ def list_task_hall(
         t["merchant_trust_score"] = m.trust_score if m else 100
         t["merchant_company"] = m.company_name if m else "Unknown"
         t["merchant_avg_rating"] = m.avg_rating if m else 0.0
-        # 补全产品返佣链接
-        if t.get("product_id"):
-            product = product_store.get(t["product_id"])
-            if product:
-                t["commission_link"] = product.commission_link
-
     return tasks
 
 
@@ -300,9 +294,6 @@ def list_my_tasks(current_user: dict = Depends(get_current_user)):
                         if product:
                             task_dict["product_category"] = product.category
                             task_dict["product_target_market"] = product.target_market
-                            task_dict["product_commission_type"] = product.commission_type
-                            task_dict["product_commission_value"] = product.commission_value
-                            task_dict["product_commission_link"] = product.commission_link
                             task_dict["product_asin"] = product.asin
                             task_dict["product_url"] = f"https://amazon.com/dp/{product.asin}" if product.asin else ""
                             task_dict["product_description"] = (product.description or "")[:200]
@@ -366,9 +357,6 @@ def get_task(task_id: str, current_user: dict = Depends(get_current_user)):
             result["product_target_market"] = product.target_market
             result["product_description"] = product.description
             result["product_asin"] = product.asin
-            result["commission_link"] = product.commission_link
-            result["commission_type"] = product.commission_type
-            result["commission_value"] = product.commission_value
     # 补全商家信息
     if task.merchant_id:
         merchant = merchant_store.get(task.merchant_id)
