@@ -37,7 +37,7 @@ def register(data: UserRegister, request: Request = None):
         raise HTTPException(400, "role must be koc or merchant")
     existing = user_store.get_by_email(data.email)
     if existing:
-        raise HTTPException(400, "Email already registered")
+        raise HTTPException(400, f"This email is already registered as {existing.role}. Please log in instead.")
 
     # IP 检测：防止同 IP 注册双角色
     client_ip = ""
