@@ -128,6 +128,13 @@ def me(current_user: dict = Depends(get_current_user)):
                 "avg_rating": koc.avg_rating,
                 "region": koc.region,
                 "niche_tags": koc.niche_tags,
+                # Full profile fields for edit form pre-fill
+                "display_name": koc.display_name,
+                "platform": koc.platform,
+                "handle": koc.handle,
+                "profile_url": koc.profile_url,
+                "follower_count": koc.follower_count,
+                "shipping_address": getattr(koc, "shipping_address", ""),
             }
     elif user.role == "merchant":
         from stores.merchant_store import merchant_store as ms
@@ -140,6 +147,12 @@ def me(current_user: dict = Depends(get_current_user)):
                 "total_tasks_completed": m.total_tasks_completed,
                 "total_tasks_disputed": m.total_tasks_disputed,
                 "avg_rating": m.avg_rating,
+                # Full profile fields for edit form pre-fill
+                "company_name": m.company_name,
+                "website": m.website,
+                "amazon_storefront": m.amazon_storefront,
+                "product_categories": m.product_categories,
+                "target_markets": m.target_markets,
             }
 
     result = {

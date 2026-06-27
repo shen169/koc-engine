@@ -8,6 +8,49 @@ from auth import get_current_user, require_admin
 router = APIRouter(tags=["koc"])
 
 
+# ═══ KOC self-service profile ──────────────────────────────────────────
+# MUST be defined BEFORE /koc/{koc_id} to avoid FastAPI path conflict
+
+
+@router.get("/koc/me")
+def get_my_koc(current_user: dict = Depends(get_current_user)):
+    """KOC views their own full profile (for edit form pre-fill)."""
+    if current_user.get("role") not in ("koc", "admin"):
+        raise HTTPException(403, "Only KOC can view their own profile")
+    koc = koc_store.get_by_email(current_user["email"])
+    if not koc:
+        raise HTTPException(404, "KOC profile not found — submit an application first")
+    return koc.model_dump()
+
+
+@router.put("/koc/me")
+def update_my_koc(updates: dict, current_user: dict = Depends(get_current_user)):
+    """KOC updates their own profile."""
+    if current_user.get("role") not in ("koc", "admin"):
+        raise HTTPException(403, "Only KOC can update their own profile")
+    koc = koc_store.get_by_email(current_user["email"])
+    if not koc:
+        raise HTTPException(404, "KOC profile not found")
+    allowed = {
+        "display_name", "platform", "handle", "profile_url",
+        "follower_count", "region", "niche_tags",
+    }
+    # Convert follower_count to int if present
+    safe = {}
+    for k, v in updates.items():
+        if k not in allowed:
+            continue
+        if k == "follower_count":
+            try:
+                safe[k] = int(v)
+            except (ValueError, TypeError):
+                raise HTTPException(400, "follower_count must be an integer")
+        else:
+            safe[k] = v
+    updated = koc_store.update(koc.id, safe)
+    return updated.model_dump()
+
+
 @router.get("/koc")
 def list_kocs(
     status: str = Query(None),

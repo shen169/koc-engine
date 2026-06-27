@@ -95,6 +95,11 @@ export const kocs = {
   },
   pool: (token: string) => api<Array<Record<string, unknown>>>("/api/koc/pool", { token }),
   get: (id: string, token: string) => api<Record<string, unknown>>(`/api/koc/${id}`, { token }),
+  /** KOC views their own full profile */
+  me: (token: string) => api<Record<string, unknown>>("/api/koc/me", { token }),
+  /** KOC updates their own profile */
+  updateMe: (updates: Record<string, unknown>, token: string) =>
+    api<Record<string, unknown>>("/api/koc/me", { method: "PUT", body: updates, token }),
 };
 
 // Products
