@@ -7,7 +7,7 @@ from models import User, UserRegister, UserLogin
 from stores.user_store import user_store
 from stores.credit_store import credit_store
 from auth import create_token, get_current_user
-from config import DEFAULT_KOC_INITIAL_CREDITS, DEFAULT_MERCHANT_INITIAL_CREDITS, KOC_REGISTRATION_IP_LIMIT
+from config import DEFAULT_KOC_INITIAL_CREDITS, DEFAULT_MERCHANT_INITIAL_CREDITS, KOC_REGISTRATION_IP_LIMIT, MERCHANT_REGISTRATION_IP_LIMIT
 
 router = APIRouter(tags=["auth"])
 
@@ -62,6 +62,16 @@ def register(data: UserRegister, request: Request = None):
                     f"Too many KOC registrations from this IP in the past 7 days "
                     f"({recent_koc_count}/{KOC_REGISTRATION_IP_LIMIT} limit). "
                     f"Each creator must use their own social account."
+                )
+
+        # IP 限制：商家注册同 IP 最多 1 个
+        if data.role == "merchant":
+            merchant_count = user_store.count_merchant_by_ip(client_ip)
+            if merchant_count >= MERCHANT_REGISTRATION_IP_LIMIT:
+                raise HTTPException(
+                    429,
+                    f"Only one merchant account allowed per IP. "
+                    f"This IP has already registered {merchant_count} merchant account(s)."
                 )
 
     user = User(

@@ -80,5 +80,13 @@ class UserStore:
                 count += 1
         return count
 
+    def count_merchant_by_ip(self, ip: str) -> int:
+        """统计同 IP 注册的商家数量（全时段，不限窗口）"""
+        if not ip:
+            return 0
+        with self._lock:
+            data = self._load()
+        return sum(1 for u in data.values() if u.get("registration_ip") == ip and u.get("role") == "merchant")
+
 
 user_store = UserStore()

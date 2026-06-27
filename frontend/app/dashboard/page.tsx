@@ -408,7 +408,6 @@ export default function DashboardPage() {
             { href: "/dashboard/products", label: "📦 My Products", desc: "Manage listings" },
             { href: "/dashboard/koc-pool", label: "🔍 Find Creators", desc: "Browse anonymously" },
             { href: "/dashboard/credits", label: "💰 Credits", desc: `${balance} pts` },
-            { href: "/dashboard/coupons", label: "🏷 Coupons", desc: "Discount codes" },
           ].map((item) => (
             <Link key={item.href} href={item.href} className="bg-white rounded-2xl p-5 border border-rose-100 shadow-sm hover:border-purple-200 transition">
               <div className="font-bold text-zinc-900 mb-1">{item.label}</div>

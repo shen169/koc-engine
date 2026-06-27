@@ -51,8 +51,9 @@ PT_TO_USD = 1.0                   # 点数兑美金汇率：1pt = $1 USD
 PLEDGE_PER_SLOT = 10              # 双方每 slot 质押点数（默认最小值）
 
 # Anti-fraud
-KOC_REGISTRATION_IP_LIMIT = 2              # 同 IP 最多注册 KOC 数
+KOC_REGISTRATION_IP_LIMIT = 2              # 同 IP 最多注册 KOC 数（7 天内）
 KOC_REGISTRATION_IP_WINDOW_DAYS = 7        # IP 限频窗口期
+MERCHANT_REGISTRATION_IP_LIMIT = 1         # 同 IP 最多注册 1 个商家
 
 # Commission
 TASK_COMMISSION_MIN = 20           # 商家发布任务最低佣金
