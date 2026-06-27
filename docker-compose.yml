@@ -24,7 +24,7 @@ services:
     container_name: koc-backend
     restart: always
     volumes:
-      - koc_output:/app/output
+      - koc_output:/output
       - ./backend/.env:/app/.env:ro
     environment:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
