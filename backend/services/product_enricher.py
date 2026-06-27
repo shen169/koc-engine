@@ -2,12 +2,18 @@
 
 No new dependencies needed. Uses httpx (already in requirements) + stdlib re/json.
 Graceful fallback: if page fetch fails (timeout, blocked, etc.), still returns
-URL-derived data (platform, market, ASIN) so the user doesn't lose work.
+URL-derived data (platform, market, ASIN, URL-slug name) so the user doesn't lose work.
+
+Amazon anti-bot strategy:
+- Full browser headers (Sec-Fetch-*, Accept-Encoding, etc.)
+- Amazon-specific HTML extraction (#productTitle is very consistent)
+- URL slug fallback (many Amazon URLs embed the title)
+- CAPTCHA detection → clear error message
 """
 
 import re
 import json
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 
 import httpx
 
@@ -98,6 +104,57 @@ def _extract_asin(url: str) -> str:
 
 # ── HTML metadata extraction ─────────────────────────────────────────────────
 
+def _extract_name_from_url_path(url: str, platform: str) -> str:
+    """Try to extract a human-readable product name from the URL path slug.
+
+    Many e-commerce URLs embed the product title, e.g.:
+      amazon.com/Apple-AirPods-Pro-2nd-Generation/dp/B0CHX3K8QS
+      shopify.myshopify.com/products/premium-face-serum
+    """
+    parsed = urlparse(url)
+    path = unquote(parsed.path).strip("/")
+    if not path:
+        return ""
+
+    # Amazon: path is usually "<slug>/dp/<ASIN>" — grab the slug part
+    if platform == "amazon":
+        # Remove /dp/..., /gp/product/..., etc.
+        slug = re.sub(r"/?(dp|gp/product|gp/aw/d|exec/obidos|product)/.+$", "", path, flags=re.IGNORECASE)
+        # Also strip common prefixes like "stores/.../"
+        slug = re.sub(r"^stores/[^/]+/", "", slug)
+        if slug:
+            # Convert dashes/underscores to spaces, title-case
+            name = re.sub(r"[-_]+", " ", slug).strip()
+            if len(name) > 3:
+                return name[:500]
+
+    # Shopify / generic: /products/<slug>
+    if match := re.search(r"/products?/([^/]+)", path):
+        slug = match.group(1)
+        name = re.sub(r"[-_]+", " ", slug).strip()
+        if len(name) > 2:
+            return name[:500]
+
+    # Last path segment as fallback for other platforms
+    segments = [s for s in path.split("/") if s and len(s) > 2]
+    if segments:
+        last = segments[-1]
+        # Skip if it looks like an ID:
+        #   - all digits (e.g. "123456789")
+        #   - Amazon ASIN pattern (10 uppercase alphanumeric, e.g. "B0CHX3K8QS")
+        #   - mixed case alphanumeric IDs (e.g. "9b3a2c1d4e")
+        looks_like_id = (
+            re.match(r"^\d{6,}$", last)
+            or re.match(r"^[A-Z0-9]{10}$", last)
+            or (len(last) >= 8 and re.match(r"^[a-f0-9]{8,}$", last, re.IGNORECASE))
+        )
+        if not looks_like_id and len(last) > 3:
+            name = re.sub(r"[-_]+", " ", last).strip()
+            return name[:500]
+
+    return ""
+
+
 def _strip_title_noise(title: str) -> str:
     """Remove common e-commerce prefixes/suffixes from page title."""
     title = re.sub(
@@ -111,26 +168,90 @@ def _strip_title_noise(title: str) -> str:
     return title.strip()
 
 
-def _extract_metadata_from_html(html: str) -> dict:
+def _is_bot_page(html: str) -> bool:
+    """Detect if the HTML is a bot-detection / CAPTCHA page rather than a real product page."""
+    indicators = [
+        "Type the characters you see in this image",
+        "Enter the characters you see below",
+        "Sorry, we just need to make sure you're not a robot",
+        "Robot Check",
+        "validateCaptcha",
+        "captcha",
+        "g-recaptcha",
+        "botocore",
+        "To discuss automated access to Amazon data",
+    ]
+    lower = html.lower()
+    return any(ind.lower() in lower for ind in indicators)
+
+
+def _extract_metadata_from_html(html: str, platform: str = "") -> dict:
     """Parse HTML (stdlib regex only, no external deps) to extract product metadata."""
     result: dict = {}
 
-    # <title>
-    title_match = re.search(
-        r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL,
+    # ═══ Amazon-specific patterns ──────────────────────────────────────────
+    # #productTitle is the most reliable Amazon title element
+    product_title = re.search(
+        r'<span[^>]*\bid=["\']productTitle["\'][^>]*>(.*?)</span>',
+        html, re.IGNORECASE | re.DOTALL,
     )
-    if title_match:
-        title = _strip_title_noise(title_match.group(1).strip())
-        if len(title) > 3:
-            result["name"] = title[:500]
+    if product_title:
+        name = re.sub(r"<[^>]+>", "", product_title.group(1)).strip()
+        if len(name) > 3:
+            result["name"] = name[:500]
+
+    # Amazon #title (older pages)
+    if "name" not in result:
+        amazon_title = re.search(
+            r'<(?:span|h1)[^>]*\bid=["\']title["\'][^>]*>(.*?)</(?:span|h1)>',
+            html, re.IGNORECASE | re.DOTALL,
+        )
+        if amazon_title:
+            name = re.sub(r"<[^>]+>", "", amazon_title.group(1)).strip()
+            if len(name) > 3 and not re.match(r"^[\d\s.,$€£¥]+$", name):
+                result["name"] = name[:500]
+
+    # Amazon feature bullets as description
+    if "description" not in result:
+        bullets: list[str] = []
+        for m in re.finditer(
+            r'<span[^>]*\bclass=["\'][^"\']*a-list-item[^"\']*["\'][^>]*>(.*?)</span>',
+            html, re.IGNORECASE | re.DOTALL,
+        ):
+            bullet = re.sub(r"<[^>]+>", "", m.group(1)).strip()
+            if len(bullet) > 5:
+                bullets.append(bullet)
+        if bullets:
+            result["description"] = " · ".join(bullets[:8])[:1000]
+
+    # ═══ Standard meta tags ────────────────────────────────────────────────
+    # <title>
+    if "name" not in result:
+        title_match = re.search(
+            r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL,
+        )
+        if title_match:
+            title = _strip_title_noise(title_match.group(1).strip())
+            if len(title) > 3:
+                result["name"] = title[:500]
 
     # <meta property="og:title">
-    og_title = re.search(
-        r'<meta\s+property=["\']og:title["\']\s+content=["\']([^"\']+)["\']',
-        html, re.IGNORECASE,
-    )
-    if og_title and "name" not in result:
-        result["name"] = og_title.group(1).strip()[:500]
+    if "name" not in result:
+        og_title = re.search(
+            r'<meta\s+property=["\']og:title["\']\s+content=["\']([^"\']+)["\']',
+            html, re.IGNORECASE,
+        )
+        if og_title:
+            result["name"] = og_title.group(1).strip()[:500]
+
+    # <meta name="title"> (Amazon sometimes uses this)
+    if "name" not in result:
+        meta_title = re.search(
+            r'<meta\s+name=["\']title["\']\s+content=["\']([^"\']+)["\']',
+            html, re.IGNORECASE,
+        )
+        if meta_title:
+            result["name"] = meta_title.group(1).strip()[:500]
 
     # <meta property="og:image">
     og_image = re.search(
@@ -140,15 +261,27 @@ def _extract_metadata_from_html(html: str) -> dict:
     if og_image:
         result["image_url"] = og_image.group(1).strip()
 
-    # <meta name="description"> or og:description
-    desc = re.search(
-        r'<meta\s+(?:name|property)=["\'](?:description|og:description)["\']\s+content=["\']([^"\']+)["\']',
-        html, re.IGNORECASE,
-    )
-    if desc:
-        result["description"] = desc.group(1).strip()[:1000]
+    # Amazon: try to find the main product image
+    if "image_url" not in result:
+        img_match = re.search(
+            r'<img[^>]*\bid=["\'](?:landingImage|imgTagWrapperId|main-image)["\'][^>]*\bsrc=["\']([^"\']+)["\']',
+            html, re.IGNORECASE,
+        )
+        if img_match:
+            img_url = img_match.group(1)
+            if img_url.startswith("http"):
+                result["image_url"] = img_url
 
-    # JSON-LD Product schema
+    # <meta name="description"> or og:description
+    if "description" not in result:
+        desc = re.search(
+            r'<meta\s+(?:name|property)=["\'](?:description|og:description)["\']\s+content=["\']([^"\']+)["\']',
+            html, re.IGNORECASE,
+        )
+        if desc:
+            result["description"] = desc.group(1).strip()[:1000]
+
+    # ═══ JSON-LD Product schema ────────────────────────────────────────────
     jsonld_blocks = re.findall(
         r'<script\s+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
         html, re.IGNORECASE | re.DOTALL,
@@ -199,6 +332,22 @@ _USER_AGENT = (
     "Chrome/131.0.0.0 Safari/537.36"
 )
 
+_BROWSER_HEADERS: dict[str, str] = {
+    "User-Agent": _USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1",
+    "DNT": "1",
+    "Connection": "keep-alive",
+}
+
 
 def enrich_product_url(url: str) -> dict:
     """Fetch a product URL and extract metadata for auto-filling the creation form.
@@ -224,32 +373,46 @@ def enrich_product_url(url: str) -> dict:
     errors: list[str] = []
     metadata: dict = {}
 
-    # Try HTTP fetch
+    # ═══ Strategy 1: Try HTTP fetch with full browser headers ────────────
     try:
         resp = httpx.get(
             url,
-            headers={
-                "User-Agent": _USER_AGENT,
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-            },
-            timeout=10.0,
+            headers=_BROWSER_HEADERS,
+            timeout=15.0,
             follow_redirects=True,
+            # httpx default is no cookie jar → use one so redirects keep cookies
         )
         if resp.status_code == 200:
             html = resp.text
             # Truncate to avoid memory/performance issues on huge pages
             if len(html) > 500_000:
                 html = html[:500_000]
-            metadata = _extract_metadata_from_html(html)
+
+            # Detect bot/CAPTCHA page
+            if _is_bot_page(html):
+                errors.append(
+                    "Amazon bot-detection blocked the page fetch — "
+                    "filled name from URL slug + platform/ASIN/market from URL. "
+                    "Please verify and edit if needed."
+                )
+            else:
+                metadata = _extract_metadata_from_html(html, platform)
         else:
             errors.append(f"Page returned HTTP {resp.status_code}")
     except httpx.TimeoutException:
-        errors.append("Page fetch timed out after 10s — filled URL-derived fields only")
+        errors.append("Page fetch timed out after 15s")
     except httpx.ConnectError:
-        errors.append("Could not connect to the page — filled URL-derived fields only")
+        errors.append("Could not connect to the page")
     except Exception as e:
         errors.append(f"Could not fetch page: {str(e)[:200]}")
+
+    # ═══ Strategy 2: URL slug fallback for product name ──────────────────
+    if not metadata.get("name"):
+        slug_name = _extract_name_from_url_path(url, platform)
+        if slug_name:
+            metadata["name"] = slug_name
+            if not errors or "bot-detection" not in errors[-1]:
+                errors.append("Product name extracted from URL slug — please verify accuracy")
 
     return {
         "product_url": url,
