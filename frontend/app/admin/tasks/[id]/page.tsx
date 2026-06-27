@@ -103,25 +103,32 @@ export default function AdminTaskDetail() {
         </div>
 
         {/* Product Info */}
-        {product && (
-          <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-6">
-            <h2 className="font-extrabold text-zinc-900 mb-4">Product</h2>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-zinc-400">Name</span>
-                <p className="font-semibold text-zinc-900">{product.name as string || "—"}</p>
-              </div>
-              <div>
-                <span className="text-zinc-400">Category</span>
-                <p className="font-semibold text-zinc-900">{product.category as string || "—"}</p>
-              </div>
-              <div>
-                <span className="text-zinc-400">Status</span>
-                <p className="font-semibold text-zinc-900 capitalize">{product.status as string || "—"}</p>
-              </div>
+        <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-6">
+          <h2 className="font-extrabold text-zinc-900 mb-4">Product</h2>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-zinc-400">Name</span>
+              <p className="font-semibold text-zinc-900">{task.product_name as string || (product?.name as string) || "—"}</p>
             </div>
+            <div>
+              <span className="text-zinc-400">Category</span>
+              <p className="font-semibold text-zinc-900">{task.product_category as string || (product?.category as string) || "—"}</p>
+            </div>
+            {task.product_url && (
+              <div className="col-span-2">
+                <span className="text-zinc-400">Product URL</span>
+                <a
+                  href={task.product_url as string}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-pink-500 font-medium hover:text-pink-600 underline underline-offset-2 text-sm"
+                >
+                  {task.product_url as string} ↗
+                </a>
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Merchant Info */}
         {merchant && (

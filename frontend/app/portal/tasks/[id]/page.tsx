@@ -338,6 +338,18 @@ export default function KocTaskDetailPage() {
             </p>
           )}
 
+          {/* Product URL */}
+          {task.product_url && (
+            <a
+              href={task.product_url as string}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-pink-500 hover:text-pink-600 font-medium underline underline-offset-2 mb-4"
+            >
+              🔗 View Product Page ↗
+            </a>
+          )}
+
           {/* Commission + Pledge */}
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="bg-gray-50 rounded-xl p-3">

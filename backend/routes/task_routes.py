@@ -257,12 +257,20 @@ def list_task_hall(
         region=region,
     )
 
-    # 补全商家诚信度 + 返佣链接
+    # 补全商家诚信度 + 产品信息
     for t in tasks:
         m = merchant_store.get(t["merchant_id"])
         t["merchant_trust_score"] = m.trust_score if m else 100
         t["merchant_company"] = m.company_name if m else "Unknown"
         t["merchant_avg_rating"] = m.avg_rating if m else 0.0
+        # 补全产品信息（product_url, category, market）
+        if t.get("product_id"):
+            product = product_store.get(t["product_id"])
+            if product:
+                t["product_url"] = product.product_url or ""
+                t["product_category"] = product.category
+                t["product_target_market"] = product.target_market
+                t["product_description"] = (product.description or "")[:200]
     return tasks
 
 
@@ -295,7 +303,7 @@ def list_my_tasks(current_user: dict = Depends(get_current_user)):
                             task_dict["product_category"] = product.category
                             task_dict["product_target_market"] = product.target_market
                             task_dict["product_asin"] = product.asin
-                            task_dict["product_url"] = f"https://amazon.com/dp/{product.asin}" if product.asin else ""
+                            task_dict["product_url"] = product.product_url or ""
                             task_dict["product_description"] = (product.description or "")[:200]
                     # ── 补全商家信息 ──
                     if t.merchant_id:
@@ -357,6 +365,7 @@ def get_task(task_id: str, current_user: dict = Depends(get_current_user)):
             result["product_target_market"] = product.target_market
             result["product_description"] = product.description
             result["product_asin"] = product.asin
+            result["product_url"] = product.product_url or ""
     # 补全商家信息
     if task.merchant_id:
         merchant = merchant_store.get(task.merchant_id)

@@ -185,6 +185,16 @@ export default function MerchantTaskDetailPage() {
               <p className="text-sm text-gray-500 mt-1">
                 Commission {task.commission || 0} pt/KOC · {kocFilled}/{task.koc_required || 1} KOCs
               </p>
+              {task.product_url && (
+                <a
+                  href={task.product_url as string}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-600 font-medium underline underline-offset-2 mt-2"
+                >
+                  🔗 View Product Page ↗
+                </a>
+              )}
             </div>
 
             {/* Ship form */}

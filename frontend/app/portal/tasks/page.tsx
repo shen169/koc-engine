@@ -172,6 +172,17 @@ export default function KocMyTasksPage() {
 
                     {/* Links */}
                     <div className="flex flex-wrap gap-3 pt-3 border-t border-gray-100">
+                      {task.product_url && (
+                        <a
+                          href={task.product_url as string}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs text-pink-500 hover:text-pink-600 font-medium underline underline-offset-2"
+                        >
+                          🔗 Product Page ↗
+                        </a>
+                      )}
                       {task.product_id && (
                         <button
                           onClick={(e) => {
