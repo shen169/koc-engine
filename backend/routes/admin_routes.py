@@ -8,7 +8,6 @@ from stores.application_store import application_store
 from stores.product_store import product_store
 from stores.task_store import task_store
 from stores.interest_store import interest_store
-from stores.referral_store import referral_store
 from stores.coupon_store import coupon_store
 from stores.credit_store import credit_store
 from stores.user_store import user_store

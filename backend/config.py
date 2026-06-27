@@ -32,10 +32,9 @@ ADMIN_EMAIL = "honghuishen24@gmail.com"
 ADMIN_PASSWORD = os.getenv("ACCESS_PASSWORD", "admin123")
 
 # 点数
-DEFAULT_KOC_INITIAL_CREDITS = 1000     # KOC 注册初始点数
-DEFAULT_MERCHANT_INITIAL_CREDITS = 5000 # 商家注册初始点数
-DEFAULT_TASK_REWARD_CREDITS = 30   # 完成一次履约奖励
-DEFAULT_REFERRAL_REWARD_CREDITS = 10  # 推荐成功奖励
+DEFAULT_KOC_INITIAL_CREDITS = 200      # KOC 注册初始点数
+DEFAULT_MERCHANT_INITIAL_CREDITS = 100  # 商家注册初始点数
+DEFAULT_TASK_REWARD_CREDITS = 30        # 完成一次履约奖励
 
 # AI 评分阈值
 SCORE_THRESHOLD_REJECT = 60   # <60 自动婉拒
@@ -44,11 +43,24 @@ SCORE_THRESHOLD_L3 = 80       # ≥80 → L3
 
 # Platform
 PLATFORM_SERVICE_FEE = 5          # 商家每发一个任务固定扣点（平台服务费，不退）
-KOC_PLATFORM_FEE = 1              # KOC 每完成一个 slot 平台抽 1pt
-KOC_FIXED_PLEDGE = 10             # KOC 接单固定质押点（不退则没收，完成退 9pt）
+KOC_PLATFORM_FEE_RATE = 0.10     # KOC 每完成一个 slot 平台抽佣比例（10%）
+KOC_PLATFORM_FEE_MIN = 1          # 平台抽成最低 1pt
+KOC_FIXED_PLEDGE = 10             # KOC 接单固定质押点（不退则没收，完成全额退还 bonus）
 PT_TO_USD = 1.0                   # 点数兑美金汇率：1pt = $1 USD
 PLEDGE_PER_SLOT = 10              # 双方每 slot 质押点数（默认最小值）
-PLATFORM_PROFIT_RATE = 0.15       # 平台抽佣率（备用）
+
+# Anti-fraud
+KOC_REGISTRATION_IP_LIMIT = 2              # 同 IP 最多注册 KOC 数
+KOC_REGISTRATION_IP_WINDOW_DAYS = 7        # IP 限频窗口期
+
+# Commission
+TASK_COMMISSION_MIN = 20           # 商家发布任务最低佣金
+TASK_COMMISSION_MAX = 50           # 商家发布任务最高佣金
+
+# Withdrawal
+KOC_WITHDRAWAL_MIN_COMPLETIONS = 3   # KOC 提现最低完成单数
+KOC_WITHDRAWAL_MIN_BALANCE = 100     # KOC 提现最低 withdrawable 余额
+KOC_WITHDRAWAL_DAILY_MAX = 500       # KOC 单日提现上限
 
 # Cron
 GHOSTED_GRACE_DAYS = 14       # due_at 过期后宽限天数

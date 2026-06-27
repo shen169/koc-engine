@@ -55,8 +55,8 @@ export default function NewTaskPage() {
       setError("At least 1 KOC required");
       return;
     }
-    if (form.commission < 1) {
-      setError("Commission cannot be 0");
+    if (form.commission < 20 || form.commission > 50) {
+      setError("Commission must be between 20-50pt");
       return;
     }
 
@@ -185,13 +185,14 @@ export default function NewTaskPage() {
               </label>
               <input
                 type="number"
-                min={1}
+                min={20}
+                max={50}
                 value={form.commission}
-                onChange={(e) => setForm((f) => ({ ...f, commission: Math.max(1, Number(e.target.value)) }))}
+                onChange={(e) => setForm((f) => ({ ...f, commission: Math.min(50, Math.max(20, Number(e.target.value))) }))}
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
               />
               <p className="text-xs text-gray-400 mt-1">
-                KOC receives commission + 9pt on approval (platform deducts 1pt from 10pt pledge). Commission pool = commission × KOC count, non-refundable, paid to KOCs on completion.
+                Commission range: 20-50pt. KOC receives 90% (withdrawable), platform takes 10% (min 1pt).
               </p>
             </div>
 

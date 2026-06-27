@@ -256,7 +256,7 @@ def express_interest(data: dict, current_user: dict = Depends(get_current_user))
                         merchant_usr.id,
                         NotifType.INTEREST_RECEIVED,
                         "New Interest Signal",
-                        f"A KOC ({data.get("platform", "")} creator) has expressed interest in {product.name}",
+                        f"A KOC ({data.get('platform', '')} creator) has expressed interest in {product.name}",
                         task_id=assign_result.get("task_id", "") if assign_result else "",
                         resource_path=f"/dashboard/products/{to_id}",
                     )

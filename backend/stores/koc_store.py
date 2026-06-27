@@ -46,6 +46,30 @@ class KocStore:
                     return KocProfile(**k)
         return None
 
+    def get_by_handle_any_platform(self, handle: str) -> KocProfile | None:
+        """查找任意平台上同 handle 的 KOC（防多号注册同一社交账号）"""
+        if not handle:
+            return None
+        with self._lock:
+            data = self._load()
+            for k in data.values():
+                if k.get("handle", "").lower() == handle.lower():
+                    return KocProfile(**k)
+        return None
+
+    def get_by_profile_url(self, profile_url: str) -> KocProfile | None:
+        """查找同 profile_url 的 KOC（防多号绑同一主页）"""
+        if not profile_url:
+            return None
+        normalized = profile_url.strip().rstrip("/").lower()
+        with self._lock:
+            data = self._load()
+            for k in data.values():
+                existing = (k.get("profile_url") or "").strip().rstrip("/").lower()
+                if existing == normalized:
+                    return KocProfile(**k)
+        return None
+
     def create(self, koc: KocProfile) -> KocProfile:
         with self._lock:
             data = self._load()

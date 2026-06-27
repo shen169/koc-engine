@@ -32,21 +32,18 @@ export default function MerchantCreditsPage() {
 
   const typeLabel: Record<string, string> = {
     task_reward: "Task Reward",
-    referral_reward: "Referral Bonus",
     manual: "Manual Top-up",
     admin_adjust: "Adjustment",
     withdrawal: "Withdrawal",
   };
   const typeIcon: Record<string, string> = {
     task_reward: "🎬",
-    referral_reward: "👥",
     manual: "💎",
     admin_adjust: "⚙",
     withdrawal: "📤",
   };
   const typeColor: Record<string, string> = {
     task_reward: "text-emerald-600",
-    referral_reward: "text-purple-600",
     manual: "text-cyan-600",
     admin_adjust: "text-zinc-600",
     withdrawal: "text-rose-600",
@@ -101,11 +98,18 @@ export default function MerchantCreditsPage() {
 
           {/* Balance legend */}
           <div className="mt-4 pt-3 border-t border-zinc-100 space-y-1">
+            <p className="text-xs text-zinc-500 font-semibold mb-1">Brand Points Rules:</p>
             <p className="text-xs text-zinc-400">
-              <span className="text-emerald-600 font-semibold">Withdrawable pts</span> are earned and can be sent to KOCs as content fees.
+              All brand points are for <strong>publishing tasks only</strong>. Brands <strong>cannot withdraw</strong>.
             </p>
             <p className="text-xs text-zinc-400">
-              <span className="text-amber-600 font-semibold">Bonus pts</span> are registration gifts and cannot be transferred.
+              <span className="text-amber-600 font-semibold">Registration bonus:</span> 100pt free trial (~2 test tasks).
+            </p>
+            <p className="text-xs text-zinc-400">
+              Commission refunds from failed KOCs return as bonus for reuse.
+            </p>
+            <p className="text-xs text-rose-500 mt-1 font-medium">
+              ⚠️ Brands can never withdraw — all points are for task publishing.
             </p>
           </div>
         </div>

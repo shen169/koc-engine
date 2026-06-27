@@ -19,6 +19,7 @@ class User(BaseModel):
     email: str
     password_hash: str
     role: str  # koc | merchant | admin
+    registration_ip: str = ""  # 注册时 IP，用于防同 IP 双角色
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
 
@@ -127,7 +128,6 @@ class Application(BaseModel):
     koc_id: Optional[str] = None  # 审核通过后绑定
     raw_form: dict = Field(default_factory=dict)
     campaign: str = ""
-    referral_code: str = ""  # 裂变追踪
     ai_score: int = 0
     ai_reason: str = ""
     decision: str = "pending"  # pending | approved | rejected | watching
@@ -209,8 +209,8 @@ class CreditTransaction(BaseModel):
     id: str = Field(default_factory=_uid)
     user_id: str
     amount: int  # positive=credit, negative=debit
-    type: str  # registration_bonus | pledge | pledge_return | platform_fee | content_fee | referral_reward | manual_topup | withdrawal | admin_adjust
-    ref_id: str = ""  # associated task/referral ID
+    type: str  # registration_bonus | pledge | pledge_return | platform_fee | content_fee | manual_topup | withdrawal | admin_adjust
+    ref_id: str = ""  # associated task/transaction ID
     note: str = ""
     withdrawable: bool = False  # True = withdrawable pts, False = bonus pts
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
@@ -252,22 +252,6 @@ class CouponOrder(BaseModel):
     coupon_id: str
     amount: float
     date: str
-
-
-# ═══════════════════════════════════════════
-# 裂变推荐
-# ═══════════════════════════════════════════
-
-class Referral(BaseModel):
-    id: str = Field(default_factory=_uid)
-    referrer_koc_id: str
-    referred_email: str = ""
-    referred_koc_id: str = ""
-    referral_code: str
-    status: str = "pending"  # pending | joined | completed
-    reward_credits: int = 10
-    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
-    completed_at: str = ""
 
 
 # ═══════════════════════════════════════════
@@ -372,7 +356,6 @@ VALID_TIERS = ["L1", "L2", "L3"]
 VALID_ROLES = ["koc", "merchant", "admin"]
 VALID_DECISIONS = ["pending", "approved", "rejected", "watching"]
 VALID_INTEREST_STATUSES = ["expressed", "matched", "declined", "completed"]
-VALID_REFERRAL_STATUSES = ["pending", "joined", "completed"]
 VALID_PRODUCT_STATUSES = ["active", "paused", "archived"]
 
 # ── V2 任务状态机 ──

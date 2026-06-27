@@ -7,6 +7,5 @@ from .interest_store import interest_store
 from .task_store import task_store
 from .credit_store import credit_store
 from .coupon_store import coupon_store
-from .referral_store import referral_store
 from .review_store import review_store
 from .blacklist_store import blacklist_store

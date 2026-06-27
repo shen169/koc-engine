@@ -2,12 +2,12 @@
 
 import re
 import bcrypt
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from models import User, UserRegister, UserLogin
 from stores.user_store import user_store
 from stores.credit_store import credit_store
 from auth import create_token, get_current_user
-from config import DEFAULT_KOC_INITIAL_CREDITS, DEFAULT_MERCHANT_INITIAL_CREDITS
+from config import DEFAULT_KOC_INITIAL_CREDITS, DEFAULT_MERCHANT_INITIAL_CREDITS, KOC_REGISTRATION_IP_LIMIT
 
 router = APIRouter(tags=["auth"])
 
@@ -30,7 +30,7 @@ def _validate_password(password: str):
 
 
 @router.post("/auth/register")
-def register(data: UserRegister):
+def register(data: UserRegister, request: Request = None):
     _validate_email(data.email)
     _validate_password(data.password)
     if data.role not in ("koc", "merchant"):
@@ -39,14 +39,40 @@ def register(data: UserRegister):
     if existing:
         raise HTTPException(400, "Email already registered")
 
+    # IP 检测：防止同 IP 注册双角色
+    client_ip = ""
+    if request:
+        client_ip = request.client.host if request.client else ""
+        forwarded = request.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            client_ip = forwarded.split(",")[0].strip()
+
+    if client_ip:
+        same_ip_users = user_store.get_by_ip(client_ip)
+        for u in same_ip_users:
+            if u.role != data.role:
+                raise HTTPException(403, f"This IP has already registered as {u.role}. Cannot register as {data.role}.")
+
+        # IP 频率限制：KOC 注册同 IP 最多 2 个/7 天
+        if data.role == "koc":
+            recent_koc_count = user_store.count_recent_koc_by_ip(client_ip)
+            if recent_koc_count >= KOC_REGISTRATION_IP_LIMIT:
+                raise HTTPException(
+                    429,
+                    f"Too many KOC registrations from this IP in the past 7 days "
+                    f"({recent_koc_count}/{KOC_REGISTRATION_IP_LIMIT} limit). "
+                    f"Each creator must use their own social account."
+                )
+
     user = User(
         email=data.email,
         password_hash=bcrypt.hashpw(data.password.encode(), bcrypt.gensalt()).decode(),
         role=data.role,
+        registration_ip=client_ip,
     )
     user_store.create(user)
 
-    # KOC 注册给 100 点，商家注册给 500 点
+    # KOC 注册给 200 点，商家注册给 100 点
     if data.role == "koc":
         credit_store.set_initial_balance(user.id, DEFAULT_KOC_INITIAL_CREDITS)
     elif data.role == "merchant":

@@ -149,6 +149,10 @@ export default function HomePage() {
           <Link href="/guide/koc-marketing-cross-border-ecommerce" className="hover:text-purple-400 underline">KOC Marketing Guide</Link>
         </div>
         <p className="text-zinc-500">KOC Engine — Connecting Cross-Border Brands &amp; Creators</p>
+        <p className="text-zinc-600 mt-2">
+          Contact:{" "}
+          <a href="mailto:honghuishen24@gmail.com" className="hover:text-purple-400 underline">honghuishen24@gmail.com</a>
+        </p>
       </footer>
     </>
   );
