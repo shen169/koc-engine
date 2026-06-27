@@ -13,7 +13,7 @@ from stores.product_store import product_store
 from services.matcher import match_kocs_for_task, rematch_slot
 from services.cron import sync_koc_tier, sync_merchant_tier
 from auth import get_current_user, require_admin
-from config import PLATFORM_SERVICE_FEE, KOC_PLATFORM_FEE_RATE, KOC_PLATFORM_FEE_MIN, KOC_FIXED_PLEDGE, TASK_COMMISSION_MIN, TASK_COMMISSION_MAX, MAX_REVISIONS, NotifType
+from config import PLATFORM_SERVICE_FEE, KOC_PLATFORM_FEE_RATE, KOC_PLATFORM_FEE_MIN, KOC_FIXED_PLEDGE, KOC_PLEDGE_SAMPLE, TASK_COMMISSION_MIN, TASK_COMMISSION_MAX, MAX_REVISIONS, NotifType
 from models import ContentMetrics
 from services.notifier import notify_user
 from services.content_judge import judge_submission
@@ -85,9 +85,13 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
     koc_required = data.get("koc_required", 1)
     commission = data.get("commission", 30)
 
-    # 佣金区间校验 20-50pt
-    if not (TASK_COMMISSION_MIN <= commission <= TASK_COMMISSION_MAX):
-        raise HTTPException(400, f"Commission must be between {TASK_COMMISSION_MIN}-{TASK_COMMISSION_MAX}pt")
+    # ── 任务模式判断 ──
+    task_mode = data.get("task_mode", "commission")  # "commission" | "sample"
+    if task_mode == "sample":
+        commission = 0  # 寄样模式：无佣金，KOC 只拿免费产品
+    elif not (TASK_COMMISSION_MIN <= commission <= TASK_COMMISSION_MAX):
+        raise HTTPException(400, f"Commission must be between {TASK_COMMISSION_MIN}-{TASK_COMMISSION_MAX}pt "
+                                 f"(or use task_mode='sample' for product-only collaboration)")
 
     # 验证产品归属（product_id 必须属于该商家或 admin）
     product_id = data.get("product_id", "")
@@ -99,8 +103,8 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
             raise HTTPException(403, "Product does not belong to your merchant account")
 
     # ── 质押规则 ──
-    pledge_merchant = commission * koc_required   # 商家佣金池（不退，发布时一次扣完）
-    pledge_koc = KOC_FIXED_PLEDGE                  # KOC 固定质押 10pt（完成退 9pt，违约不退）
+    pledge_merchant = commission * koc_required      # 商家佣金池（寄样模式=0，不退，发布时一次扣完）
+    pledge_koc = KOC_PLEDGE_SAMPLE if task_mode == "sample" else KOC_FIXED_PLEDGE
 
     task = KocTask(
         merchant_id=merchant_id,
@@ -111,6 +115,7 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
         task_status="pending",
         koc_required=koc_required,
         koc_slots=[],  # 初始化为空，后续匹配引擎填充
+        task_mode=task_mode,
         pledge_merchant=pledge_merchant,
         pledge_koc=pledge_koc,
         commission=commission,
@@ -169,6 +174,11 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
                     "revision_count": 0,
                     "review_feedback": "",
                     "match_score": r["score"],
+                    # ── 内容抓取验证 ──
+                    "scraped_status": "",
+                    "scraped_data": {},
+                    "scraped_run_id": "",
+                    "scrape_attempts": 0,
                 })
             task_store.update(task.id, {"koc_slots": slots, "task_status": "assigned"})
             matched = [{"koc_id": s["koc_id"], "slot_index": i, "match_score": s["match_score"]}
@@ -199,6 +209,11 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
                 "revision_count": 0,
                 "review_feedback": "",
                 "match_score": 0,
+                # ── 内容抓取验证 ──
+                "scraped_status": "",
+                "scraped_data": {},
+                "scraped_run_id": "",
+                "verification_result": {},
             })
         # Persist empty slots to storage (they were created in-memory but never saved)
         task_store.update(task.id, {"koc_slots": slots})
@@ -462,7 +477,7 @@ def accept_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
             koc_uid,
             NotifType.TASK_ACCEPTED,
             "Task Accepted — Pledge Deducted",
-            f"You have accepted {task.product_name}. 10pt pledge deducted. SLA: ship within 48h, submit content within 14d.",
+            f"You have accepted {task.product_name}. {task.pledge_koc}pt pledge deducted. SLA: ship within 48h, submit content within 14d.",
             task_id=task_id,
             resource_path=f"/portal/tasks/{task_id}",
         )
@@ -754,8 +769,15 @@ def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict
         raise HTTPException(404, f"Slot {slot_index} not found")
 
     # 允许 received, creating, revision_requested 状态提交
-    if slot.get("status") not in ("received", "creating", "revision_requested"):
-        raise HTTPException(400, f"Slot status '{slot.get('status')}' not ready for submission")
+    # 同时允许 submitted + scraped_status=failed 的重新提交（抓取失败后给 KOC 一次修改机会）
+    is_resubmission = (
+        slot.get("status") == "submitted"
+        and slot.get("scraped_status") == "failed"
+        and slot.get("scrape_attempts", 0) < 2
+    )
+    if slot.get("status") not in ("received", "creating", "revision_requested") and not is_resubmission:
+        raise HTTPException(400, f"Slot status '{slot.get('status')}' not ready for submission "
+                                 f"(scraped_status={slot.get('scraped_status', 'none')})")
 
     # 验证是该 KOC
     user = user_store.get_by_id(current_user["sub"])
@@ -791,36 +813,25 @@ def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict
                 f"URL domain not recognized as a content platform: {url_clean[:80]}. "
                 f"Expected one of: {', '.join(VALID_DOMAINS[:8])}...")
 
-    # 可选的初始表现数据
-    raw_metrics = data.get("content_data", {})
-    content_data = {}
-    if raw_metrics and isinstance(raw_metrics, dict) and raw_metrics.get("views", 0) > 0:
-        try:
-            metrics = ContentMetrics(**raw_metrics)
-            # 服务端计算互动率
-            if metrics.views > 0:
-                metrics.engagement_rate = round(
-                    (metrics.likes + metrics.comments + metrics.shares + metrics.saves)
-                    / metrics.views * 100, 1
-                )
-            metrics.last_updated = datetime.utcnow().isoformat()
-            content_data = metrics.model_dump()
-        except Exception:
-            content_data = {}
-
+    # ⚠️ 不再接受自报表现数据 — 系统会在 24h 后自动通过 Apify 抓取真实数据
+    # content_data 初始为空，待 cron scraper 抓取后填充
     now = datetime.utcnow().isoformat()
 
     # 更新 slot 为 submitted（待商家审核）
-    task_store.update_slot(task_id, slot_index, {
+    update_fields = {
         "status": "submitted",
         "submitted_at": now,
         "content_urls": content_urls,
-        "content_data": content_data,
-    })
+        "content_data": {},  # 空 — 由 Apify 24h 后自动填充
+    }
 
-    # 如果提交了表现数据 → 同步 KOC performance_score
-    if content_data:
-        _sync_koc_performance(koc_id)
+    # 如果是抓取失败后的重新提交 → 重置抓取状态（保留 scrape_attempts 计数）
+    if is_resubmission:
+        update_fields["scraped_status"] = ""
+        update_fields["scraped_run_id"] = ""
+        # scrape_attempts 保持不变（由 scraper 侧递增）
+
+    task_store.update_slot(task_id, slot_index, update_fields)
 
     # 不自动完成！等待商家审核
     # 不释放质押！商家 approve 后才释放
@@ -913,26 +924,33 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
             "commission_paid": True,
         })
 
-        # 平台抽成 = max(1pt, int(commission × 10%))
-        platform_fee = max(KOC_PLATFORM_FEE_MIN, int(task.commission * KOC_PLATFORM_FEE_RATE))
-
-        # KOC 到手: pledge 全额退还(bonus) + commission − platform_fee(withdrawable)
         koc_uid = _get_koc_user_id(koc_id) if koc_id else ""
+        is_sample = task.task_mode == "sample" or task.commission == 0
+
         if slot.get("pledge_paid"):
             # 质押全额退还 → bonus（原路返回，不可提现）
+            pledge_return = task.pledge_koc  # 佣金模式 10pt / 寄样模式 5pt
             if koc_uid:
-                credit_store.add_credits(koc_uid, KOC_FIXED_PLEDGE, "pledge_return_koc",
+                credit_store.add_credits(koc_uid, pledge_return, "pledge_return_koc",
                                          task_id, f"Pledge returned: {task.product_name}",
                                          withdrawable=False)
-            # 佣金 90% → withdrawable（KOC 真正赚到的，可提现）
-            koc_commission = task.commission - platform_fee
-            if koc_commission > 0 and koc_uid:
-                credit_store.add_credits(koc_uid, koc_commission, "commission_earned",
-                                         task_id, f"Commission earned ({task.commission}pt − {platform_fee}pt fee): {task.product_name}",
-                                         withdrawable=True)
-            # 平台抽成
-            credit_store.add_credits("platform", platform_fee, "koc_platform_fee",
-                                     task_id, f"KOC platform fee ({platform_fee}pt) from: {task.product_name}")
+
+            if is_sample:
+                # 寄样模式：无佣金，不产生平台抽成
+                koc_commission = 0
+                platform_fee = 0
+            else:
+                # 平台抽成 = max(1pt, int(commission × 10%))
+                platform_fee = max(KOC_PLATFORM_FEE_MIN, int(task.commission * KOC_PLATFORM_FEE_RATE))
+                # 佣金 90% → withdrawable（KOC 真正赚到的，可提现）
+                koc_commission = task.commission - platform_fee
+                if koc_commission > 0 and koc_uid:
+                    credit_store.add_credits(koc_uid, koc_commission, "commission_earned",
+                                             task_id, f"Commission earned ({task.commission}pt − {platform_fee}pt fee): {task.product_name}",
+                                             withdrawable=True)
+                # 平台抽成
+                credit_store.add_credits("platform", platform_fee, "koc_platform_fee",
+                                         task_id, f"KOC platform fee ({platform_fee}pt) from: {task.product_name}")
 
         # 恢复 KOC 信任分 + 统计
         koc = koc_store.get(koc_id) if koc_id else None
@@ -970,7 +988,7 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                         koc_usr.id,
                         NotifType.CONTENT_APPROVED,
                         "Content Approved — Earnings Credited",
-                        f"Your content for {task.product_name} has been approved. +{koc_commission}pt withdrawable + {KOC_FIXED_PLEDGE}pt pledge returned. Trust Score +3.",
+                        f"Your content for {task.product_name} has been approved. +{koc_commission}pt withdrawable + {pledge_return}pt pledge returned. Trust Score +3.",
                         task_id=task_id,
                         resource_path=f"/portal/tasks/{task_id}",
                         template_name="review_approved",
@@ -987,7 +1005,9 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
             "reviewed_at": now,
             "commission_earned": koc_commission,
             "platform_fee": platform_fee,
-            "pledge_returned_koc": KOC_FIXED_PLEDGE if slot.get("pledge_paid") else 0,
+            "pledge_returned_koc": pledge_return if slot.get("pledge_paid") else 0,
+            "task_mode": task.task_mode,
+            "is_sample": is_sample,
         }
 
     else:  # reject
@@ -1027,24 +1047,32 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                     "revision_count": revision_count,
                 })
 
-                platform_fee = max(KOC_PLATFORM_FEE_MIN, int(task.commission * KOC_PLATFORM_FEE_RATE))
-                koc_commission = task.commission - platform_fee
+                is_sample = task.task_mode == "sample" or task.commission == 0
+                pledge_return = task.pledge_koc
+
+                if is_sample:
+                    koc_commission = 0
+                    platform_fee = 0
+                else:
+                    platform_fee = max(KOC_PLATFORM_FEE_MIN, int(task.commission * KOC_PLATFORM_FEE_RATE))
+                    koc_commission = task.commission - platform_fee
 
                 koc_uid = _get_koc_user_id(koc_id) if koc_id else ""
                 if slot.get("pledge_paid"):
                     # 质押全额退还 → bonus（不可提现）
                     if koc_uid:
-                        credit_store.add_credits(koc_uid, KOC_FIXED_PLEDGE, "pledge_return_koc",
+                        credit_store.add_credits(koc_uid, pledge_return, "pledge_return_koc",
                                                  task_id, f"Pledge returned (AI overruled): {task.product_name}",
                                                  withdrawable=False)
-                    # 佣金 90% → withdrawable
-                    if koc_commission > 0 and koc_uid:
-                        credit_store.add_credits(koc_uid, koc_commission, "commission_earned",
-                                                 task_id, f"Commission earned (AI overruled, {task.commission}pt − {platform_fee}pt fee): {task.product_name}",
-                                                 withdrawable=True)
-                    # 平台抽成
-                    credit_store.add_credits("platform", platform_fee, "koc_platform_fee",
-                                             task_id, f"KOC platform fee (AI overruled): {task.product_name}")
+                    if not is_sample:
+                        # 佣金 90% → withdrawable
+                        if koc_commission > 0 and koc_uid:
+                            credit_store.add_credits(koc_uid, koc_commission, "commission_earned",
+                                                     task_id, f"Commission earned (AI overruled, {task.commission}pt − {platform_fee}pt fee): {task.product_name}",
+                                                     withdrawable=True)
+                        # 平台抽成
+                        credit_store.add_credits("platform", platform_fee, "koc_platform_fee",
+                                                 task_id, f"KOC platform fee (AI overruled): {task.product_name}")
 
                 if koc_for_judge:
                     koc_store.update(koc_id, {
@@ -1326,6 +1354,11 @@ def get_task_performance(task_id: str, current_user: dict = Depends(get_current_
                 "platform": cd.get("platform", ""),
                 "last_updated": cd.get("last_updated", ""),
             },
+            # ── 数据验证状态（商家可见）──
+            "verification": {
+                "status": slot.get("scraped_status", ""),
+                "scraped": slot.get("scraped_data", {}),
+            },
         }
         slots_detail.append(detail)
 
@@ -1396,6 +1429,11 @@ def get_task_report(task_id: str, current_user: dict = Depends(get_current_user)
             "shipped_at": slot.get("shipped_at", ""),
             "received_at": slot.get("received_at", ""),
             "submitted_at": slot.get("submitted_at", ""),
+            # ── 数据验证透明化 ──
+            "verification": {
+                "status": slot.get("scraped_status", ""),
+                "scraped": slot.get("scraped_data", {}),
+            },
         })
 
     # 汇总统计

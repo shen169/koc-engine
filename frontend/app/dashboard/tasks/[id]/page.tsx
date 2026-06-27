@@ -615,6 +615,86 @@ export default function MerchantTaskDetailPage() {
                     </div>
                   ))}
                 </div>
+
+                {/* ── Content Data — Apify 自动抓取 ── */}
+                {performance.slots?.some((s: any) =>
+                  s.verification?.status === "done" || s.verification?.status === "running"
+                ) && (
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">🔍 Content Data (Auto-Scraped via Apify)</h3>
+                    <p className="text-xs text-gray-400 mb-4">
+                      Platform automatically scrapes KOC content links 24h after submission — no self-reported data.
+                    </p>
+                    <div className="space-y-3">
+                      {(performance.slots || []).map((s: any) => {
+                        const v = s.verification;
+                        if (!v || (v.status !== "done" && v.status !== "running")) return null;
+                        const scraped = v.scraped || {};
+
+                        return (
+                          <div key={s.slot_index} className={`border rounded-xl p-4 ${
+                            scraped.error ? "border-red-200 bg-red-50/30" : "border-green-200 bg-green-50/30"
+                          }`}>
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="font-mono text-sm font-medium text-gray-700">{s.koc_anon_id}</span>
+                              {v.status === "running" ? (
+                                <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">⏳ Scraping...</span>
+                              ) : scraped.error ? (
+                                <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">⚠️ Failed</span>
+                              ) : (
+                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">✅ Verified</span>
+                              )}
+                            </div>
+                            {v.status === "done" && !scraped.error && (
+                              <>
+                                <div className="grid grid-cols-4 gap-2">
+                                  {[
+                                    { label: "Views", value: s.metrics?.views || scraped.views || 0 },
+                                    { label: "Likes", value: s.metrics?.likes || scraped.likes || 0 },
+                                    { label: "Comments", value: s.metrics?.comments || scraped.comments || 0 },
+                                    { label: "Shares", value: s.metrics?.shares || scraped.shares || 0 },
+                                  ].map(({ label, value }) => (
+                                    <div key={label} className="bg-white rounded-lg p-2 text-center border border-gray-100">
+                                      <div className="text-sm font-bold text-gray-800">{(value || 0).toLocaleString()}</div>
+                                      <div className="text-xs text-gray-400">{label}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                                {scraped.author_handle && (
+                                  <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500">
+                                    Author: <span className="font-mono">@{scraped.author_handle}</span>
+                                    <span className="text-green-500 ml-2">✓</span>
+                                  </div>
+                                )}
+                                {(s.metrics?.engagement_rate > 0 || scraped.engagement_rate > 0) && (
+                                  <div className="mt-1 text-xs">
+                                    Engagement: <span className="font-bold text-pink-600">{s.metrics?.engagement_rate || scraped.engagement_rate}%</span>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            {scraped.error && <p className="text-xs text-red-400 mt-1">⚠️ {scraped.error}</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {performance.slots?.some((s: any) =>
+                  s.status === "submitted" && (!s.verification?.status || s.verification.status === "")
+                ) && (
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+                      <span className="text-xl">⏳</span>
+                      <div>
+                        <p className="text-sm font-semibold text-blue-800">Data Scraping Pending</p>
+                        <p className="text-xs text-blue-600 mt-0.5">
+                          Platform auto-scrapes KOC content 24h after submission. Real data appears here — no self-reporting.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
