@@ -13,8 +13,10 @@ if os.path.exists(_ENV_FILE):
                 os.environ.setdefault(key.strip(), val.strip())
 
 # 路径
+# OUTPUT_DIR: 优先用环境变量（Docker 部署强制设为 /output），否则自动推算
+# ⚠️ 必须与 docker-compose.yml 的 volume mount 保持一致
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-OUTPUT_DIR = os.path.join(os.path.dirname(BASE_DIR), "output")
+OUTPUT_DIR = os.getenv("OUTPUT_DIR") or os.path.join(os.path.dirname(BASE_DIR), "output")
 
 # JWT — must be set via env var in production; dev fallback auto-generated per session
 _JWT_FALLBACK = os.urandom(32).hex() if not os.getenv("JWT_SECRET") else ""

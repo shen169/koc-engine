@@ -27,6 +27,7 @@ services:
       - koc_output:/output
       - ./backend/.env:/app/.env:ro
     environment:
+      - OUTPUT_DIR=/output
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - JWT_SECRET=${JWT_SECRET:-}
       - ACCESS_PASSWORD=${ACCESS_PASSWORD:-}
