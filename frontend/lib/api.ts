@@ -103,6 +103,10 @@ export const products = {
     api("/api/products", { method: "POST", body: data, token }),
   list: (token: string) => api<Array<Record<string, unknown>>>("/api/products", { token }),
   get: (id: string, token: string) => api<Record<string, unknown>>(`/api/products/${id}`, { token }),
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    api<Record<string, unknown>>(`/api/products/${id}`, { method: "PUT", body: data, token }),
+  autoFill: (url: string, token: string) =>
+    api<Record<string, unknown>>("/api/products/auto-fill", { method: "POST", body: { url }, token }),
 };
 
 // Interests

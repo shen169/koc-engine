@@ -9,6 +9,18 @@ from auth import get_current_user, require_merchant, require_admin
 router = APIRouter(tags=["products"])
 
 
+# NOTE: auto-fill MUST be defined before /{product_id} to avoid FastAPI path conflict
+@router.post("/products/auto-fill")
+def auto_fill_product(data: dict, current_user: dict = Depends(require_merchant)):
+    """Given a product URL, extract metadata for auto-filling the creation form."""
+    url = (data.get("url", "") or "").strip()
+    if not url:
+        raise HTTPException(400, "URL is required")
+
+    from services.product_enricher import enrich_product_url
+    return enrich_product_url(url)
+
+
 @router.post("/products")
 def create_product(data: dict, current_user: dict = Depends(require_merchant)):
     m = merchant_store.get_by_user_id(current_user["sub"])
@@ -31,6 +43,7 @@ def create_product(data: dict, current_user: dict = Depends(require_merchant)):
         commission_type="",
         commission_value="",
         commission_link="",
+        product_url=data.get("product_url", "").strip(),
         description=data.get("description", "").strip(),
         target_market=data.get("target_market", ""),
     )
@@ -81,7 +94,8 @@ def update_product(product_id: str, updates: dict, current_user: dict = Depends(
     if not m or p.merchant_id != m.id:
         if current_user.get("role") != "admin":
             raise HTTPException(403, "Not your product")
-    allowed = {"name", "image_url", "category", "description", "target_market", "status"}
+    allowed = {"name", "image_url", "category", "description", "target_market", "status",
+               "product_url", "product_id", "sales_platform", "asin"}
     safe = {k: v for k, v in updates.items() if k in allowed}
     updated = product_store.update(product_id, safe)
     return updated.model_dump()

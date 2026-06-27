@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { products, getToken, getRole, getConsolePath } from "@/lib/api";
 import NavBar from "@/components/NavBar";
 
@@ -13,13 +13,16 @@ const FIELD_LABELS: Record<string, string> = {
   category: "Category",
 };
 
-export default function NewProduct() {
+export default function EditProduct() {
   const router = useRouter();
+  const params = useParams();
+  const productId = params.id as string;
   const token = getToken();
   const role = getRole();
-  if (!token) { router.push("/login"); return null; }
-  if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return null; }
 
+  const [authorized, setAuthorized] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [form, setForm] = useState({
     product_url: "",
     name: "",
@@ -29,32 +32,56 @@ export default function NewProduct() {
     target_market: "US",
     description: "",
     image_url: "",
+    status: "active",
   });
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitError, setSubmitError] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
   const [autoFillError, setAutoFillError] = useState("");
   const [autoFillWarnings, setAutoFillWarnings] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!token) { router.push("/login"); return; }
+    if (role && role !== "merchant") { router.push(getConsolePath(role || "")); return; }
+    setAuthorized(true);
+
+    products.get(productId, token)
+      .then((p) => {
+        setForm({
+          product_url: (p.product_url as string) || "",
+          name: (p.name as string) || "",
+          sales_platform: (p.sales_platform as string) || "amazon",
+          product_id: (p.product_id as string) || "",
+          category: (p.category as string) || "",
+          target_market: (p.target_market as string) || "US",
+          description: (p.description as string) || "",
+          image_url: (p.image_url as string) || "",
+          status: (p.status as string) || "active",
+        });
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false));
+  }, [productId, router, role, token]);
 
   function update(field: string, value: string) {
     setForm((p) => ({ ...p, [field]: value }));
     if (errors[field]) {
       setErrors((p) => { const n = { ...p }; delete n[field]; return n; });
     }
-    if (submitError) setSubmitError("");
+    if (saveError) setSaveError("");
+    if (saveSuccess) setSaveSuccess(false);
   }
 
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
-
     for (const field of REQUIRED_FIELDS) {
       const val = (form as any)[field];
       if (!val || (typeof val === "string" && !val.trim())) {
         newErrors[field] = `${FIELD_LABELS[field]} is required`;
       }
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -85,19 +112,21 @@ export default function NewProduct() {
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitError("");
+    setSaveError("");
+    setSaveSuccess(false);
 
     if (!validate()) return;
 
-    setLoading(true);
+    setSaving(true);
     try {
-      await products.create(form, token!);
-      router.push("/dashboard/products");
+      await products.update(productId, form, token!);
+      setSaveSuccess(true);
+      setTimeout(() => router.push("/dashboard/products"), 800);
     } catch (err: any) {
-      setSubmitError(err.message || "Failed to create product");
-      setLoading(false);
+      setSaveError(err.message || "Failed to save changes");
+      setSaving(false);
     }
   }
 
@@ -119,20 +148,48 @@ export default function NewProduct() {
       errors[field] ? "border-red-400 bg-red-50" : "border-slate-200"
     }`;
 
+  if (!authorized || loading) {
+    return (
+      <div className="min-h-screen bg-purple-50 flex items-center justify-center">
+        <div className="text-slate-400 text-sm">Loading...</div>
+      </div>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <div className="min-h-screen bg-purple-50">
+        <NavBar user={null} role="merchant" title="Edit Product" />
+        <div className="max-w-lg mx-auto px-6 py-16 text-center">
+          <p className="text-slate-400 text-lg mb-4">Product not found</p>
+          <button onClick={() => router.push("/dashboard/products")} className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition">
+            ← Back to Products
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-purple-50">
-      <NavBar user={null} role="merchant" title="Add New Product" />
+      <NavBar user={null} role="merchant" title="Edit Product" />
       <div className="max-w-lg mx-auto p-6">
         <div className="bg-white rounded-xl border border-slate-100 p-6">
-          <h1 className="text-xl font-bold text-slate-900 mb-6">Add New Product</h1>
+          <h1 className="text-xl font-bold text-slate-900 mb-6">Edit Product</h1>
 
-          {submitError && (
+          {saveError && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 mb-4">
-              {submitError}
+              {saveError}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {saveSuccess && (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-lg p-3 mb-4">
+              ✅ Changes saved! Redirecting...
+            </div>
+          )}
+
+          <form onSubmit={handleSave} className="space-y-4">
             {/* 0. Product URL — MOST IMPORTANT */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -162,9 +219,6 @@ export default function NewProduct() {
                   ))}
                 </div>
               )}
-              <p className="text-xs text-slate-400 mt-1">
-                Paste your product page URL and click Auto-Fill to automatically extract product details.
-              </p>
             </div>
 
             {/* 1. Product Name — REQUIRED */}
@@ -279,7 +333,7 @@ export default function NewProduct() {
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900" />
             </div>
 
-            {/* 7. Description (optional) */}
+            {/* 5. Description (optional) */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Description <span className="text-slate-400 font-normal">(optional)</span>
@@ -289,11 +343,31 @@ export default function NewProduct() {
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900" />
             </div>
 
-            {/* 8. Submit */}
-            <button type="submit" disabled={loading}
-              className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 transition">
-              {loading ? "Adding..." : "Add Product"}
-            </button>
+            {/* 6. Status */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+              <select value={form.status} onChange={(e) => update("status", e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900">
+                <option value="active">🟢 Active</option>
+                <option value="paused">⏸ Paused</option>
+                <option value="archived">📦 Archived</option>
+              </select>
+            </div>
+
+            {/* 7. Buttons */}
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard/products")}
+                className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-lg font-semibold hover:bg-slate-50 transition"
+              >
+                Cancel
+              </button>
+              <button type="submit" disabled={saving}
+                className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 transition">
+                {saving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
           </form>
         </div>
       </div>

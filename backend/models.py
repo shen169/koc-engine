@@ -110,9 +110,10 @@ class Product(BaseModel):
     name: str
     image_url: str = ""
     category: str = ""
-    commission_type: str = ""  # DEPRECATED: V2 uses platform points, set at task level
-    commission_value: str = ""  # DEPRECATED: V2 uses platform points, set at task level
-    commission_link: str = ""  # DEPRECATED: V2 uses platform points, set at task level
+    commission_type: str = ""  # DEPRECATED
+    commission_value: str = ""  # DEPRECATED
+    commission_link: str = ""  # DEPRECATED
+    product_url: str = ""  # product page URL (Amazon listing, Shopify store, etc.)
     description: str = ""
     target_market: str = ""  # target market (US/UK/CA/AU/EU/JP/KR/SEA/CN), matched with KOC.region
     status: str = "active"  # active | paused | archived
