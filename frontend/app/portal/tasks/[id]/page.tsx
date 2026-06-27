@@ -325,18 +325,7 @@ export default function KocTaskDetailPage() {
             </p>
           )}
 
-          {/* Commission link — always visible */}
-          {task.commission_link && (
-            <a
-              href={task.commission_link as string}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 mb-4 text-sm text-emerald-600 hover:text-emerald-700 font-medium underline underline-offset-2"
-            >
-              🔗 Product URL: {(task.commission_link as string).slice(0, 50)}... ↗
-            </a>
-          )}
-
+          {/* Commission + Pledge */}
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="bg-gray-50 rounded-xl p-3">
               <div className="text-gray-400 text-xs">Commission</div>
@@ -355,35 +344,6 @@ export default function KocTaskDetailPage() {
               <div className="font-bold text-gray-900">14 days</div>
             </div>
           </div>
-
-          {/* Fake link report */}
-          {(task.commission_link) && (
-            <div className="flex items-center justify-end mt-2">
-              <button
-                onClick={async (e) => {
-                  e.preventDefault();
-                  if (!confirm("Confirm reporting this product link as broken? The merchant's Trust will be reset to zero.")) return;
-                  try {
-                    await fetch(
-                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}/api/merchants/${task.merchant_id}/report-fake-link`,
-                      {
-                        method: "POST",
-                        headers: {
-                          "Content-Type": "application/json",
-                          Authorization: `Bearer ${getToken()}`,
-                        },
-                        body: JSON.stringify({ task_id: taskId, reason: "Broken Link" }),
-                      }
-                    );
-                    alert("Report submitted. Platform will review within 24 hours.");
-                  } catch { alert("Report failed"); }
-                }}
-                className="text-xs text-red-400 hover:text-red-500 underline underline-offset-2"
-              >
-                🚩 Report Broken Link
-              </button>
-            </div>
-          )}
 
           {(merchantTrust || task.merchant_company) && (
             <div className="mt-4 pt-4 border-t border-gray-100">

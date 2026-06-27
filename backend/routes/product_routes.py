@@ -19,11 +19,7 @@ def create_product(data: dict, current_user: dict = Depends(require_merchant)):
         raise HTTPException(400, "Product name is required")
     if not data.get("category", "").strip():
         raise HTTPException(400, "Category is required")
-    if not data.get("commission_value", "").strip():
-        raise HTTPException(400, "Commission value is required (e.g. '15% off')")
-    if not data.get("commission_link", "").strip():
-        raise HTTPException(400, "Commission link is required")
-
+    # V2: commission is platform points, set at task level — not product level
     product = Product(
         merchant_id=m.id,
         asin=data.get("asin", data.get("product_id", "")),  # backward compat
@@ -32,9 +28,9 @@ def create_product(data: dict, current_user: dict = Depends(require_merchant)):
         name=data["name"].strip(),
         image_url=data.get("image_url", "").strip(),
         category=data.get("category", "").strip(),
-        commission_type=data.get("commission_type", "discount_code"),
-        commission_value=data.get("commission_value", "").strip(),
-        commission_link=data.get("commission_link", "").strip(),
+        commission_type="",
+        commission_value="",
+        commission_link="",
         description=data.get("description", "").strip(),
         target_market=data.get("target_market", ""),
     )
@@ -85,7 +81,7 @@ def update_product(product_id: str, updates: dict, current_user: dict = Depends(
     if not m or p.merchant_id != m.id:
         if current_user.get("role") != "admin":
             raise HTTPException(403, "Not your product")
-    allowed = {"name", "image_url", "category", "commission_type", "commission_value", "commission_link", "description", "target_market", "status"}
+    allowed = {"name", "image_url", "category", "description", "target_market", "status"}
     safe = {k: v for k, v in updates.items() if k in allowed}
     updated = product_store.update(product_id, safe)
     return updated.model_dump()

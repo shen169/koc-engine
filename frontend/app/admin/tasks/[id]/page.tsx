@@ -119,12 +119,6 @@ export default function AdminTaskDetail() {
                 <span className="text-zinc-400">Status</span>
                 <p className="font-semibold text-zinc-900 capitalize">{product.status as string || "—"}</p>
               </div>
-              {Boolean(product.commission_link) && (
-                <div>
-                  <span className="text-zinc-400">Commission Link</span>
-                  <p className="font-semibold text-zinc-900 text-xs truncate">{product.commission_link as string}</p>
-                </div>
-              )}
             </div>
           </div>
         )}

@@ -5,14 +5,12 @@ import { useRouter } from "next/navigation";
 import { products, getToken, getRole, getConsolePath } from "@/lib/api";
 import NavBar from "@/components/NavBar";
 
-const REQUIRED_FIELDS = ["name", "product_id", "category", "commission_value", "commission_link"] as const;
+const REQUIRED_FIELDS = ["name", "product_id", "category"] as const;
 
 const FIELD_LABELS: Record<string, string> = {
   name: "Product Name",
   product_id: "Product ID",
   category: "Category",
-  commission_value: "Commission Value",
-  commission_link: "Product URL",
 };
 
 export default function NewProduct() {
@@ -28,9 +26,6 @@ export default function NewProduct() {
     product_id: "",
     category: "",
     target_market: "US",
-    commission_type: "discount_code",
-    commission_value: "",
-    commission_link: "",
     description: "",
     image_url: "",
   });
@@ -53,15 +48,6 @@ export default function NewProduct() {
       const val = (form as any)[field];
       if (!val || (typeof val === "string" && !val.trim())) {
         newErrors[field] = `${FIELD_LABELS[field]} is required`;
-      }
-    }
-
-    // URL format validation
-    if (form.commission_link.trim()) {
-      try {
-        new URL(form.commission_link.trim());
-      } catch {
-        newErrors.commission_link = "Please enter a valid URL";
       }
     }
 
@@ -219,40 +205,7 @@ export default function NewProduct() {
               </div>
             </div>
 
-            {/* 4. Commission Type + Commission Value */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Commission Type</label>
-                <select value={form.commission_type} onChange={(e) => update("commission_type", e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900">
-                  <option value="discount_code">Discount Code</option>
-                  <option value="affiliate">Affiliate Link</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Commission Value <span className="text-red-400">*</span>
-                </label>
-                <input value={form.commission_value} onChange={(e) => update("commission_value", e.target.value)}
-                  placeholder="15% off, 10% commission, $5/code"
-                  className={inputClass("commission_value")} />
-                {errors.commission_value && <p className="text-xs text-red-500 mt-1">{errors.commission_value}</p>}
-              </div>
-            </div>
-
-            {/* 5. Product URL — REQUIRED */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                🔗 Product URL <span className="text-red-400">*</span>
-                <span className="text-slate-400 font-normal"> (link to the product page — KOC will use their own affiliate ID to track commissions)</span>
-              </label>
-              <input value={form.commission_link} onChange={(e) => update("commission_link", e.target.value)}
-                placeholder="https://amazon.com/dp/B0DKDSZBN4"
-                className={inputClass("commission_link")} />
-              {errors.commission_link && <p className="text-xs text-red-500 mt-1">{errors.commission_link}</p>}
-            </div>
-
-            {/* 6. Image URL (optional) */}
+            {/* 4. Image URL (optional) */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Image URL <span className="text-slate-400 font-normal">(optional)</span>

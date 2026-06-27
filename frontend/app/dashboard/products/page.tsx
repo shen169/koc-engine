@@ -138,7 +138,7 @@ export default function MyProducts() {
               <div key={p.id as string} className="bg-white rounded-xl border border-slate-100 p-4 flex justify-between items-center">
                 <div>
                   <h3 className="font-semibold text-slate-900">{p.name as string}</h3>
-                  <p className="text-xs text-slate-400">{p.category as string} · {p.commission_value as string}{p.sales_platform ? ` · ${platformBadge(p.sales_platform as string)}` : ""}{(p.product_id || p.asin) ? ` · ${p.product_id || p.asin}` : ""}</p>
+                  <p className="text-xs text-slate-400">{p.category as string}{p.sales_platform ? ` · ${platformBadge(p.sales_platform as string)}` : ""}{(p.product_id || p.asin) ? ` · ${p.product_id || p.asin}` : ""}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className={`px-2 py-0.5 rounded-full text-xs ${p.status === "active" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>

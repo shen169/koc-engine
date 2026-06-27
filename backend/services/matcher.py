@@ -257,8 +257,7 @@ def _ai_match_products_for_koc(koc: dict, products: list[dict], top_n: int = 10)
         line = (
             f"产品 ID: {p['id']} | "
             f"名称: {p.get('name', '?')} | "
-            f"品类: {p.get('category', '?')} | "
-            f"佣金: {p.get('commission_value', 'N/A')}"
+            f"品类: {p.get('category', '?')} "
         )
         product_lines.append(line)
 
@@ -282,7 +281,6 @@ def _ai_match_kocs_for_product(product: dict, koc_candidates: list[dict], top_n:
         f"产品名称: {product.get('name', 'Unknown')}\n"
         f"品类: {product.get('category', 'General')}\n"
         f"描述: {product.get('description', '无')}\n"
-        f"佣金: {product.get('commission_value', 'N/A')}\n"
     )
 
     koc_lines = []
@@ -510,8 +508,6 @@ def match_products_for_koc(
             "product_id": product.get("id"),
             "product_name": product.get("name"),
             "product_category": product.get("category", ""),
-            "commission_value": product.get("commission_value", ""),
-            "commission_type": product.get("commission_type", "discount_code"),
             "image_url": product.get("image_url", ""),
             "description": product.get("description", ""),
             "merchant_id": merchant_id,

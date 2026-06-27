@@ -32,8 +32,6 @@ def landing_products():
             "name": p.name,
             "image_url": p.image_url,
             "category": p.category,
-            "commission_type": p.commission_type,
-            "commission_value": p.commission_value,
             "description": p.description,
         }
         for p in products

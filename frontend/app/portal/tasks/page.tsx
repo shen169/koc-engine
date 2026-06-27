@@ -168,14 +168,6 @@ export default function KocMyTasksPage() {
                       <span className="text-gray-300">|</span>
                       <span className="text-gray-700 font-medium">{task.pledge_koc || 0} pt</span>
                       <span className="text-gray-400 text-xs">Pledge</span>
-                      {task.product_commission_type && (
-                        <>
-                          <span className="text-gray-300">|</span>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 font-medium">
-                            {task.product_commission_type === "affiliate" ? "🔗 Affiliate Commission" : "🏷 Discount Code"}
-                          </span>
-                        </>
-                      )}
                     </div>
 
                     {/* Links */}
@@ -190,17 +182,6 @@ export default function KocMyTasksPage() {
                         >
                           📦 Product Details →
                         </button>
-                      )}
-                      {task.product_commission_link && (
-                        <a
-                          href={task.product_commission_link as string}
-                          target="_blank"
-                          rel="noopener"
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-xs text-emerald-500 hover:text-emerald-600 font-medium underline underline-offset-2"
-                        >
-                          🔗 Product URL ↗
-                        </a>
                       )}
                       {slot.accepted_at && (
                         <span className="text-xs text-gray-400 ml-auto">
