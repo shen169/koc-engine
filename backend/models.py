@@ -173,8 +173,9 @@ class KocTask(BaseModel):
     #             pledge_paid, commission_paid, reject_count}
 
     # ── V2 新增：质押 + 佣金 ──
+    task_mode: str = "commission"   # "commission" | "sample"（寄样模式：无佣金，KOC 只拿免费产品）
     pledge_merchant: int = 0        # 商家佣金池（不退，= commission × koc_required，发布时一次扣完）
-    pledge_koc: int = 0             # KOC 固定质押点（10pt，接单时扣，完成退 9pt，违约不退）
+    pledge_koc: int = 0             # KOC 质押点（佣金模式10pt/寄样模式5pt，完成全额退还 bonus，违约不退）
     commission: int = 0             # 每 KOC 佣金（pt），商家发布时设定，KOC 完成后从佣金池中实收
 
     # ── V2 新增：物流 ──

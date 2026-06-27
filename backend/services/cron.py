@@ -274,6 +274,17 @@ def run_weekly_scan() -> dict:
 
     result["trust_updated"] = len(all_kocs)
 
+    # ── 内容数据抓取验证：提交 24h 后抓取真实数据交叉验证 ──
+    try:
+        from services.scraper import run_content_scrape_check_sync
+        scrape_result = run_content_scrape_check_sync()
+        result["scrapes_triggered"] = scrape_result.get("triggered", 0)
+        result["scrapes_completed"] = scrape_result.get("completed", 0)
+        result["scrapes_verified"] = scrape_result.get("verified", 0)
+        result["scrapes_fraud_detected"] = scrape_result.get("fraud_detected", 0)
+    except Exception as e:
+        result["scrape_error"] = str(e)[:200]
+
     # ── 物流追踪：自动查询所有 shipped slot 的物流状态 ──
     try:
         from services.tracking import run_daily_tracking_check_sync
@@ -448,7 +459,7 @@ def _handle_merchant_ship_timeout(task):
             koc_id = slot.get("koc_id", "")
             if koc_id:
                 koc_uid = _get_koc_user_id(koc_id)
-                credit_store.add_credits(koc_uid, KOC_FIXED_PLEDGE,
+                credit_store.add_credits(koc_uid, task.pledge_koc,
                                          "breach_compensation_koc", task.id,
                                          f"Merchant breach compensation: {task.product_name}",
                                          withdrawable=False)
@@ -500,8 +511,8 @@ def _handle_submit_timeout(task, slot_index: int, koc_id: str):
                                  task.id, f"Commission returned (KOC submit timeout): {task.product_name}",
                                  withdrawable=False)
 
-    # KOC 质押 10pt 不退 → 全部给平台
-    credit_store.add_credits("platform", KOC_FIXED_PLEDGE, "forfeited_pledge",
+    # KOC 质押不退 → 全部给平台（佣金模式 10pt / 寄样模式 5pt）
+    credit_store.add_credits("platform", task.pledge_koc, "forfeited_pledge",
                              task.id, f"KOC forfeited pledge (submit timeout): {task.product_name}")
 
     # 扣 KOC 信任分
@@ -560,25 +571,34 @@ def _handle_auto_approve(task, slot_index: int, koc_id: str):
         "commission_paid": True,
     })
 
-    # 平台抽成 = max(1pt, int(commission × 10%))
-    platform_fee = max(KOC_PLATFORM_FEE_MIN, int(task.commission * KOC_PLATFORM_FEE_RATE))
-    koc_commission = task.commission - platform_fee
+    # 寄样模式 vs 佣金模式
+    is_sample = getattr(task, "task_mode", "commission") == "sample" or task.commission == 0
+    pledge_return = task.pledge_koc
+
+    if is_sample:
+        platform_fee = 0
+        koc_commission = 0
+    else:
+        # 平台抽成 = max(1pt, int(commission × 10%))
+        platform_fee = max(KOC_PLATFORM_FEE_MIN, int(task.commission * KOC_PLATFORM_FEE_RATE))
+        koc_commission = task.commission - platform_fee
 
     koc_uid = _get_koc_user_id(koc_id) if koc_id else ""
     if slot.get("pledge_paid"):
         # 质押全额退还 → bonus（不可提现）
         if koc_uid:
-            credit_store.add_credits(koc_uid, KOC_FIXED_PLEDGE, "pledge_return_koc",
+            credit_store.add_credits(koc_uid, pledge_return, "pledge_return_koc",
                                      task.id, f"Pledge returned (auto-approved): {task.product_name}",
                                      withdrawable=False)
-        # 佣金 90% → withdrawable
-        if koc_commission > 0 and koc_uid:
-            credit_store.add_credits(koc_uid, koc_commission, "commission_earned",
-                                     task.id, f"Commission earned (auto-approved, {task.commission}pt − {platform_fee}pt fee): {task.product_name}",
-                                     withdrawable=True)
-        # 平台抽成
-        credit_store.add_credits("platform", platform_fee, "koc_platform_fee",
-                                 task.id, f"KOC platform fee (auto-approved): {task.product_name}")
+        if not is_sample:
+            # 佣金 90% → withdrawable
+            if koc_commission > 0 and koc_uid:
+                credit_store.add_credits(koc_uid, koc_commission, "commission_earned",
+                                         task.id, f"Commission earned (auto-approved, {task.commission}pt − {platform_fee}pt fee): {task.product_name}",
+                                         withdrawable=True)
+            # 平台抽成
+            credit_store.add_credits("platform", platform_fee, "koc_platform_fee",
+                                     task.id, f"KOC platform fee (auto-approved): {task.product_name}")
 
     # 恢复 KOC 信任分
     if koc_id:
@@ -603,13 +623,14 @@ def _handle_auto_approve(task, slot_index: int, koc_id: str):
         sync_merchant_tier(task.merchant_id)
 
     # ── 通知 KOC：自动通过，佣金到账 ──
-    total_earned = koc_commission + KOC_FIXED_PLEDGE
+    total_earned = koc_commission + pledge_return
     if koc_uid:
+        earnings_msg = f"+{koc_commission}pt withdrawable + {pledge_return}pt pledge returned" if not is_sample else f"+{pledge_return}pt pledge returned (sample mode — keep the free product!)"
         notify_user(
             koc_uid,
             NotifType.AUTO_APPROVED,
             "Content Auto-Approved — Earnings Credited",
-            f"{task.product_name}: Brand did not review within 3 days — content auto-approved. +{koc_commission}pt withdrawable + {KOC_FIXED_PLEDGE}pt pledge returned.",
+            f"{task.product_name}: Brand did not review within 3 days — content auto-approved. {earnings_msg}.",
             task_id=task.id,
             resource_path=f"/portal/tasks/{task.id}",
         )
@@ -635,8 +656,8 @@ def _handle_revision_timeout(task, slot_index: int, koc_id: str):
                                  task.id, f"Commission returned (KOC revision timeout): {task.product_name}",
                                  withdrawable=False)
 
-    # KOC 质押 10pt 不退 → 全部给平台
-    credit_store.add_credits("platform", KOC_FIXED_PLEDGE, "forfeited_pledge",
+    # KOC 质押不退 → 全部给平台（佣金模式 10pt / 寄样模式 5pt）
+    credit_store.add_credits("platform", task.pledge_koc, "forfeited_pledge",
                              task.id, f"KOC forfeited pledge (revision timeout): {task.product_name}")
 
     if koc_id:

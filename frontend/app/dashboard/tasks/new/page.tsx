@@ -18,6 +18,7 @@ export default function NewTaskPage() {
     product_name: "",
     task_type: "urgent",
     koc_required: 5,
+    task_mode: "commission" as "commission" | "sample",
     commission: 30,
   });
   const [submitting, setSubmitting] = useState(false);
@@ -55,7 +56,7 @@ export default function NewTaskPage() {
       setError("At least 1 KOC required");
       return;
     }
-    if (form.commission < 20 || form.commission > 50) {
+    if (form.task_mode === "commission" && (form.commission < 20 || form.commission > 50)) {
       setError("Commission must be between 20-50pt");
       return;
     }
@@ -70,7 +71,8 @@ export default function NewTaskPage() {
           product_name: form.product_name,
           task_type: form.task_type,
           koc_required: form.koc_required,
-          commission: form.commission,
+          task_mode: form.task_mode,
+          commission: form.task_mode === "sample" ? 0 : form.commission,
         },
         token!
       )
@@ -178,33 +180,91 @@ export default function NewTaskPage() {
               </div>
             </div>
 
-            {/* Commission (platform points paid to KOC on completion) */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                💰 Commission per KOC (pt, paid in platform points on completion)
-              </label>
-              <input
-                type="number"
-                min={20}
-                max={50}
-                value={form.commission}
-                onChange={(e) => setForm((f) => ({ ...f, commission: Math.min(50, Math.max(20, Number(e.target.value))) }))}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Commission range: 20-50pt. KOC receives 90% (withdrawable), platform takes 10% (min 1pt).
-              </p>
+            {/* Task Mode Toggle */}
+            <div className="bg-gray-50 rounded-2xl p-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">📦 Collaboration Mode</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setForm((f) => ({ ...f, task_mode: "commission" }))}
+                  className={`rounded-xl p-3 text-sm font-semibold transition-all ${
+                    form.task_mode === "commission"
+                      ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md"
+                      : "bg-white border border-gray-200 text-gray-600 hover:border-pink-300"
+                  }`}
+                >
+                  💰 Commission
+                  <span className="block text-[10px] opacity-70 mt-0.5">KOC earns cash (20-50pt)</span>
+                </button>
+                <button
+                  onClick={() => setForm((f) => ({ ...f, task_mode: "sample" }))}
+                  className={`rounded-xl p-3 text-sm font-semibold transition-all ${
+                    form.task_mode === "sample"
+                      ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
+                      : "bg-white border border-gray-200 text-gray-600 hover:border-emerald-300"
+                  }`}
+                >
+                  📦 Sample Only
+                  <span className="block text-[10px] opacity-70 mt-0.5">KOC keeps free product</span>
+                </button>
+              </div>
             </div>
 
-            {/* Commission pool + KOC pledge */}
+            {/* Commission input (only for commission mode) */}
+            {form.task_mode === "commission" ? (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  💰 Commission per KOC (pt, paid in platform points on completion)
+                </label>
+                <input
+                  type="number"
+                  min={20}
+                  max={50}
+                  value={form.commission}
+                  onChange={(e) => setForm((f) => ({ ...f, commission: Math.min(50, Math.max(20, Number(e.target.value))) }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-pink-200 focus:border-pink-400 outline-none"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Commission range: 20-50pt. KOC receives 90% (withdrawable), platform takes 10% (min 1pt).
+                </p>
+              </div>
+            ) : (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">📦</span>
+                  <div>
+                    <p className="font-semibold text-emerald-800 text-sm">Sample-Only Mode</p>
+                    <p className="text-xs text-emerald-600 mt-0.5">
+                      KOC receives your product for free and creates content in exchange.
+                      No cash commission — you only pay the 5pt platform fee + shipping.
+                    </p>
+                    <ul className="text-xs text-emerald-600 mt-2 space-y-0.5">
+                      <li>• Your cost: <strong>5pt ($5) + product & shipping</strong></li>
+                      <li>• KOC pledge: <strong>5pt</strong> (returned on completion)</li>
+                      <li>• KOC gets: <strong>free product</strong> (no cash payment)</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Cost summary */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
-                <div className="text-xs text-purple-500 font-semibold mb-1">Commission Pool (non-refundable)</div>
-                <div className="text-2xl font-extrabold text-purple-700">{form.commission} × {form.koc_required} = {form.commission * form.koc_required} pt</div>
+                <div className="text-xs text-purple-500 font-semibold mb-1">
+                  {form.task_mode === "sample" ? "Platform Fee (non-refundable)" : "Commission Pool (non-refundable)"}
+                </div>
+                <div className="text-2xl font-extrabold text-purple-700">
+                  {form.task_mode === "sample"
+                    ? `5 pt`
+                    : `${form.commission} × ${form.koc_required} = ${form.commission * form.koc_required} pt`}
+                </div>
               </div>
               <div className="bg-pink-50 border border-pink-100 rounded-xl p-4">
-                <div className="text-xs text-pink-500 font-semibold mb-1">KOC Pledge per person (9pt + commission returned on completion)</div>
-                <div className="text-2xl font-extrabold text-pink-700">10 pt</div>
+                <div className="text-xs text-pink-500 font-semibold mb-1">KOC Pledge per person</div>
+                <div className="text-2xl font-extrabold text-pink-700">
+                  {form.task_mode === "sample" ? "5 pt" : "10 pt"}
+                  <span className="text-xs font-normal text-pink-400 ml-1">returned on completion</span>
+                </div>
               </div>
             </div>
 
@@ -214,15 +274,31 @@ export default function NewTaskPage() {
               <div>
                 Platform Service Fee: 5 pt <span className="text-xs text-gray-400">(non-refundable)</span>
               </div>
-              <div>
-                Commission Pool: {form.commission} × {form.koc_required} = {form.commission * form.koc_required} pt <span className="text-xs text-gray-400">(non-refundable, paid to KOCs on completion)</span>
-              </div>
-              <div className="text-sm font-bold text-purple-700 mt-2 pt-2 border-t border-gray-200">
-                Total deducted on publish: {5 + form.commission * form.koc_required} pt
-              </div>
-              <div className="text-xs text-gray-400 mt-2">
-                * KOC pledge of 10 pt frozen on acceptance, 9 pt returned on completion (Platform deducts 1 pt)
-              </div>
+              {form.task_mode === "sample" ? (
+                <>
+                  <div>
+                    Commission Pool: 0 pt <span className="text-xs text-emerald-500">(sample mode — no cash payment)</span>
+                  </div>
+                  <div className="text-sm font-bold text-emerald-700 mt-2 pt-2 border-t border-gray-200">
+                    Total deducted on publish: 5 pt
+                  </div>
+                  <div className="text-xs text-emerald-600 mt-2">
+                    💡 KOC keeps the free product. You only pay 5pt + shipping cost.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    Commission Pool: {form.commission} × {form.koc_required} = {form.commission * form.koc_required} pt <span className="text-xs text-gray-400">(non-refundable, paid to KOCs on completion)</span>
+                  </div>
+                  <div className="text-sm font-bold text-purple-700 mt-2 pt-2 border-t border-gray-200">
+                    Total deducted on publish: {5 + form.commission * form.koc_required} pt
+                  </div>
+                  <div className="text-xs text-gray-400 mt-2">
+                    * KOC pledge of 10pt frozen on acceptance, fully returned on completion. Platform takes 10% of commission (min 1pt).
+                  </div>
+                </>
+              )}
             </div>
 
             {/* SLA Agreement */}

@@ -161,6 +161,19 @@ export default function KocTaskDetailPage() {
     }
   }
 
+  async function handleResubmit(newUrl: string) {
+    setSubmitting(true);
+    setError("");
+    try {
+      await tasks.submit(taskId, mySlotIndex, [newUrl], getToken()!);
+      await loadTask();
+    } catch (e: any) {
+      setError(e.message || "Resubmission failed");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleSubmit() {
     const urls = contentUrls
       .split("\n")
@@ -784,8 +797,40 @@ export default function KocTaskDetailPage() {
           </div>
         )}
 
+        {/* Scrape failed — KOC can resubmit URL */}
+        {slotStatus === "submitted" && (mySlot as any)?.scraped_status === "failed" && (mySlot as any)?.scrape_attempts < 2 && (
+          <div className="bg-amber-50 rounded-2xl border border-amber-200 p-6 mt-4">
+            <div className="text-3xl mb-2">⚠️</div>
+            <p className="font-semibold text-amber-800 text-lg">Content URL Could Not Be Verified</p>
+            <p className="text-sm text-amber-600 mt-1">
+              The platform was unable to scrape your content link. You have <strong>1 chance</strong> to resubmit with a correct URL.
+              Second failure will result in <strong>pledge forfeiture + Trust Score -15</strong>.
+            </p>
+            {mySlot?.content_urls && (
+              <div className="mt-3 space-y-1">
+                {(mySlot.content_urls as string[]).map((url: string, i: number) => (
+                  <span key={i} className="block text-sm text-amber-500 line-through">
+                    🔗 {url}
+                  </span>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => {
+                const newUrl = prompt("Enter the correct content URL (TikTok/YouTube/Instagram/etc.):");
+                if (!newUrl?.trim()) return;
+                handleResubmit(newUrl.trim());
+              }}
+              disabled={submitting}
+              className="mt-4 bg-amber-500 text-white py-2.5 px-6 rounded-xl font-semibold text-sm hover:bg-amber-600 transition-colors disabled:opacity-50"
+            >
+              {submitting ? "Submitting..." : "🔄 Resubmit Content URL"}
+            </button>
+          </div>
+        )}
+
         {/* Submitted state — content pending review */}
-        {slotStatus === "submitted" && !canUpdateMetrics && (
+        {slotStatus === "submitted" && !canUpdateMetrics && (mySlot as any)?.scraped_status !== "failed" && (
           <div className="bg-blue-50 rounded-2xl border border-blue-100 p-6 text-center mt-4">
             <div className="text-3xl mb-2">⏳</div>
             <p className="font-semibold text-blue-700 text-lg">Content submitted, awaiting merchant review</p>

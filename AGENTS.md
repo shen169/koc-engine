@@ -174,6 +174,7 @@ koc-engine/
 │   │   ├── matcher.py         # Matching engine: rule engine (7-dim weighted) + AI re-rank
 │   │   ├── cron.py            # Periodic scan: timeout detection + auto-processing + Trust Score linkage + tier calibration
 │   │   ├── tracking.py        # Shipment tracking: multi-carrier auto-query + delivery auto-receive
+│   │   ├── scraper.py          # Content data scraping: Apify actor triggers + cross-verification with self-reported data
 │   │   ├── email_service.py   # Email templates (placeholder)
 │   │   └── tvs_client.py      # TVS integration placeholder (P2)
 │   └── requirements.txt
@@ -292,11 +293,12 @@ koc-engine/
     All notifications go through `notify_user()` in `services/notifier.py` — the single entry point. Cron handlers call it directly. Email templates in `services/email_service.py` updated to V2 economic model (1pt=$1, commission + 9pt return, SLA deadlines).
 
 13. **Hook System** — All automated state transitions:
-    - **Cron hooks** (7, every 1h): accept timeout / ship timeout / receive auto-confirm / submit timeout / review auto-approve / revision timeout / long-term idle rematch
+    - **Cron hooks** (8, every 1h): accept timeout / ship timeout / receive auto-confirm / submit timeout / review auto-approve / revision timeout / long-term idle rematch / content scrape verify
     - **Event hooks** (7, in routes): task publish→auto-match / accept→deduct pledge / reject→rematch / ship→notify / interest→auto-accept / submit→pending review / review→approve|reject|AI judge
     - **Trust hooks** (2): every trust score change → `sync_koc_tier()` / `sync_merchant_tier()` auto-calibrates tier (bidirectional, can go up or down)
     - **Performance hook** (1): content metrics update → `_sync_koc_performance()` recalculates performance_score via log-scale normalization
     - **Tracking hook** (1): daily carrier query → auto-receive on delivery confirmation
+    - **Scraper hook** (1): hourly check → submitted slots ≥24h → Apify auto-scrape → write content_data directly (no self-reporting; author mismatch → trust -30; 1 retry on failure → 2nd fail = penalty)
 
 14. **Red Line Warning System** (V2.2): SLA deadlines are surfaced to users at 3 touchpoints:
     - **Before action**: `CommitmentConfirm` modal with mandatory checkbox listing commitments, pledge rules, and penalty red lines
@@ -448,13 +450,17 @@ koc-engine/
 
 | Constant | Value | Description |
 |------|:--:|------|
-| KOC Registration Initial | 1000pt (bonus) | Granted on registration, non-withdrawable |
-| Merchant Registration Initial | 5000pt (bonus) | Granted on registration, non-withdrawable |
+| KOC Registration Initial | 200pt (bonus) | Granted on registration, non-withdrawable |
+| Merchant Registration Initial | 100pt (bonus) | Granted on registration, non-withdrawable |
 | Platform Service Fee | 5pt | Deducted from merchant per task publish (non-refundable) |
-| KOC Platform Fee | 1pt | Deducted from KOC pledge per slot completion |
-| KOC Fixed Pledge | 10pt | KOC pays on accept, 9pt returned on completion |
-| Commission Pool | commission × koc_required | Merchant pre-pays at publish, non-refundable, paid to KOCs |
-| Referral Reward | 10pt | Referrer receives (withdrawable) |
+| KOC Platform Fee Rate | 10% | Platform commission on KOC earnings (min 1pt) |
+| KOC Fixed Pledge | 10pt | Commission mode: KOC pays on accept, returned on completion |
+| KOC Sample Pledge | 5pt | Sample mode: KOC pays on accept, returned on completion |
+| Commission Range | 20-50pt | Merchant sets per-KOC commission |
+| Commission Pool | commission × koc_required | Merchant pre-pays at publish, non-refundable |
+| KOC Withdrawal Daily Max | 500pt | Per-KOC daily withdrawal cap |
+| KOC Withdrawal Min | 3 completed + 100pt balance | Threshold to request withdrawal |
+| Content Scrape Delay | 24h | Wait before Apify scrapes KOC content for verification |
 | PT to USD | 1pt = $1 | Exchange rate for withdrawal |
 
 ## Important Notes
