@@ -26,7 +26,7 @@ const pageFaqs = [
   {
     question: "Is KOC Engine cheaper than Upfluence?",
     answer:
-      "Yes, significantly. KOC Engine charges a flat 5pt ($5) platform fee per task publish + 1pt ($1) KOC platform fee per completed slot. Upfluence uses custom pricing that typically starts in the mid-hundreds to thousands per month. KOC Engine has no monthly subscription — you only pay when you run a campaign.",
+      "Yes, significantly. KOC Engine charges a flat 5pt ($5) platform fee per task publish + 10% of commission (min 1pt) KOC platform fee per completed slot. Upfluence uses custom pricing that typically starts in the mid-hundreds to thousands per month. KOC Engine has no monthly subscription — you only pay when you run a campaign.",
   },
   {
     question: "Does Upfluence have escrow protection like KOC Engine?",

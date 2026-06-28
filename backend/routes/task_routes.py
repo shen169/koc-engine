@@ -1080,7 +1080,7 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
             if koc_prof and koc_prof.email:
                 koc_usr = user_store.get_by_email(koc_prof.email)
                 if koc_usr:
-                    total_earned = koc_commission + KOC_FIXED_PLEDGE
+                    total_earned = koc_commission + pledge_return
                     notify_user(
                         koc_usr.id,
                         NotifType.CONTENT_APPROVED,
@@ -1191,13 +1191,13 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                 _sync_task_status(task_id)
 
                 # ── 通知 KOC：AI 推翻商家拒因，内容通过 ──
-                total_earned = koc_commission + KOC_FIXED_PLEDGE
+                total_earned = koc_commission + pledge_return
                 if koc_uid:
                     notify_user(
                         koc_uid,
                         NotifType.CONTENT_AI_OVERRULE,
                         "AI Overruled — Content Approved",
-                        f"{task.product_name}: AI overruled the merchant's rejection. +{koc_commission}pt withdrawable + {KOC_FIXED_PLEDGE}pt pledge returned. Reason: {judge_result['reason']}",
+                        f"{task.product_name}: AI overruled the merchant's rejection. +{koc_commission}pt withdrawable + {pledge_return}pt pledge returned. Reason: {judge_result['reason']}",
                         task_id=task_id,
                         resource_path=f"/portal/tasks/{task_id}",
                     )
@@ -1238,8 +1238,8 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                                          task_id, f"Commission returned (KOC rejected by AI): {task.product_name}",
                                          withdrawable=False)
 
-                # KOC 质押 10pt 不退 → 全部给平台
-                credit_store.add_credits("platform", KOC_FIXED_PLEDGE, "forfeited_pledge",
+                # KOC 质押不退 → 全部给平台（佣金模式 10pt / 寄样模式 5pt）
+                credit_store.add_credits("platform", task.pledge_koc, "forfeited_pledge",
                                          task_id, f"KOC forfeited pledge: {task.product_name}")
 
                 if koc_id:

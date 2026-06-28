@@ -108,7 +108,7 @@ export default function ChineseCrossBorderPage() {
             <p>KOC Engine's <strong>pledge model</strong> flips this:</p>
             <ul>
               <li>Creator deposits <strong>10pt ($10) pledge</strong> before receiving your product</li>
-              <li>Creator receives <strong>commission + 9pt</strong> only after you approve their content</li>
+              <li>Creator receives <strong>90% commission (withdrawable) + 10pt pledge returned</strong> only after you approve their content</li>
               <li>If they ghost: <strong>forfeit 10pt + Trust Score −15</strong></li>
               <li>If they deliver low-quality content: <strong>merchant can request revision (max 3 times)</strong></li>
               <li>If dispute is unresolvable: <strong>AI (DeepSeek v4) makes final binding judgment</strong></li>

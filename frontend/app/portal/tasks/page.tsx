@@ -47,8 +47,11 @@ export default function KocMyTasksPage() {
     shipped: { label: "Awaiting Receipt", color: "bg-purple-100 text-purple-700" },
     received: { label: "Awaiting Content", color: "bg-indigo-100 text-indigo-700" },
     creating: { label: "Creating", color: "bg-orange-100 text-orange-700" },
-    submitted: { label: "Completed", color: "bg-green-100 text-green-700" },
-    completed: { label: "Completed", color: "bg-green-100 text-green-700" },
+    submitted: { label: "Pending Review", color: "bg-blue-100 text-blue-700" },
+    revision_requested: { label: "Revision Required", color: "bg-orange-100 text-orange-700" },
+    approved: { label: "Approved", color: "bg-green-100 text-green-700" },
+    completed: { label: "Completed", color: "bg-emerald-100 text-emerald-700" },
+    timed_out: { label: "Timed Out", color: "bg-red-100 text-red-700" },
   };
 
   return (

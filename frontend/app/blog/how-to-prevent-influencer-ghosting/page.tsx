@@ -82,9 +82,9 @@ export default function PreventGhostingPage() {
             <p><strong>KOC Engine's implementation:</strong></p>
             <ul>
               <li>KOC deposits <strong>10pt ($10) fixed pledge</strong> on task acceptance</li>
-              <li>On completion: receives <strong>commission + 9pt</strong> (1pt platform fee deducted)</li>
+              <li>On completion: receives <strong>90% commission (withdrawable) + 10pt pledge returned</strong> (platform takes 10% of commission, min 1pt)</li>
               <li>On ghosting: forfeits entire 10pt pledge + Trust Score −15</li>
-              <li>On merchant breach: KOC gets full 10pt pledge back + commission pool returned</li>
+              <li>On merchant breach: KOC gets full 10pt pledge back, commission pool refunded to brand as bonus</li>
             </ul>
             <p>This makes ghosting <strong>economically irrational</strong>. A creator who ghosts loses $10 and damages their reputation. A creator who delivers gains $50+ in commission. The incentive structure is clear.</p>
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 not-prose">

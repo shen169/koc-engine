@@ -266,11 +266,14 @@ export default function KocTaskDetailPage() {
 
   // ── Dynamic pledge amounts (sample=5pt, commission=10pt) ──
   const pledgeAmt = task?.pledge_koc || 10;
+  const commission = task?.commission || 0;
   const isSample = task?.task_mode === "sample";
-  const returnAmt = isSample ? pledgeAmt : pledgeAmt - 1;  // sample: full return, commission: minus 1pt platform fee
+  const platformFee = isSample ? 0 : Math.max(1, Math.floor(commission * 0.10)); // 10% of commission, min 1pt
+  const kocNetCommission = commission - platformFee;  // what KOC actually earns after fee
+  const totalReturn = pledgeAmt + kocNetCommission;   // pledge returned in full + net commission
   const returnNote = isSample
-    ? `${returnAmt}pt pledge returned in full (sample mode)`
-    : `${returnAmt}pt returned on completion (platform deducts 1pt service fee)`;
+    ? `${pledgeAmt}pt pledge returned in full (sample mode)`
+    : `${pledgeAmt}pt pledge returned in full + ${commission}pt commission − ${platformFee}pt fee (10% of commission, min 1pt) = ${totalReturn}pt total`;
 
   const slotStatus = mySlot?.status || "unknown";
   const isAssignedToMe = slotStatus === "assigned";
@@ -278,7 +281,7 @@ export default function KocTaskDetailPage() {
   const canReceive = slotStatus === "shipped";
   const canSubmit = slotStatus === "received" || slotStatus === "creating" || slotStatus === "revision_requested";
   const canUpdateMetrics = slotStatus === "submitted" || slotStatus === "approved" || slotStatus === "completed";
-  const isActive = !["submitted", "approved", "completed"].includes(slotStatus);
+  const isActive = !["submitted", "approved", "completed", "timed_out"].includes(slotStatus);
 
   // Find first available empty slot (KOC can accept)
   const allSlots = (task.koc_slots || []) as any[];
@@ -355,8 +358,12 @@ export default function KocTaskDetailPage() {
               <div className="font-bold text-gray-900">${task.commission || 0}</div>
             </div>
             <div className="bg-gray-50 rounded-xl p-3">
-              <div className="text-gray-400 text-xs">Pledge (9 pt + commission returned on completion)</div>
+              <div className="text-gray-400 text-xs">Pledge (returned in full on completion)</div>
               <div className="font-bold text-gray-900">{task.pledge_koc || 0} pt</div>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3">
+              <div className="text-gray-400 text-xs">Platform Fee (10% of commission, min 1pt)</div>
+              <div className="font-bold text-gray-900">{isSample ? "N/A (sample)" : `${platformFee} pt`}</div>
             </div>
             <div className="bg-gray-50 rounded-xl p-3">
               <div className="text-gray-400 text-xs">Acceptance Deadline</div>
@@ -489,7 +496,7 @@ export default function KocTaskDetailPage() {
                   pledge={[
                     { icon: "🔒", text: `Accepting freezes ${pledgeAmt} pt pledge` },
                     { icon: "💵", text: returnNote },
-                    { icon: "💰", text: `Commission (${task?.commission || 0} pt) paid in platform points on approval` },
+                    { icon: "💰", text: `Commission: ${commission} pt − ${platformFee} pt fee = ${kocNetCommission} pt net (withdrawable) on approval` },
                   ]}
                   redlines={[
                     { icon: "⏰", text: `No submission in 14 days: forfeit ${pledgeAmt}pt pledge + deduct 15 Trust Score + possible tier downgrade` },
@@ -544,7 +551,7 @@ export default function KocTaskDetailPage() {
                       pledge={[
                         { icon: "🔒", text: `Accepting freezes ${pledgeAmt} pt pledge` },
                         { icon: "💵", text: returnNote },
-                        { icon: "💰", text: `Commission (${task?.commission || 0} pt) paid in platform points on approval` },
+                        { icon: "💰", text: `Commission: ${commission} pt − ${platformFee} pt fee = ${kocNetCommission} pt net (withdrawable) on approval` },
                       ]}
                       redlines={[
                         { icon: "⏰", text: `No submission in 14 days: forfeit ${pledgeAmt}pt pledge + deduct 15 Trust Score + possible tier downgrade` },
@@ -635,8 +642,8 @@ export default function KocTaskDetailPage() {
                 </button>
                 <p className="text-xs text-gray-400 text-center">
                   {isSample
-                    ? `Sample mode: ${returnAmt}pt pledge returned in full on approval`
-                    : `Commission (${task?.commission || 0} pt) + ${returnAmt} pt returned on approval (pledge ${pledgeAmt} pt − 1 pt platform fee)`}
+                    ? `Sample mode: ${pledgeAmt}pt pledge returned in full on approval`
+                    : `${pledgeAmt}pt pledge returned in full + ${kocNetCommission}pt net commission on approval (${commission}pt − ${platformFee}pt platform fee)`}
                 </p>
               </div>
             )}
@@ -740,7 +747,7 @@ export default function KocTaskDetailPage() {
             <div className="mt-4 space-y-2 text-left max-w-xs mx-auto">
               <div className="flex items-center gap-2 text-sm text-red-600">
                 <span>💸</span>
-                <span>{task?.pledge_koc || 0}pt pledge returned to merchant</span>
+                <span>{task?.pledge_koc || 0}pt pledge forfeited to platform</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-red-600">
                 <span>📉</span>

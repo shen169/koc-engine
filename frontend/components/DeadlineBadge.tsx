@@ -15,6 +15,9 @@ type Urgency = "normal" | "warning" | "urgent" | "expired";
 function calcUrgency(deadline: string): { urgency: Urgency; hoursLeft: number; daysLeft: number; text: string } {
   const now = Date.now();
   const deadlineMs = new Date(deadline).getTime();
+  if (isNaN(deadlineMs)) {
+    return { urgency: "normal", hoursLeft: 0, daysLeft: 0, text: "No deadline set" };
+  }
   const diffMs = deadlineMs - now;
   const hoursLeft = diffMs / (1000 * 60 * 60);
   const daysLeft = hoursLeft / 24;

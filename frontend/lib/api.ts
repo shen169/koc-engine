@@ -19,11 +19,16 @@ export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Pro
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (e: any) {
+    throw new Error(`Network error: unable to reach server. Please check your connection.`);
+  }
 
   const text = await res.text();
   let data: unknown = null;
@@ -36,7 +41,14 @@ export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Pro
   }
   if (!res.ok) {
     const detail = data && typeof data === "object" && "detail" in data
-      ? String((data as { detail?: unknown }).detail)
+      ? (() => {
+          const d = (data as { detail?: unknown }).detail;
+          if (typeof d === "string") return d;
+          if (d && typeof d === "object" && "message" in (d as Record<string, unknown>))
+            return String((d as Record<string, unknown>).message);
+          if (d) return String(d);
+          return "";
+        })()
       : "";
     throw new Error(detail || `API error: ${res.status}`);
   }

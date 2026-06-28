@@ -28,12 +28,12 @@ const homeFaqs = [
   {
     question: "How much can creators earn from KOC brand collaborations?",
     answer:
-      "Creators earn commission paid in platform points — brands set per-KOC commission when publishing tasks (e.g. 30pt = $30). KOC pays a small 10pt pledge refunded on completion (minus 1pt platform fee). Earned points are withdrawable at 1pt = $1 USD. Top performers (L3 tier) get priority matching.",
+      "Creators earn commission paid in platform points — brands set per-KOC commission when publishing tasks (e.g. 30pt = $30). KOC pays a small 10pt pledge fully refunded on completion. Platform takes 10% of commission (min 1pt) as service fee. Earned points are withdrawable at 1pt = $1 USD. Top performers (L3 tier) get priority matching.",
   },
   {
     question: "How to prevent creators from taking free samples without posting content?",
     answer:
-      "KOC Engine uses a deposit + commission pool system. Brands pre-pay the commission pool (non-refundable), KOCs deposit a fixed 10pt pledge. KOC's pledge (9pt) + commission are released after content approval. AI judges disputes if brands reject twice. If KOC fails to submit, commission is returned to brand and KOC forfeits pledge.",
+      "KOC Engine uses a deposit + commission pool system. Brands pre-pay the commission pool (non-refundable), KOCs deposit a fixed 10pt pledge. Pledge (10pt) is fully returned + 90% of commission is released after content approval (platform takes 10%, min 1pt). AI judges disputes if brands reject twice. If KOC fails to submit, commission is returned to brand and KOC forfeits pledge.",
   },
   {
     question: "What is the best platform for cross-border KOC influencer marketing?",

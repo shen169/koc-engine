@@ -69,7 +69,7 @@ Your creator application has been approved! You are now a **{tier}** creator.
 • 1,000 bonus points credited (use as task pledge)
 • Browse the Task Hall for brand collaboration opportunities
 • Earn commission in platform points: 1pt = $1 USD
-• Commission + 9pt pledge returned on content approval
+• 90% commission (withdrawable) + full pledge returned on content approval
 
 **Next Steps:**
 1. Log in at https://kocengine.com/portal
@@ -95,7 +95,7 @@ You've been matched with **{company_name}** for **{product_name}**.
 • You'll receive a tracking number once shipped
 • After receiving, create content and submit it via your portal
 • The brand reviews your content within 3 days
-• Once approved: you earn your commission + 9pt pledge return
+• Once approved: you earn 90% commission (withdrawable) + full pledge return (bonus)
 
 View details: https://kocengine.com/portal/tasks
 
@@ -132,7 +132,7 @@ def send_review_email(koc_email: str, koc_name: str, product_name: str, decision
 
 Your content for **{product_name}** has been approved!
 
-• Your commission + 9pt pledge return have been credited to your account
+• Your commission (minus 10% platform fee, min 1pt) + full pledge return have been credited to your account
 • Trust Score +3
 • Points are withdrawable at 1pt = $1 USD
 

@@ -107,7 +107,7 @@ export default function RulesPage() {
               { stage: "Brand Ship Product", time: "48 hours", penalty: "Brand violation: KOC pledge refunded in full (10pt). Brand Trust -20.", color: "amber" },
               { stage: "KOC Confirm Receipt", time: "7 days", penalty: "Auto-confirmed by system. No penalty.", color: "gray" },
               { stage: "KOC Submit Content", time: "14 days", penalty: "KOC violation: commission returned to brand. KOC forfeits 10pt pledge. Trust -15.", color: "red" },
-              { stage: "Brand Review Content", time: "3 days", penalty: "Auto-approved by system. KOC gets commission + 9pt. Both sides Trust +3.", color: "amber" },
+              { stage: "Brand Review Content", time: "3 days", penalty: "Auto-approved by system. KOC gets 90% commission (withdrawable) + 10pt pledge returned. Both sides Trust +3.", color: "amber" },
               { stage: "KOC Revise & Resubmit", time: "3 days", penalty: "KOC violation: same as submit timeout. Commission returned to brand.", color: "red" },
               { stage: "Long-term Empty Slot", time: "7 days", penalty: "System auto-matches a KOC to fill the slot.", color: "gray" },
             ].map((item, i) => (
@@ -132,7 +132,7 @@ export default function RulesPage() {
           <div className="bg-gray-50 rounded-xl p-5 font-mono text-sm text-gray-700 space-y-2">
             <div>KOC submits content (links + performance data)</div>
             <div className="pl-4 border-l-2 border-green-400">
-              <span className="text-green-600 font-semibold">→ Brand approves</span> — KOC gets commission + 9pt. Done. ✅
+              <span className="text-green-600 font-semibold">→ Brand approves</span> — KOC gets 90% commission (withdrawable) + 10pt pledge returned. Done. ✅
             </div>
             <div className="pl-4 border-l-2 border-orange-400">
               <span className="text-orange-600 font-semibold">→ Brand rejects</span> (must provide reason)

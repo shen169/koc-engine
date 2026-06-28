@@ -21,10 +21,12 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   shipped: { label: "Shipped", color: "bg-purple-100 text-purple-700" },
   received: { label: "Received", color: "bg-indigo-100 text-indigo-700" },
   creating: { label: "Creating", color: "bg-yellow-100 text-yellow-700" },
-  submitted: { label: "Submitted", color: "bg-green-100 text-green-700" },
+  submitted: { label: "Pending Review", color: "bg-blue-100 text-blue-700" },
+  revision_requested: { label: "Revision Required", color: "bg-orange-100 text-orange-600" },
+  approved: { label: "Approved", color: "bg-green-100 text-green-700" },
   completed: { label: "Completed", color: "bg-emerald-100 text-emerald-700" },
   rejected: { label: "Rejected", color: "bg-red-100 text-red-600" },
-  timed_out: { label: "Timed Out", color: "bg-orange-100 text-orange-600" },
+  timed_out: { label: "Timed Out", color: "bg-red-100 text-red-700" },
 };
 
 function getSlotDeadline(slot: SlotStatus, pledgeKoc: number = 10): { deadline: string; label: string; penalty: string } | null {
@@ -85,7 +87,7 @@ function getSlotDeadline(slot: SlotStatus, pledgeKoc: number = 10): { deadline: 
 
 export default function TaskProgress({ slots, pledgeKoc = 10 }: { slots: SlotStatus[]; pledgeKoc?: number }) {
   const total = slots.length;
-  const done = slots.filter((s) => s.status === "completed" || s.status === "submitted").length;
+  const done = slots.filter((s) => s.status === "completed" || s.status === "approved").length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
   return (

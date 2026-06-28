@@ -20,6 +20,10 @@
 # OS
 .DS_Store
 
+# Secrets (mounted as volume at runtime, never baked into image)
+**/.env
+!.env.example
+
 # Runtime data (mounted as volume)
 output/
 

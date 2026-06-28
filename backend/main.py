@@ -55,13 +55,13 @@ async def startup():
 
 
 async def _cron_loop():
-    """后台每小时跑一次超时扫描"""
-    from services.cron import run_weekly_scan
+    """后台每小时跑一次超时扫描（同步 I/O，单 worker 下可接受）"""
+    from services.cron import run_weekly_scan  # 名含 "weekly" 但实际每小时运行
     while True:
         await asyncio.sleep(3600)  # 每小时
         try:
             result = run_weekly_scan()
-            if any(v for k, v in result.items() if k != "trust_threshold_alerts" and v):
+            if any(v for k, v in result.items() if v):
                 print(f"[cron] Scan: { {k: v for k, v in result.items() if v} }")
         except Exception as e:
             print(f"[cron] Error: {e}")

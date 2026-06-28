@@ -110,7 +110,7 @@ export default function AmazonAlternativesPage() {
           <section>
             <h2 className="text-2xl font-extrabold text-zinc-900">1. KOC Engine — Built for Cross-Border, Escrow-First</h2>
             <p>KOC Engine is the only platform on this list with <strong>built-in dual-pledge escrow</strong>. Brands pre-pay the commission pool (non-refundable, goes to KOCs). KOCs deposit 10pt per accepted slot. Neither side can walk away without financial consequence.</p>
-            <p><strong>Key features:</strong> AI matching (7 dimensions including regional market match), task hall for KOC discovery, multi-carrier tracking (FedEx/DHL/USPS/SF-Express), real-time performance dashboard, and trust tiers (L1-L3 for KOCs, M1-M3 for merchants). Platform fee: 5pt per task publish. KOC fee: 1pt per completed slot. 1pt = $1 USD.</p>
+            <p><strong>Key features:</strong> AI matching (7 dimensions including regional market match), task hall for KOC discovery, multi-carrier tracking (FedEx/DHL/USPS/SF-Express), real-time performance dashboard, and trust tiers (L1-L3 for KOCs, M1-M3 for merchants). Platform fee: 5pt per task publish. KOC fee: 10% of commission (min 1pt) per completed slot. 1pt = $1 USD.</p>
             <p className="text-sm text-zinc-400">KOC Engine is new to market (2026) and does not yet have G2 reviews — its strength is purpose-built cross-border features, not enterprise maturity.</p>
           </section>
 

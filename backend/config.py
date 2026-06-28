@@ -50,7 +50,7 @@ KOC_PLATFORM_FEE_MIN = 1          # 平台抽成最低 1pt
 KOC_FIXED_PLEDGE = 10             # KOC 接单固定质押点（不退则没收，完成全额退还 bonus）
 KOC_PLEDGE_SAMPLE = 5             # KOC 寄样模式质押点（无佣金，只拿免费产品）
 PT_TO_USD = 1.0                   # 点数兑美金汇率：1pt = $1 USD
-PLEDGE_PER_SLOT = 10              # 双方每 slot 质押点数（默认最小值）
+# PLEDGE_PER_SLOT = 10            # 已废弃 — 各模式使用 KOC_FIXED_PLEDGE / KOC_PLEDGE_SAMPLE
 
 # Anti-fraud
 KOC_REGISTRATION_IP_LIMIT = 2              # 同 IP 最多注册 KOC 数（7 天内）
