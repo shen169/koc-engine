@@ -39,18 +39,21 @@ export default function AdminCreditsPage() {
 
   async function loadData(token: string) {
     try {
-      const [userList, txHistory] = await Promise.all([
-        admin.users(token),
-        credits.history(token),
-      ]);
+      // Load users first — this is critical
+      const userList = await admin.users(token);
       setUsers(Array.isArray(userList) ? userList : []);
-      setHistory(Array.isArray(txHistory) ? txHistory : []);
-      loadWithdrawals(token);
     } catch (e) {
-      console.error("Failed to load data:", e);
-    } finally {
-      setLoading(false);
+      console.error("Failed to load users:", e);
     }
+    // Load history separately — don't let it block users
+    try {
+      const txHistory = await credits.history(token);
+      setHistory(Array.isArray(txHistory) ? txHistory : []);
+    } catch (e) {
+      console.error("Failed to load history:", e);
+    }
+    loadWithdrawals(token);
+    setLoading(false);
   }
 
   async function handleRecharge(e: React.FormEvent) {

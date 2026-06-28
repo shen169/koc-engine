@@ -79,7 +79,10 @@ def list_all_users(current_user: dict = Depends(require_admin)):
     users = user_store.list_all()
     result = []
     for u in users:
-        balance = credit_store.get_balance(u.id)
+        try:
+            balance = credit_store.get_balance(u.id)
+        except Exception:
+            balance = {"total": 0, "withdrawable": 0, "bonus": 0}
         result.append({
             "id": u.id,
             "email": u.email,
