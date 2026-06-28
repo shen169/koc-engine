@@ -382,7 +382,6 @@ export default function PortalDashboard() {
             { href: "/portal/products", label: "🛍 Browse Products", desc: "Find products to promote" },
             { href: "/portal/tasks", label: "📋 My Tasks", desc: `${taskList.length}/5 active` },
             { href: "/portal/credits", label: "💰 Credits", desc: `${balance} points` },
-            { href: "/portal/coupons", label: "🏷 Coupons", desc: "Your discount codes" },
           ].map((item) => (
             <Link key={item.href} href={item.href} className="bg-white rounded-2xl p-5 border border-rose-100 shadow-sm hover:border-pink-200 transition">
               <div className="font-bold text-zinc-900 mb-1">{item.label}</div>

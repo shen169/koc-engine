@@ -8,7 +8,7 @@ from stores.application_store import application_store
 from stores.product_store import product_store
 from stores.task_store import task_store
 from stores.interest_store import interest_store
-from stores.coupon_store import coupon_store
+
 from stores.credit_store import credit_store
 from stores.user_store import user_store
 from stores.report_store import report_store
@@ -53,9 +53,6 @@ def admin_stats(current_user: dict = Depends(require_admin)):
         "interests": {
             "total": len(all_interests),
             "mutual_matches": len(mutual),
-        },
-        "coupons": {
-            "total": len(coupon_store.list_all()),
         },
     }
 

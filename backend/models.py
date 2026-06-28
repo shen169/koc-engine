@@ -60,7 +60,6 @@ class KocProfile(BaseModel):
     source_video_url: str = ""
     status: str = "Applied"  # 统一状态机
     trust_score: int = 100
-    coupon_code: str = ""
     is_blacklisted: bool = False
     avg_rating: float = 0.0
     total_collaborations: int = 0
@@ -238,26 +237,8 @@ class WithdrawalRequest(BaseModel):
 # 折扣码
 # ═══════════════════════════════════════════
 
-class CouponCode(BaseModel):
-    id: str = Field(default_factory=_uid)
-    koc_id: str
-    code: str  # 如 JOJO20
-    product_asin: str = ""
-    discount_percent: int = 15
-    usage_count: int = 0
-    total_revenue: float = 0.0
-    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
-
-
-class CouponOrder(BaseModel):
-    order_id: str
-    coupon_id: str
-    amount: float
-    date: str
-
-
 # ═══════════════════════════════════════════
-# 双向互评（新增）
+# 双向互评
 # ═══════════════════════════════════════════
 
 class Review(BaseModel):
