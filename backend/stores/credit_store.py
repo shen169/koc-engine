@@ -70,7 +70,10 @@ class CreditStore:
         if not os.path.exists(CREDITS_FILE):
             return []
         with open(CREDITS_FILE, "r") as f:
-            return json.load(f)
+            data = json.load(f)
+        if not isinstance(data, list):
+            return []
+        return data
 
     def _save_transactions(self, data: list):
         with open(CREDITS_FILE, "w") as f:
