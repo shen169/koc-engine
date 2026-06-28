@@ -300,7 +300,7 @@ export default function AdminCreditsPage() {
                         {w.status === "pending" && (
                           <div className="flex gap-2">
                             <button
-                              onClick={() => handleProcess(w.id, "approved")}
+                              onClick={() => handleProcess(w.id, "paid")}
                               className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-600 transition"
                             >
                               Approve
