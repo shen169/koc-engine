@@ -3,94 +3,109 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { tasks, auth, getToken, clearToken } from "@/lib/api";
+import { tasks, api, auth, getToken, clearToken } from "@/lib/api";
 import Spark from "@/components/Spark";
+
+const STATUS_COLORS: Record<string, string> = {
+  open: "bg-blue-50 text-blue-700",
+  in_progress: "bg-amber-50 text-amber-700",
+  completed: "bg-emerald-50 text-emerald-700",
+  disputed: "bg-red-50 text-red-700",
+  cancelled: "bg-zinc-100 text-zinc-500",
+};
+const TYPE_COLORS: Record<string, string> = {
+  urgent: "bg-red-50 text-red-700",
+  long_term: "bg-purple-50 text-purple-700",
+};
+
+function slotSummary(slots: Array<Record<string, unknown>> | undefined): string {
+  if (!slots || slots.length === 0) return "0 slots";
+  const total = slots.length;
+  const filled = slots.filter((s) => s.koc_id).length;
+  const completed = slots.filter(
+    (s) => s.status === "completed" || s.status === "approved"
+  ).length;
+  return `${filled}/${total} filled · ${completed} done`;
+}
 
 export default function AdminTasks() {
   const router = useRouter();
   const [list, setList] = useState<Array<Record<string, unknown>>>([]);
-  const [showNew, setShowNew] = useState(false);
-  const [newTask, setNewTask] = useState({ koc_id: "", product_name: "", product_id: "", credits_reward: 30, due_at: "" });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
     auth.me(token).then((u) => {
       if (u.role !== "admin") { router.push("/dashboard"); return; }
-      tasks.list(token).then(setList).catch(() => {});
+      tasks.list(token).then(setList).catch(() => {}).finally(() => setLoading(false));
     }).catch(() => { clearToken(); router.push("/login"); });
   }, [router]);
 
-  async function createTask() {
-    const token = getToken();
-    if (!token) return;
-    await tasks.create(newTask, token);
-    setShowNew(false);
-    tasks.list(token).then(setList).catch(() => {});
-  }
-
-  async function confirmTask(taskId: string) {
-    const token = getToken();
-    if (!token) return;
-    await tasks.confirm(taskId, token);
-    tasks.list(token).then(setList).catch(() => {});
-  }
-
   return (
-    <div className="min-h-screen bg-slate-50">
-      <nav className="bg-white border-b px-6 py-3 flex justify-between items-center">
-        <div className="flex gap-4 items-center">
-          <Link href="/admin" className="text-indigo-600 text-sm hover:underline">&larr; Admin</Link>
-          <h1 className="font-bold text-slate-900">Task Management</h1>
-        </div>
-        <button onClick={() => setShowNew(!showNew)} className="px-3 py-1.5 bg-indigo-600 text-white rounded text-sm">
-          + New Task
-        </button>
+    <div className="min-h-screen bg-zinc-50">
+      <nav className="bg-white border-b border-zinc-100 h-14 flex items-center px-6 shadow-sm gap-4">
+        <Link href="/admin" className="text-pink-500 text-sm font-semibold hover:underline">&larr; Admin</Link>
+        <h1 className="font-extrabold text-zinc-900">Tasks ({list.length})</h1>
+        <span className="ml-auto text-xs text-zinc-400">
+          All tasks published by merchants — click for detail
+        </span>
       </nav>
 
-      <div className="max-w-4xl mx-auto p-6">
-        {list.length === 0 && !showNew ? (
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        {loading ? (
+          <div className="text-center py-12">
+            <Spark size={32} className="mx-auto opacity-30" />
+          </div>
+        ) : list.length === 0 ? (
           <div className="text-center py-12">
             <Spark size={32} className="mx-auto opacity-30" />
             <p className="text-zinc-400 text-sm mt-2">No tasks yet. Tasks will appear here once merchants publish them.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-100 p-5 mb-6">
-            <h3 className="font-semibold mb-3">Create Task</h3>
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <input placeholder="KOC ID" value={newTask.koc_id} onChange={(e) => setNewTask({...newTask, koc_id: e.target.value})}
-                className="px-3 py-2 border rounded-lg text-sm" />
-              <input placeholder="Product Name" value={newTask.product_name} onChange={(e) => setNewTask({...newTask, product_name: e.target.value})}
-                className="px-3 py-2 border rounded-lg text-sm" />
-              <input placeholder="Product ID" value={newTask.product_id} onChange={(e) => setNewTask({...newTask, product_id: e.target.value})}
-                className="px-3 py-2 border rounded-lg text-sm" />
-              <input type="number" placeholder="Credits Reward" value={newTask.credits_reward} onChange={(e) => setNewTask({...newTask, credits_reward: parseInt(e.target.value)})}
-                className="px-3 py-2 border rounded-lg text-sm" />
-            </div>
-            <button onClick={createTask} className="px-4 py-2 bg-indigo-600 text-white rounded text-sm">Create</button>
+          <div className="space-y-2">
+            {list.map((t) => {
+              const slots = t.koc_slots as Array<Record<string, unknown>> | undefined;
+              return (
+                <Link
+                  key={t.id as string}
+                  href={`/admin/tasks/${t.id}`}
+                  className="bg-white rounded-xl border border-zinc-100 p-4 flex justify-between items-center hover:shadow-md transition"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-zinc-900 truncate">
+                        {t.product_name as string || "Task"}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${TYPE_COLORS[t.task_type as string] || "bg-zinc-50 text-zinc-600"}`}>
+                        {t.task_type as string || "—"}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${STATUS_COLORS[t.task_status as string] || "bg-zinc-50 text-zinc-600"}`}>
+                        {t.task_status as string || "—"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-zinc-400 mt-1">
+                      <span>{slotSummary(slots)}</span>
+                      <span className="mx-2">·</span>
+                      <span>Commission: {t.commission as number || 0}pt</span>
+                      {t.task_type === "urgent" && (
+                        <>
+                          <span className="mx-2">·</span>
+                          <span>Auto-match</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right ml-4">
+                    <span className="text-xs text-zinc-400">
+                      ID: {(t.id as string)?.slice(0, 8)}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
-
-        <div className="space-y-3">
-          {list.map((t) => (
-            <Link key={t.id as string} href={`/admin/tasks/${t.id}`} className="bg-white rounded-xl border border-slate-100 p-4 flex justify-between items-center hover:shadow-md transition block">
-              <div>
-                <span className="font-semibold text-slate-900">{t.product_name as string || "Task"}</span>
-                <div className="text-xs text-slate-400">{t.koc_id as string} · {t.sample_status as string} · {t.submit_url ? "✓ Submitted" : "No submission"}</div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`px-2 py-0.5 rounded-full text-xs ${t.delivered ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
-                  {t.delivered ? "Delivered" : "Pending"}
-                </span>
-                {!t.delivered && (t.submit_url as string) && (
-                  <button onClick={() => confirmTask(t.id as string)} className="px-3 py-1 bg-green-600 text-white rounded text-xs">
-                    Confirm Delivery
-                  </button>
-                )}
-              </div>
-            </Link>
-         ))}
-        </div>
       </div>
     </div>
   );

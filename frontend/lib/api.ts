@@ -194,11 +194,6 @@ export const tasks = {
   delete: (taskId: string, token: string) =>
     api<Record<string, unknown>>(`/api/tasks/${taskId}`, { method: "DELETE", token }),
 
-  // Deprecated compat
-  submitLegacy: (id: string, submitUrl: string, token: string) =>
-    api(`/api/tasks/${id}/submit`, { method: "PUT", body: { submit_url: submitUrl }, token }),
-  confirm: (id: string, token: string) =>
-    api(`/api/tasks/${id}/confirm`, { method: "PUT", token }),
 };
 
 // Credits
