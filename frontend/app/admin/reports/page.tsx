@@ -1,18 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, getToken } from "@/lib/api";
+import { api, auth, getToken, clearToken } from "@/lib/api";
 import Spark from "@/components/Spark";
 
 export default function AdminReports() {
+  const router = useRouter();
   const [reports, setReports] = useState<Array<Record<string, unknown>>>([]);
   const [filter, setFilter] = useState("pending");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadReports();
-  }, [filter]);
+    const token = getToken();
+    if (!token) { router.push("/login"); return; }
+    auth.me(token).then((u) => {
+      if (u.role !== "admin") { router.push("/dashboard"); return; }
+      loadReports();
+    }).catch(() => { clearToken(); router.push("/login"); });
+  }, [filter, router]);
 
   async function loadReports() {
     const token = getToken();

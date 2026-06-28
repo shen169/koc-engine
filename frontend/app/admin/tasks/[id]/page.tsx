@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Spark from "@/components/Spark";
-import { api, getToken } from "@/lib/api";
+import { api, auth, getToken, clearToken } from "@/lib/api";
 
 type KocSlot = Record<string, unknown>;
 
 export default function AdminTaskDetail() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [task, setTask] = useState<Record<string, unknown> | null>(null);
   const [product, setProduct] = useState<Record<string, unknown> | null>(null);
   const [merchant, setMerchant] = useState<Record<string, unknown> | null>(null);
@@ -17,14 +18,17 @@ export default function AdminTaskDetail() {
 
   useEffect(() => {
     const token = getToken();
-    if (!token || !id) return;
-    api<Record<string, unknown>>(`/api/tasks/${id}`, { token })
-      .then((data) => {
-        setTask((data.task as Record<string, unknown>) || data);
-        setProduct((data.product as Record<string, unknown>) || null);
-        setMerchant((data.merchant as Record<string, unknown>) || null);
-      }).catch(() => setError("Failed to load task"));
-  }, [id]);
+    if (!token || !id) { router.push("/login"); return; }
+    auth.me(token).then((u) => {
+      if (u.role !== "admin") { router.push("/dashboard"); return; }
+      api<Record<string, unknown>>(`/api/tasks/${id}`, { token })
+        .then((data) => {
+          setTask((data.task as Record<string, unknown>) || data);
+          setProduct((data.product as Record<string, unknown>) || null);
+          setMerchant((data.merchant as Record<string, unknown>) || null);
+        }).catch(() => setError("Failed to load task"));
+    }).catch(() => { clearToken(); router.push("/login"); });
+  }, [router, id]);
 
   if (error) {
     return (

@@ -1,22 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, getToken } from "@/lib/api";
+import { api, auth, getToken, clearToken } from "@/lib/api";
 import Spark from "@/components/Spark";
 
 export default function AdminBlacklist() {
+  const router = useRouter();
   const [entries, setEntries] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = getToken();
-    if (!token) return;
-    api<Array<Record<string, unknown>>>("/api/blacklist", { token })
-      .then((data) => setEntries(Array.isArray(data) ? data : []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    if (!token) { router.push("/login"); return; }
+    auth.me(token).then((u) => {
+      if (u.role !== "admin") { router.push("/dashboard"); return; }
+      api<Array<Record<string, unknown>>>("/api/blacklist", { token })
+        .then((data) => setEntries(Array.isArray(data) ? data : []))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }).catch(() => { clearToken(); router.push("/login"); });
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-zinc-50">

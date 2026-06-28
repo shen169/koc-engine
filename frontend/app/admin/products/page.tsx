@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, getToken } from "@/lib/api";
+import { api, auth, getToken, clearToken } from "@/lib/api";
 
 const PLATFORM_EMOJI: Record<string, string> = {
   amazon: "🏪", shopify: "🛒", walmart: "🏬", ebay: "📦",
@@ -19,14 +20,18 @@ function platformBadge(sp: string): string {
 }
 
 export default function AdminProducts() {
+  const router = useRouter();
   const [list, setList] = useState<Array<Record<string, unknown>>>([]);
 
   useEffect(() => {
     const token = getToken();
-    if (!token) return;
-    api<Array<Record<string, unknown>>>("/api/products", { token })
-      .then(setList).catch(() => {});
-  }, []);
+    if (!token) { router.push("/login"); return; }
+    auth.me(token).then((u) => {
+      if (u.role !== "admin") { router.push("/dashboard"); return; }
+      api<Array<Record<string, unknown>>>("/api/products", { token })
+        .then(setList).catch(() => {});
+    }).catch(() => { clearToken(); router.push("/login"); });
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-zinc-50">

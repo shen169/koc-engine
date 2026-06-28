@@ -1,25 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, getToken } from "@/lib/api";
+import { api, auth, getToken, clearToken } from "@/lib/api";
 import Spark from "@/components/Spark";
 
 const STAR = "★";
 
 export default function AdminReviews() {
+  const router = useRouter();
   const [reviews, setReviews] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [minRating, setMinRating] = useState(0);
 
   useEffect(() => {
     const token = getToken();
-    if (!token) return;
-    api<Array<Record<string, unknown>>>("/api/reviews", { token })
-      .then((data) => setReviews(Array.isArray(data) ? data : []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    if (!token) { router.push("/login"); return; }
+    auth.me(token).then((u) => {
+      if (u.role !== "admin") { router.push("/dashboard"); return; }
+      api<Array<Record<string, unknown>>>("/api/reviews", { token })
+        .then((data) => setReviews(Array.isArray(data) ? data : []))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }).catch(() => { clearToken(); router.push("/login"); });
+  }, [router]);
 
   const filtered = minRating > 0
     ? reviews.filter((r) => (r.rating as number) <= minRating)

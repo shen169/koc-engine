@@ -1,22 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Spark from "@/components/Spark";
-import { api, getToken } from "@/lib/api";
+import { api, auth, getToken, clearToken } from "@/lib/api";
 
 export default function AdminMerchantDetail() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const token = getToken();
-    if (!token || !id) return;
-    api<Record<string, unknown>>(`/api/admin/merchants/${id}`, { token })
-      .then(setData).catch(() => setError("Failed to load merchant details"));
-  }, [id]);
+    if (!token || !id) { router.push("/login"); return; }
+    auth.me(token).then((u) => {
+      if (u.role !== "admin") { router.push("/dashboard"); return; }
+      api<Record<string, unknown>>(`/api/admin/merchants/${id}`, { token })
+        .then(setData).catch(() => setError("Failed to load merchant details"));
+    }).catch(() => { clearToken(); router.push("/login"); });
+  }, [router, id]);
 
   if (error) {
     return (

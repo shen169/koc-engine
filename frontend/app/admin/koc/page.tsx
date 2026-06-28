@@ -1,19 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, kocs, getToken } from "@/lib/api";
+import { api, kocs, auth, getToken, clearToken } from "@/lib/api";
 import Spark from "@/components/Spark";
 
 export default function AdminKocList() {
+  const router = useRouter();
   const [list, setList] = useState<Array<Record<string, unknown>>>([]);
   const [statusFilter, setStatusFilter] = useState("");
 
   useEffect(() => {
     const token = getToken();
-    if (!token) return;
-    kocs.list(token).then(setList).catch(() => {});
-  }, []);
+    if (!token) { router.push("/login"); return; }
+    auth.me(token).then((u) => {
+      if (u.role !== "admin") { router.push("/dashboard"); return; }
+      kocs.list(token).then(setList).catch(() => {});
+    }).catch(() => { clearToken(); router.push("/login"); });
+  }, [router]);
 
   async function updateKoc(kocId: string, updates: Record<string, unknown>) {
     const token = getToken();

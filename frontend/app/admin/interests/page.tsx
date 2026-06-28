@@ -1,22 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Spark from "@/components/Spark";
 import MatchModal from "@/components/MatchModal";
-import { interests, getToken } from "@/lib/api";
+import { interests, auth, getToken, clearToken } from "@/lib/api";
 
 export default function AdminInterests() {
+  const router = useRouter();
   const [mutual, setMutual] = useState<Array<Record<string, unknown>>>([]);
   const [all, setAll] = useState<Array<Record<string, unknown>>>([]);
   const [matchModal, setMatchModal] = useState<{ koc: string; company: string } | null>(null);
 
   useEffect(() => {
     const token = getToken();
-    if (!token) return;
-    interests.matches(token).then(setMutual).catch(() => {});
-    interests.list(token).then(setAll).catch(() => {});
-  }, []);
+    if (!token) { router.push("/login"); return; }
+    auth.me(token).then((u) => {
+      if (u.role !== "admin") { router.push("/dashboard"); return; }
+      interests.matches(token).then(setMutual).catch(() => {});
+      interests.list(token).then(setAll).catch(() => {});
+    }).catch(() => { clearToken(); router.push("/login"); });
+  }, [router]);
 
   async function doMatch(kocInterestId: string, merchantInterestId: string, kocName: string, company: string) {
     const token = getToken();

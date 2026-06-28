@@ -1,19 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Spark from "@/components/Spark";
-import { applications, getToken } from "@/lib/api";
+import { applications, auth, getToken, clearToken } from "@/lib/api";
 
 export default function AdminApplications() {
+  const router = useRouter();
   const [apps, setApps] = useState<Array<Record<string, unknown>>>([]);
   const [filter, setFilter] = useState("pending");
 
   useEffect(() => {
     const token = getToken();
-    if (!token) return;
-    applications.list(token).then((data) => setApps(data as Array<Record<string, unknown>>)).catch(() => {});
-  }, []);
+    if (!token) { router.push("/login"); return; }
+    auth.me(token).then((u) => {
+      if (u.role !== "admin") { router.push("/dashboard"); return; }
+      applications.list(token).then((data) => setApps(data as Array<Record<string, unknown>>)).catch(() => {});
+    }).catch(() => { clearToken(); router.push("/login"); });
+  }, [router]);
 
   const filtered = filter === "all" ? apps : apps.filter((a) => a.decision === filter);
   const decisionBadge: Record<string, string> = { approved: "bg-emerald-50 text-emerald-700", rejected: "bg-rose-50 text-rose-700", watching: "bg-amber-50 text-amber-700", pending: "bg-zinc-50 text-zinc-600" };

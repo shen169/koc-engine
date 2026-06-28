@@ -1,20 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { tasks, getToken } from "@/lib/api";
+import { tasks, auth, getToken, clearToken } from "@/lib/api";
 import Spark from "@/components/Spark";
 
 export default function AdminTasks() {
+  const router = useRouter();
   const [list, setList] = useState<Array<Record<string, unknown>>>([]);
   const [showNew, setShowNew] = useState(false);
   const [newTask, setNewTask] = useState({ koc_id: "", product_name: "", product_id: "", credits_reward: 30, due_at: "" });
 
   useEffect(() => {
     const token = getToken();
-    if (!token) return;
-    tasks.list(token).then(setList).catch(() => {});
-  }, []);
+    if (!token) { router.push("/login"); return; }
+    auth.me(token).then((u) => {
+      if (u.role !== "admin") { router.push("/dashboard"); return; }
+      tasks.list(token).then(setList).catch(() => {});
+    }).catch(() => { clearToken(); router.push("/login"); });
+  }, [router]);
 
   async function createTask() {
     const token = getToken();
