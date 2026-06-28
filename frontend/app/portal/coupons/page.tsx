@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getToken, getRole, getConsolePath } from "@/lib/api";
+import { api, getToken, getRole, getConsolePath } from "@/lib/api";
 import NavBar from "@/components/NavBar";
 
 export default function CouponsPage() {
@@ -18,8 +18,8 @@ export default function CouponsPage() {
   useEffect(() => {
     if (!token) { router.push("/login"); return; }
     if (role && role !== "koc") { router.push(getConsolePath(role || "")); return; }
-    fetch("http://localhost:8001/api/coupons", { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json()).then(setCoupons).catch(() => {});
+    api<Array<Record<string, unknown>>>("/api/coupons", { token })
+      .then(setCoupons).catch(() => {});
   }, [router, role, token]);
 
   if (unauthorized) return null;

@@ -59,6 +59,17 @@ def _ensure_can_view_task(task: KocTask, current_user: dict):
 
 
 # ═══════════════════════════════════════════
+# 任务列表（Admin 看全部）
+# ═══════════════════════════════════════════
+
+@router.get("/tasks")
+def list_all_tasks(current_user: dict = Depends(require_admin)):
+    """Admin 查看所有任务"""
+    tasks = task_store.list_all()
+    return [t.model_dump() for t in tasks]
+
+
+# ═══════════════════════════════════════════
 # 商家发布任务
 # ═══════════════════════════════════════════
 

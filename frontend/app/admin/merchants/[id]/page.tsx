@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Spark from "@/components/Spark";
-import { getToken } from "@/lib/api";
+import { api, getToken } from "@/lib/api";
 
 export default function AdminMerchantDetail() {
   const { id } = useParams<{ id: string }>();
@@ -14,12 +14,8 @@ export default function AdminMerchantDetail() {
   useEffect(() => {
     const token = getToken();
     if (!token || !id) return;
-    fetch(`http://localhost:8001/api/admin/merchants/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    }).then((r) => {
-      if (!r.ok) throw new Error(r.status + "");
-      return r.json();
-    }).then(setData).catch(() => setError("Failed to load merchant details"));
+    api<Record<string, unknown>>(`/api/admin/merchants/${id}`, { token })
+      .then(setData).catch(() => setError("Failed to load merchant details"));
   }, [id]);
 
   if (error) {

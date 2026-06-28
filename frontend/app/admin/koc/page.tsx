@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { kocs, getToken } from "@/lib/api";
+import { api, kocs, getToken } from "@/lib/api";
 import Spark from "@/components/Spark";
 
 export default function AdminKocList() {
@@ -18,10 +18,7 @@ export default function AdminKocList() {
   async function updateKoc(kocId: string, updates: Record<string, unknown>) {
     const token = getToken();
     if (!token) return;
-    await fetch(`http://localhost:8001/api/koc/${kocId}`, {
-      method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify(updates),
-    });
+    await api(`/api/koc/${kocId}`, { method: "PUT", body: updates, token });
     kocs.list(token).then(setList).catch(() => {});
   }
 

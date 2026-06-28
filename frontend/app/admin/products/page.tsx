@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getToken } from "@/lib/api";
+import { api, getToken } from "@/lib/api";
 
 const PLATFORM_EMOJI: Record<string, string> = {
   amazon: "🏪", shopify: "🛒", walmart: "🏬", ebay: "📦",
@@ -24,8 +24,8 @@ export default function AdminProducts() {
   useEffect(() => {
     const token = getToken();
     if (!token) return;
-    fetch("http://localhost:8001/api/products", { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json()).then(setList).catch(() => {});
+    api<Array<Record<string, unknown>>>("/api/products", { token })
+      .then(setList).catch(() => {});
   }, []);
 
   return (

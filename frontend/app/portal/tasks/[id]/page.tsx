@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { tasks, auth, interests, getToken, getRole, getConsolePath } from "@/lib/api";
+import { api, tasks, auth, interests, getToken, getRole, getConsolePath } from "@/lib/api";
 import { getTrackingUrl } from "@/lib/tracking";
 import IntegrityBadge from "@/components/IntegrityBadge";
 import NavBar from "@/components/NavBar";
@@ -242,27 +242,17 @@ export default function KocTaskDetailPage() {
     setRatingSuccess("");
     try {
       const tkn = getToken()!;
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}/api/reviews`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${tkn}`,
-          },
-          body: JSON.stringify({
-            task_id: taskId,
-            target_id: task.merchant_id,
-            rating,
-            comment,
-            dimensions: {},
-          }),
-        }
-      );
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error((data as any).detail || `Error ${res.status}`);
-      }
+      await api("/api/reviews", {
+        method: "POST",
+        body: {
+          task_id: taskId,
+          target_id: task.merchant_id,
+          rating,
+          comment,
+          dimensions: {},
+        },
+        token: tkn,
+      });
       setRatingSuccess(`You rated ${task.merchant_company || "the brand"} ${rating}⭐`);
     } catch (e: any) {
       setRatingError(e.message || "Rating failed");

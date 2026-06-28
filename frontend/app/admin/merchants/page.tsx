@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getToken } from "@/lib/api";
+import { api, getToken } from "@/lib/api";
 import Spark from "@/components/Spark";
 
 export default function AdminMerchants() {
@@ -11,8 +11,8 @@ export default function AdminMerchants() {
   useEffect(() => {
     const token = getToken();
     if (!token) return;
-    fetch("http://localhost:8001/api/merchants", { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json()).then(setList).catch(() => {});
+    api<Array<Record<string, unknown>>>("/api/merchants", { token })
+      .then(setList).catch(() => {});
   }, []);
 
   return (

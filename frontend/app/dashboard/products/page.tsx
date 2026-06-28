@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { products, matching, getToken, getRole, getConsolePath } from "@/lib/api";
+import { api, products, matching, getToken, getRole, getConsolePath } from "@/lib/api";
 import NavBar from "@/components/NavBar";
 
 interface MatchResult {
@@ -56,10 +56,10 @@ export default function MyProducts() {
 
   async function toggleStatus(productId: string, currentStatus: string) {
     const newStatus = currentStatus === "active" ? "paused" : "active";
-    await fetch(`http://localhost:8001/api/products/${productId}`, {
+    await api(`/api/products/${productId}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ status: newStatus }),
+      body: { status: newStatus },
+      token: token!,
     });
     products.list(token!).then(setItems).catch(() => {});
   }

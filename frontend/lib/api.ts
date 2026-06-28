@@ -5,7 +5,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 interface ApiOptions {
   method?: string;
   body?: unknown;
-  token?: string;
+  token?: string | null;
 }
 
 export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Promise<T> {

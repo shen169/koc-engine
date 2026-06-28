@@ -82,10 +82,7 @@ export default function AdminCreditsPage() {
 
   async function loadWithdrawals(token: string) {
     try {
-      const res = await fetch(`http://localhost:8001/api/admin/withdrawals?status=${withdrawalFilter}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await admin.withdrawals(token, withdrawalFilter);
       setWithdrawals(Array.isArray(data) ? data : []);
     } catch {
       // withdrawals may not be available yet
@@ -95,11 +92,7 @@ export default function AdminCreditsPage() {
   async function handleProcess(id: string, decision: string) {
     const token = getToken()!;
     const note = decision === "rejected" ? (prompt("Rejection reason:") || "") : "";
-    await fetch(`http://localhost:8001/api/admin/withdrawals/${id}/process`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ decision, admin_note: note }),
-    });
+    await admin.processWithdrawal(id, decision, note, token);
     await loadWithdrawals(token);
   }
 

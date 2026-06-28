@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { tasks, getToken, getRole, getConsolePath } from "@/lib/api";
+import { api, tasks, getToken, getRole, getConsolePath } from "@/lib/api";
 import { CARRIER_NAMES, getTrackingUrl } from "@/lib/tracking";
 import NavBar from "@/components/NavBar";
 import TaskProgress from "@/components/TaskProgress";
@@ -119,27 +119,17 @@ export default function MerchantTaskDetailPage() {
         [slotIndex]: { submitting: true, error: "", success: "" },
       }));
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}/api/reviews`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token!}`,
-            },
-            body: JSON.stringify({
-              task_id: taskId,
-              target_id: kocId,
-              rating,
-              comment,
-              dimensions: {},
-            }),
-          }
-        );
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error((data as any).detail || `Error ${res.status}`);
-        }
+        await api("/api/reviews", {
+          method: "POST",
+          body: {
+            task_id: taskId,
+            target_id: kocId,
+            rating,
+            comment,
+            dimensions: {},
+          },
+          token: token!,
+        });
         setRatingSlot((prev) => ({
           ...prev,
           [slotIndex]: { submitting: false, error: "", success: `KOC rated ${rating}⭐` },

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Spark from "@/components/Spark";
-import { getToken } from "@/lib/api";
+import { api, getToken } from "@/lib/api";
 
 type KocSlot = Record<string, unknown>;
 
@@ -18,16 +18,12 @@ export default function AdminTaskDetail() {
   useEffect(() => {
     const token = getToken();
     if (!token || !id) return;
-    fetch(`http://localhost:8001/api/tasks/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    }).then((r) => {
-      if (!r.ok) throw new Error(r.status + "");
-      return r.json();
-    }).then((data) => {
-      setTask(data.task || data);
-      setProduct(data.product || null);
-      setMerchant(data.merchant || null);
-    }).catch(() => setError("Failed to load task"));
+    api<Record<string, unknown>>(`/api/tasks/${id}`, { token })
+      .then((data) => {
+        setTask((data.task as Record<string, unknown>) || data);
+        setProduct((data.product as Record<string, unknown>) || null);
+        setMerchant((data.merchant as Record<string, unknown>) || null);
+      }).catch(() => setError("Failed to load task"));
   }, [id]);
 
   if (error) {
