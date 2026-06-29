@@ -222,3 +222,112 @@ def admin_process_withdrawal(withdrawal_id: str, data: dict, current_user: dict 
 
     updated = withdrawal_store.get_by_id(withdrawal_id)
     return {"status": "ok", "withdrawal": updated.model_dump() if updated else {}}
+
+
+# ═══════════════════════════════════════════
+# 欺诈风控管理
+# ═══════════════════════════════════════════
+
+@router.get("/admin/fraud/flags")
+def admin_fraud_flags(current_user: dict = Depends(require_admin)):
+    """列出所有被标记的账号，按风险评分排序"""
+    from stores.fraud_store import fraud_store
+    from services.fraud_detector import risk_label
+
+    flagged = fraud_store.get_all_flagged_users()
+
+    # 补充用户信息
+    enriched = []
+    for f in flagged:
+        user = user_store.get_by_id(f["user_id"])
+        user_info = {
+            "email": user.email if user else "unknown",
+            "role": user.role if user else "unknown",
+        } if user else {"email": "unknown", "role": "unknown"}
+        enriched.append({
+            **f,
+            "user": user_info,
+            "risk_label": risk_label(f["total_score"]),
+        })
+
+    return {"flagged": enriched, "total": len(enriched)}
+
+
+@router.post("/admin/fraud/{user_id}/action")
+def admin_fraud_action(user_id: str, data: dict, current_user: dict = Depends(require_admin)):
+    """手动操作：warn | freeze | ban | clear
+
+    - clear: 清除该用户 90 天内的所有 fraud events（重置风险评分）
+    """
+    action = data.get("action", "")
+    admin_note = data.get("admin_note", "")
+
+    valid_actions = ("warn", "freeze", "ban", "clear")
+    if action not in valid_actions:
+        raise HTTPException(400, f"Action must be one of: {', '.join(valid_actions)}")
+
+    from stores.fraud_store import fraud_store
+    from services.fraud_detector import risk_label
+
+    user = user_store.get_by_id(user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    if action == "clear":
+        # ── 整改通过：调用 FraudEnforcer 恢复账号 ──
+        from services.fraud_enforcer import fraud_enforcer
+        result = fraud_enforcer.restore_user(user_id, user.role)
+
+        # 同时冲抵风险分（确保降回正常范围）
+        current_score = fraud_store.get_user_risk_score(user_id)
+        if current_score > 0:
+            fraud_store.add_event(
+                user_id=user_id,
+                rule="ADMIN_CLEAR",
+                score=-current_score,
+                reason=f"Admin cleared risk score: {admin_note}",
+                metadata={"admin_action": "clear", "admin_note": admin_note},
+            )
+
+    elif action == "ban":
+        # ── 永久封禁：调用 FraudEnforcer 执行第 2 次执法 ──
+        from services.fraud_enforcer import fraud_enforcer
+        result = fraud_enforcer.enforce(user_id, user.role, offense_level=2)
+
+    # 记录管理操作
+    fraud_store.add_event(
+        user_id=user_id,
+        rule=f"ADMIN_{action.upper()}",
+        score=0,
+        reason=f"Admin action: {action} — {admin_note}",
+        metadata={"admin_action": action, "admin_note": admin_note},
+    )
+
+    new_score = fraud_store.get_user_risk_score(user_id)
+    return {
+        "status": "ok",
+        "action": action,
+        "user_id": user_id,
+        "new_risk_score": new_score,
+        "new_risk_label": risk_label(new_score),
+    }
+
+
+@router.get("/admin/fraud/events/{user_id}")
+def admin_fraud_events(user_id: str, current_user: dict = Depends(require_admin)):
+    """查看指定用户的所有欺诈事件详情"""
+    from stores.fraud_store import fraud_store
+
+    events = fraud_store.get_user_events(user_id, limit=200)
+    user = user_store.get_by_id(user_id)
+
+    return {
+        "user": {
+            "id": user_id,
+            "email": user.email if user else "unknown",
+            "role": user.role if user else "unknown",
+        } if user else {"id": user_id, "email": "unknown", "role": "unknown"},
+        "risk_score": fraud_store.get_user_risk_score(user_id),
+        "events": events,
+        "total": len(events),
+    }

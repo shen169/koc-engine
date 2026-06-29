@@ -42,6 +42,7 @@ export default function AdminPage() {
     ["/admin/reports", `⚖️ Reports${pendingReports > 0 ? ` (${pendingReports})` : ""}`],
     ["/admin/reviews", "⭐ Reviews"],
     ["/admin/blacklist", "🚫 Blacklist"],
+    ["/admin/fraud", "🛡️ Fraud Monitor"],
   ];
 
   const alertCount = alerts.length;

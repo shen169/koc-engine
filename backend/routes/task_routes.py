@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urlparse
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from models import KocTask
 from stores.task_store import task_store
 from stores.koc_store import koc_store
@@ -482,7 +482,7 @@ def delete_task(task_id: str, current_user: dict = Depends(get_current_user)):
 # ═══════════════════════════════════════════
 
 @router.put("/tasks/{task_id}/accept/{slot_index}")
-def accept_task(task_id: str, slot_index: int, current_user: dict = Depends(get_current_user)):
+def accept_task(task_id: str, slot_index: int, current_user: dict = Depends(get_current_user), request: Request = None):
     """KOC 接受任务 → 扣质押点"""
     if current_user.get("role") not in ("koc", "admin"):
         raise HTTPException(403, "Only KOC can accept tasks")
@@ -519,6 +519,17 @@ def accept_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
         if koc_profile.trust_score < 30:
             raise HTTPException(403, f"Trust score too low ({koc_profile.trust_score}/100). Cannot accept tasks.")
 
+    # ── 欺诈检测：预检累积风险评分 ──
+    from services.fraud_detector import FraudDetector, _extract_ip
+    fd = FraudDetector()
+    risk = fd.check_action_blocked(user.id if user else current_user["sub"], "accept_task")
+    if risk.block:
+        raise HTTPException(403, f"Account restricted: {risk.reason}")
+    # ── 欺诈检测：R5 同对重复检查 ──
+    r5 = fd.check_repeat_pair(task.merchant_id, koc_id, task_id)
+    if r5.warn:
+        fd.record(user.id if user else current_user["sub"], r5, task_id=task_id, related_user_id=task.merchant_id)
+
     # 检查同时进行中任务数上限（最多 5 个 active slot）
     active_slots = 0
     for t in task_store.list_by_koc(koc_id):
@@ -541,11 +552,13 @@ def accept_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
 
     # 更新 slot
     now = datetime.utcnow().isoformat()
+    accept_ip = _extract_ip(request) if request else ""
     task_store.update_slot(task_id, slot_index, {
         "koc_id": koc_id,
         "status": "accepted",
         "accepted_at": now,
         "pledge_paid": True,
+        "ip_address": accept_ip,
     })
 
     # 更新 KOC 统计
@@ -710,6 +723,31 @@ def ship_task(task_id: str, data: dict, current_user: dict = Depends(get_current
     carrier = data.get("carrier", "")  # FedEx, DHL, USPS, SF-Express, Amazon Logistics, etc.
     shipping_proof_urls = data.get("shipping_proof_urls", [])  # 发货凭证照片/截图
 
+    # 物流单号格式验证（防欺诈：拒绝明显无效的单号）
+    from services.tracking_validator import validate_tracking_number as validate_tn
+    tn_result = validate_tn(tracking_number, carrier)
+    if not tn_result["valid"]:
+        raise HTTPException(400, f"Invalid tracking number: {tn_result['error']}")
+    # 自动识别快递公司（如果商家未提供）
+    if not carrier and tn_result.get("carrier"):
+        carrier = tn_result["carrier"]
+    tracking_validated = tn_result["method"]  # "checksum" / "regex" / "none"
+
+    # ── 欺诈检测：累计风险拦截 + R1 接单→发货速度检查 ──
+    from services.fraud_detector import FraudDetector
+    fd = FraudDetector()
+    risk = fd.check_action_blocked(current_user["sub"], "ship_task")
+    if risk.block:
+        raise HTTPException(403, f"Account restricted: {risk.reason}")
+    if risk.warn:
+        fd.record(current_user["sub"], risk, task_id=task_id)
+    for slot in task.koc_slots:
+        if slot.get("status") == "accepted":
+            r1 = fd.check_accept_to_ship_speed(slot)
+            if r1.warn:
+                m = merchant_store.get_by_user_id(current_user["sub"]) if current_user.get("role") == "merchant" else None
+                fd.record(current_user["sub"], r1, task_id=task_id, slot_index=task.koc_slots.index(slot))
+
     # 商家质押已在发布任务时扣除，此处不再重复扣款
     # 仅更新发货状态 + 物流信息
 
@@ -719,6 +757,7 @@ def ship_task(task_id: str, data: dict, current_user: dict = Depends(get_current
         "carrier": carrier,
         "shipping_proof_urls": shipping_proof_urls,
         "task_status": "shipped",
+        "tracking_validated": tracking_validated,
     })
 
     # 更新所有 accepted slot 的 shipped_at + carrier + proof
@@ -730,6 +769,7 @@ def ship_task(task_id: str, data: dict, current_user: dict = Depends(get_current
                 "tracking_number": tracking_number,
                 "carrier": carrier,
                 "shipping_proof_urls": shipping_proof_urls,
+                "tracking_validated": tracking_validated,
             })
     # Notification: merchant shipped → notify KOC(s)
     task = task_store.get(task_id)
@@ -761,6 +801,7 @@ def ship_task(task_id: str, data: dict, current_user: dict = Depends(get_current
         "tracking_number": tracking_number,
         "carrier": carrier,
         "shipped_at": now,
+        "tracking_validated": tracking_validated,
     }
 
 
@@ -794,6 +835,15 @@ def receive_task(task_id: str, slot_index: int, data: dict, current_user: dict =
 
     receipt_photo_urls = data.get("receipt_photo_urls", [])  # 收货照片/开箱图
     receipt_notes = data.get("receipt_notes", "")  # 收货备注（如包装完好/破损等）
+
+    # ── 欺诈检测：R2 发货→收货速度检查 ──
+    from services.fraud_detector import FraudDetector
+    fd2 = FraudDetector()
+    r2 = fd2.check_ship_to_receive_speed(slot)
+    if r2.block:
+        raise HTTPException(403, f"Suspicious activity detected: {r2.reason}")
+    if r2.warn:
+        fd2.record(user.id if user else current_user["sub"], r2, task_id=task_id, slot_index=slot_index)
 
     now = datetime.utcnow().isoformat()
     task_store.update_slot(task_id, slot_index, {
@@ -912,6 +962,19 @@ def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict
 
     # ⚠️ 不再接受自报表现数据 — 系统会在 24h 后自动通过 Apify 抓取真实数据
     # content_data 初始为空，待 cron scraper 抓取后填充
+
+    # ── 欺诈检测：累计风险拦截 + R3 收货→提交内容速度检查 ──
+    from services.fraud_detector import FraudDetector
+    fd3 = FraudDetector()
+    risk3 = fd3.check_action_blocked(user.id if user else current_user["sub"], "submit_content")
+    if risk3.block:
+        raise HTTPException(403, f"Account restricted: {risk3.reason}")
+    if risk3.warn:
+        fd3.record(user.id if user else current_user["sub"], risk3, task_id=task_id, slot_index=slot_index)
+    r3 = fd3.check_receive_to_submit_speed(slot)
+    if r3.warn:
+        fd3.record(user.id if user else current_user["sub"], r3, task_id=task_id, slot_index=slot_index)
+
     now = datetime.utcnow().isoformat()
 
     # 更新 slot 为 submitted（待商家审核）
@@ -973,7 +1036,7 @@ def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict
 # ═══════════════════════════════════════════
 
 @router.put("/tasks/{task_id}/review/{slot_index}")
-def review_content(task_id: str, slot_index: int, data: dict, current_user: dict = Depends(get_current_user)):
+def review_content(task_id: str, slot_index: int, data: dict, current_user: dict = Depends(get_current_user), request: Request = None):
     """商家审核 KOC 提交的内容 → approve 通过（退押金+恢复信任）或 reject 驳回（KOC 可修改重交）。
 
     审核决策：
@@ -1011,6 +1074,33 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
 
     koc_id = slot.get("koc_id", "")
     now = datetime.utcnow().isoformat()
+
+    # ── 欺诈检测：累计风险拦截 + R4 提交→审批速度 + R6 商家审批率 + R7 IP 关联 ──
+    from services.fraud_detector import FraudDetector, _extract_ip
+    fd4 = FraudDetector()
+    risk4 = fd4.check_action_blocked(current_user["sub"], "review_content")
+    if risk4.block:
+        raise HTTPException(403, f"Account restricted: {risk4.reason}")
+    if risk4.warn:
+        fd4.record(current_user["sub"], risk4, task_id=task_id)
+    # R4: 速度检查
+    r4 = fd4.check_submit_to_review_speed(slot)
+    if r4.warn:
+        fd4.record(current_user["sub"], r4, task_id=task_id, slot_index=slot_index)
+    # R6: 审批率异常（只在 approve 时检查）
+    if action == "approve":
+        r6 = fd4.check_merchant_approval_pattern(task.merchant_id)
+        if r6.warn:
+            fd4.record(current_user["sub"], r6, task_id=task_id)
+    # R7: IP 关联检查
+    review_ip = _extract_ip(request) if request else ""
+    if review_ip:
+        koc_user_id = _get_koc_user_id(koc_id) if koc_id else ""
+        r7 = fd4.check_ip_correlation(task, koc_user_id, current_user["sub"], review_ip)
+        if r7.warn:
+            fd4.record(current_user["sub"], r7, task_id=task_id, slot_index=slot_index,
+                       related_user_id=koc_user_id,
+                       metadata={"ip": review_ip})
 
     if action == "approve":
         # ── 审核通过 → 完成履约 → 从佣金池转 commission 给 KOC + 退 KOC 质押 ──

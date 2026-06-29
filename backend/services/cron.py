@@ -296,7 +296,75 @@ def run_weekly_scan() -> dict:
     except Exception as e:
         result["tracking_error"] = str(e)[:200]
 
+    # ── 反欺诈执法扫描：补扫漏网之鱼 ──
+    try:
+        fraud_result = _fraud_enforcement_scan()
+        result["fraud_enforced"] = fraud_result.get("enforced", 0)
+        result["fraud_skipped"] = fraud_result.get("skipped", 0)
+    except Exception as e:
+        result["fraud_enforcement_error"] = str(e)[:200]
+
     return result
+
+
+def _fraud_enforcement_scan() -> dict:
+    """扫描所有 risk_score ≥ 60 但尚未执法的用户，补执行执法。
+
+    幂等检查：最近 24h 内已有 ENFORCEMENT_TRIGGERED 事件的用户跳过。
+    """
+    from stores.fraud_store import fraud_store
+    from services.fraud_detector import FraudDetector, RISK_THRESHOLD_RESTRICT
+
+    flagged = fraud_store.get_all_flagged_users()
+    enforced = 0
+    skipped = 0
+
+    for f in flagged:
+        user_id = f["user_id"]
+        if f["total_score"] < RISK_THRESHOLD_RESTRICT:
+            continue
+
+        # 幂等检查：最近 24h 是否已经执法过
+        events = fraud_store.get_user_events(user_id, limit=20)
+        recently_enforced = False
+        for e in events:
+            if e.get("rule") == "ENFORCEMENT_TRIGGERED":
+                from datetime import datetime, timedelta
+                created = e.get("created_at", "")
+                try:
+                    ts = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                    if datetime.utcnow() - ts < timedelta(hours=24):
+                        recently_enforced = True
+                        break
+                except Exception:
+                    pass
+
+        if recently_enforced:
+            skipped += 1
+            continue
+
+        # 补执行
+        try:
+            fd = FraudDetector()
+            role = fd._get_user_role(user_id)
+            if role in ("merchant", "koc"):
+                from services.fraud_enforcer import fraud_enforcer
+                is_first = fraud_enforcer._is_first_offense(user_id)
+                offense_level = 1 if is_first else 2
+                fraud_enforcer.enforce(user_id, role, offense_level)
+
+                fraud_store.add_event(
+                    user_id=user_id,
+                    rule="ENFORCEMENT_TRIGGERED",
+                    score=0,
+                    reason=f"Cron catch-up enforcement: {role} risk_score={f['total_score']}, offense=#{offense_level}",
+                    metadata={"offense_level": offense_level, "role": role, "source": "cron"},
+                )
+                enforced += 1
+        except Exception as e:
+            print(f"[fraud_scan] Error enforcing {user_id}: {e}")
+
+    return {"enforced": enforced, "skipped": skipped}
 
 
 # ═══════════════════════════════════════════

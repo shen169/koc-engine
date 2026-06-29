@@ -170,7 +170,8 @@ class KocTask(BaseModel):
     koc_slots: list = Field(default_factory=list)
     # 每个 slot: {koc_id, status, assigned_at, accepted_at, shipped_at, received_at,
     #             submitted_at, tracking_number, content_urls, content_data,
-    #             pledge_paid, commission_paid, reject_count}
+    #             pledge_paid, commission_paid, reject_count,
+    #             ip_address, fraud_flags, tracking_validated}
 
     # ── V2 新增：质押 + 佣金 ──
     task_mode: str = "commission"   # "commission" | "sample"（寄样模式：无佣金，KOC 只拿免费产品）
@@ -182,6 +183,7 @@ class KocTask(BaseModel):
     tracking_number: str = ""
     carrier: str = ""                    # FedEx, DHL, USPS, SF-Express, etc.
     shipping_proof_urls: list = Field(default_factory=list)  # 发货凭证照片/截图
+    tracking_validated: str = ""         # 物流单号验证方法："checksum" | "regex" | "none"
 
     # ── V2 新增：内容 ──
     content_urls: list = Field(default_factory=list)

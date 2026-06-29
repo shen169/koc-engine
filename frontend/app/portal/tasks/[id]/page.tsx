@@ -439,6 +439,20 @@ export default function KocTaskDetailPage() {
               <div className="flex gap-2">
                 <span className="text-gray-400">Tracking:</span>
                 <span className="font-mono font-medium">{task.tracking_number}</span>
+                {/* Tracking validation status */}
+                {task.tracking_validated && task.tracking_validated !== "none" ? (
+                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-medium" title={`Validated via ${task.tracking_validated}`}>
+                    ✅ Verified
+                  </span>
+                ) : task.tracking_validated === "none" ? (
+                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500" title="Tracking number was empty — no validation performed">
+                    ⚪ Not validated
+                  </span>
+                ) : (
+                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700" title="This tracking number was recorded before validation was enabled">
+                    ⚠️ Pending
+                  </span>
+                )}
                 {getTrackingUrl(task.carrier || "", task.tracking_number) && (
                   <a
                     href={getTrackingUrl(task.carrier || "", task.tracking_number)!}

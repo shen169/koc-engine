@@ -104,3 +104,11 @@ class NotifType:
     PLATFORM_ANNOUNCEMENT = "platform_announcement"  # 平台公告
     TASK_IDLE_WARNING = "task_idle_warning"       # 长线任务 7 天空位提醒商家
     TASK_DELETED = "task_deleted"                 # 任务被商家删除（含退款）
+
+    # ── V2.5 反欺诈红线执法通知 ──
+    FRAUD_ALERT = "fraud_alert"                   # Admin 收到欺诈告警
+    MERCHANT_FLAGGED = "merchant_flagged"          # 商家被标记虚假（第 1 次，可整改）
+    MERCHANT_BANNED = "merchant_banned"            # 商家被永久封禁（第 2 次）
+    KOC_FLAGGED = "koc_flagged"                    # KOC 被标记虚假（第 1 次，可整改）
+    KOC_BANNED = "koc_banned"                      # KOC 被永久封禁（第 2 次）
+    TASK_CANCELLED_FRAUD = "task_cancelled_fraud"  # 任务因欺诈被取消

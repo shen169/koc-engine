@@ -62,6 +62,15 @@ def request_withdrawal(data: dict, current_user: dict = Depends(get_current_user
     if role == "merchant":
         raise HTTPException(403, "Merchants cannot withdraw. Points are for publishing tasks only.")
 
+    # ── 欺诈检测：预检累积风险评分 ──
+    from services.fraud_detector import FraudDetector
+    fd = FraudDetector()
+    risk = fd.check_action_blocked(user_id, "withdraw")
+    if risk.block:
+        raise HTTPException(403, f"Account restricted: {risk.reason}")
+    if risk.warn:
+        fd.record(user_id, risk, metadata={"action": "withdraw", "amount": data.get("amount", 0)})
+
     # ── Admin 无限制（测试用）──
     if role == "admin":
         pass
