@@ -16,6 +16,9 @@ COPY frontend/ .
 ARG NEXT_PUBLIC_API_URL=""
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
+# Limit Node.js heap to avoid OOM on low-memory VPS
+ENV NODE_OPTIONS="--max-old-space-size=512"
+
 RUN npm run build
 
 # ── Stage 2: Production runtime ──
