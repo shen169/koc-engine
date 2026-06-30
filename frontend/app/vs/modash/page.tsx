@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { Metadata } from "next";
+import RedLineGuarantee from "@/components/RedLineGuarantee";
 
 export const metadata: Metadata = {
   title: "KOC Engine vs Modash: The Best Platform for Cross-Border E-Commerce",
@@ -87,6 +88,8 @@ export default function ModashComparison() {
             </table>
           </div>
         </section>
+
+        <RedLineGuarantee theme="purple" />
 
         <section className="mb-20 bg-purple-50 p-8 rounded-3xl border border-purple-100">
           <h2 className="text-2xl font-bold mb-6">Expert Verdict</h2>

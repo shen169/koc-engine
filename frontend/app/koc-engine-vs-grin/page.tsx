@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
+import RedLineGuarantee from "@/components/RedLineGuarantee";
 import { faqSchema } from "@/lib/schema";
 
 export const metadata: Metadata = {
@@ -101,6 +102,8 @@ export default function VsGrinPage() {
               <li><strong>Regional market match —</strong> the AI scoring weights regional fit (US/UK/CA/AU/EU/JP/KR/SEA) as one of 7 matching dimensions. GRIN doesn't factor region into creator recommendations.</li>
             </ul>
           </section>
+
+          <RedLineGuarantee theme="pink" />
 
           <section>
             <h2 className="text-2xl font-extrabold text-zinc-900">Which Should You Choose?</h2>

@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { Metadata } from "next";
+import RedLineGuarantee from "@/components/RedLineGuarantee";
 
 export const metadata: Metadata = {
   title: "KOC Engine vs GRIN: Why Pledge Economy Beats Manual Creator Management",
@@ -96,6 +97,8 @@ export default function GrinComparison() {
             </table>
           </div>
         </section>
+
+        <RedLineGuarantee theme="emerald" />
 
         <section className="mb-20 bg-emerald-50 p-8 rounded-3xl border border-emerald-100">
           <h2 className="text-2xl font-bold mb-6">Expert Verdict</h2>

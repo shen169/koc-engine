@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
+import RedLineGuarantee from "@/components/RedLineGuarantee";
 import { faqSchema } from "@/lib/schema";
 
 export const metadata: Metadata = {
@@ -166,6 +167,8 @@ export default function AmazonAlternativesPage() {
               </table>
             </div>
           </section>
+
+          <RedLineGuarantee theme="pink" />
 
           <section>
             <h2 className="text-2xl font-extrabold text-zinc-900">FAQ</h2>

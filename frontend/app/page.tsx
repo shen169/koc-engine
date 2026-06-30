@@ -36,6 +36,11 @@ const homeFaqs = [
       "KOC Engine uses a deposit + commission pool system. Brands pre-pay the commission pool (non-refundable), KOCs deposit a fixed 10pt pledge. Pledge (10pt) is fully returned + 90% of commission is released after content approval (platform takes 10%, min 1pt). AI judges disputes if brands reject twice. If KOC fails to submit, commission is returned to brand and KOC forfeits pledge.",
   },
   {
+    question: "How does KOC Engine protect both brands and creators from fraud?",
+    answer:
+      "KOC Engine has a built-in Red Line Protection System — 7 behavioral detection rules monitor every action in real time. Speed anomalies (impossible ship/receive times), pattern anomalies (repeat pairs, 100% approval rates), and IP correlation (same person operating both roles) are automatically detected. When a user's risk score crosses the threshold (60/100), automatic enforcement triggers: all assets are confiscated, all tasks are cancelled, the innocent party is fully refunded, and the offender is frozen (1st offense, with one chance to rectify) or permanently banned (2nd offense). The same penalty applies to both merchants and KOCs — no double standards, no favoritism. This makes KOC Engine the only platform in the market with automated, symmetric fraud enforcement.",
+  },
+  {
     question: "What is the best platform for cross-border KOC influencer marketing?",
     answer:
       "The best KOC platform depends on needs: AI matching quality (niche + region accuracy), trust systems (pledge/deposit protection), content performance tracking, and transparent pricing. Look for escrow-based payment, creator vetting (AI + human review), and performance analytics.",
@@ -111,14 +116,122 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Trust Signals */}
+      {/* Trust & Fairness — The Worry-Free Guarantee */}
       <section className="max-w-6xl mx-auto px-6 py-20">
-        <div className="bg-white rounded-3xl border border-gray-100 p-8 md:p-12 text-center shadow-sm">
-          <h2 className="text-2xl font-extrabold text-zinc-900 mb-4">Built for Trust in Cross-Border Commerce</h2>
-          <div className="grid md:grid-cols-3 gap-6 mt-8 text-left">
-            {[{ icon: "🔒", title: "Dual-Pledge Escrow", desc: "Both brand and creator deposit before starting. Neither side can walk away without consequence." }, { icon: "🤖", title: "AI Vetting", desc: "Every creator passes 3-dimension AI scoring: authenticity, niche fit, engagement. Manual admin review for final approval." }, { icon: "⭐", title: "Public Trust Tiers", desc: "Merchants (M1-M3) and KOCs (L1-L3) display trust scores based on completed collaborations and peer ratings." }].map((v) => (
-              <div key={v.title}><div className="text-3xl mb-3">{v.icon}</div><h4 className="font-bold text-zinc-900 mb-1">{v.title}</h4><p className="text-sm text-zinc-500">{v.desc}</p></div>
+        <div className="text-center mb-14">
+          <h2 className="text-3xl font-extrabold text-zinc-900 mb-4">
+            ⚖️ Fair for Both Sides. Zero Fraud. Zero Worry.
+          </h2>
+          <p className="text-zinc-500 max-w-3xl mx-auto text-lg leading-relaxed">
+            KOC Engine is the <strong>only KOC platform</strong> with an automated anti-fraud enforcement system
+            that protects both brands and creators equally. Every action is monitored. Every violation is penalized.
+            The innocent party always gets fully refunded.
+          </p>
+        </div>
+
+        {/* Three Trust Pillars */}
+        <div className="grid md:grid-cols-3 gap-5 mb-10">
+          <div className="bg-white rounded-2xl border border-purple-100 p-6 shadow-sm">
+            <div className="text-3xl mb-3">🔒</div>
+            <h4 className="font-bold text-zinc-900 mb-2">Dual-Pledge Escrow</h4>
+            <p className="text-sm text-zinc-500 leading-relaxed">
+              Brands pre-pay the commission pool. Creators deposit a 10pt pledge. Neither side can walk away
+              without financial consequence. Funds are released only after content is approved.
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl border border-pink-100 p-6 shadow-sm">
+            <div className="text-3xl mb-3">🤖</div>
+            <h4 className="font-bold text-zinc-900 mb-2">AI Vetting + Human Review</h4>
+            <p className="text-sm text-zinc-500 leading-relaxed">
+              Every creator passes 3-dimension AI scoring: authenticity, niche fit, engagement.
+              Manual admin review for final approval. No fake accounts. No bots.
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl border border-amber-100 p-6 shadow-sm">
+            <div className="text-3xl mb-3">⭐</div>
+            <h4 className="font-bold text-zinc-900 mb-2">Public Trust Tiers</h4>
+            <p className="text-sm text-zinc-500 leading-relaxed">
+              Merchants (M1–M3) and KOCs (L1–L3) display real trust scores based on completed
+              collaborations and peer ratings. Higher tiers get priority matching.
+            </p>
+          </div>
+        </div>
+
+        {/* Red Line Enforcement — The Core Guarantee */}
+        <div className="bg-gradient-to-br from-red-50 via-white to-amber-50 rounded-3xl border-2 border-red-100 p-8 md:p-10 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-3xl">🛡️</span>
+            <h3 className="text-2xl font-extrabold text-zinc-900">
+              Red Line Protection:{" "}
+              <span className="text-red-600">Fraud Is a Red Line. Cross It, and You&apos;re Out.</span>
+            </h3>
+          </div>
+
+          <p className="text-zinc-600 leading-relaxed mb-8 max-w-3xl">
+            We monitor every action on the platform in real time with 7 behavioral detection rules.
+            Speed anomalies, repeat collusion patterns, cross-account IP correlation — if you try to
+            game the system, it catches you. And the penalty is the same whether you&apos;re a brand
+            or a creator. No double standards.
+          </p>
+
+          {/* 7 Rules Compact */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-8">
+            {[
+              ["R1", "Accept → Ship &lt;30min", "bg-red-100 text-red-700"],
+              ["R2", "Ship → Receive &lt;1hr", "bg-red-100 text-red-700"],
+              ["R3", "Receive → Submit &lt;30min", "bg-orange-100 text-orange-700"],
+              ["R4", "Submit → Approve &lt;5min", "bg-orange-100 text-orange-700"],
+              ["R5", "Same Pair ≥3 Tasks", "bg-amber-100 text-amber-700"],
+              ["R6", "100% Approval Rate ≥3", "bg-amber-100 text-amber-700"],
+              ["R7", "Same IP Across Roles", "bg-yellow-100 text-yellow-700"],
+            ].map(([id, label, cls]) => (
+              <div key={id} className="bg-white rounded-xl p-3 border border-red-50 text-center">
+                <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full mb-1 ${cls}`}>{id}</span>
+                <div className="text-xs text-zinc-600 font-medium">{label}</div>
+              </div>
             ))}
+          </div>
+
+          {/* Penalty Cards */}
+          <div className="grid md:grid-cols-2 gap-5 mb-8">
+            <div className="bg-amber-50 rounded-2xl p-6 border border-amber-200">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">⚠️</span>
+                <h4 className="font-bold text-amber-900 text-lg">1st Offense — One Chance to Rectify</h4>
+              </div>
+              <ul className="text-sm text-amber-800 space-y-2 list-disc list-inside leading-relaxed">
+                <li>All pledges &amp; commissions confiscated — held by platform</li>
+                <li>All active tasks cancelled — <strong>innocent party refunded in full</strong></li>
+                <li>Account frozen — admin reviews the case</li>
+                <li>Genuine mistake? Rectify and restore your account</li>
+              </ul>
+            </div>
+            <div className="bg-red-50 rounded-2xl p-6 border border-red-200">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">🚫</span>
+                <h4 className="font-bold text-red-900 text-lg">2nd Offense — Permanent Ban</h4>
+              </div>
+              <ul className="text-sm text-red-800 space-y-2 list-disc list-inside leading-relaxed">
+                <li>All assets confiscated permanently</li>
+                <li><strong>Permanent ban</strong> — account blacklisted, no recovery</li>
+                <li>Applies symmetrically to <strong>both merchants and KOCs</strong></li>
+                <li>Zero tolerance for repeat offenders</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Symmetric Fairness Guarantee */}
+          <div className="bg-white rounded-2xl p-6 border border-green-100 flex items-start gap-4">
+            <span className="text-3xl flex-shrink-0">⚖️</span>
+            <div>
+              <h4 className="font-bold text-zinc-900 mb-1 text-lg">Symmetric Enforcement — Both Sides Protected Equally</h4>
+              <p className="text-sm text-zinc-500 leading-relaxed">
+                A merchant caught faking shipments faces the <strong>exact same penalty</strong> as a KOC caught
+                submitting fake content. Assets are confiscated from the offender. The innocent party is always refunded.
+                All affected users are notified. This is our fundamental commitment to fairness — there is no asymmetry,
+                no favoritism, no double standard. The red line is drawn the same way for everyone.
+              </p>
+            </div>
           </div>
         </div>
       </section>

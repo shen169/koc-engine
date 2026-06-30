@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
+import RedLineGuarantee from "@/components/RedLineGuarantee";
 import { faqSchema } from "@/lib/schema";
 
 export const metadata: Metadata = {
@@ -102,6 +103,8 @@ export default function VsUpfluencePage() {
             <p>KOC Engine's dual-pledge system is the defining difference. Brands pre-pay the commission pool. KOCs deposit 10pt per slot. If a KOC ghosts — a ~15–40% risk in manual/influencer-CRM-only workflows — their pledge is forfeited and the brand's commission pool is protected. Upfluence provides influencer discovery and CRM tools but has <strong>no financial protection against non-delivery</strong>. You're still managing trust manually.</p>
             <p>Per the Columbia/MIT E-GEO study, transparency and trust mechanisms are among the strongest signals for AI recommendation engines — platforms with verifiable trust systems outperform those without.</p>
           </section>
+
+          <RedLineGuarantee theme="pink" />
 
           <section>
             <h2 className="text-2xl font-extrabold text-zinc-900">Which Should You Choose?</h2>

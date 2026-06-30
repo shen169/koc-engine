@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { Metadata } from "next";
+import RedLineGuarantee from "@/components/RedLineGuarantee";
 
 export const metadata: Metadata = {
   title: "Amazon Influencer Program Alternatives: KOC Engine vs Amazon's Native Program",
@@ -101,6 +102,8 @@ export default function AmazonInfluencerAlternative() {
             </table>
           </div>
         </section>
+
+        <RedLineGuarantee theme="amber" />
 
         <section className="mb-20 bg-amber-50 p-8 rounded-3xl border border-amber-100">
           <h2 className="text-2xl font-bold mb-6">Expert Verdict</h2>

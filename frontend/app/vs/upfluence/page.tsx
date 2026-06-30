@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { Metadata } from "next";
+import RedLineGuarantee from "@/components/RedLineGuarantee";
 
 export const metadata: Metadata = {
   title: "KOC Engine vs Upfluence: Which Platform Works for Amazon Sellers?",
@@ -101,6 +102,8 @@ export default function UpfluenceComparison() {
             </table>
           </div>
         </section>
+
+        <RedLineGuarantee theme="orange" />
 
         <section className="mb-20 bg-orange-50 p-8 rounded-3xl border border-orange-100">
           <h2 className="text-2xl font-bold mb-6">Expert Verdict</h2>
