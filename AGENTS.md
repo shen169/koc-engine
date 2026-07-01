@@ -83,6 +83,63 @@ sudo docker compose restart     # 重启全部
 sudo docker compose up -d --build   # 代码更新后重建
 ```
 
+### ⚠️ 部署踩坑记录（2026-07-01）
+
+这些错误每次都有人踩，记录在此防止复发：
+
+**1. Docker Volume 命名陷阱 — 数据"丢失"**
+
+Docker Compose 会自动给 volume 加项目目录名作为前缀。例如在 `koc-engine/` 目录下启动，`koc_output` volume 实际名称是 `koc-engine_koc_output`。如果之前在其他目录名（或无前缀）部署过，旧数据在另一个 volume 里，看起来像"数据丢了"。
+
+**已修复**：`docker-compose.yml` 中 `koc_output` 加了 `name: koc_output` 钉死卷名。
+
+**教训**：
+- 任何使用 named volume 的项目都要在 compose 文件中固定 `name:`，不要依赖 Compose 的自动命名
+- 排查"数据丢失"先 `docker volume ls` 看是不是多个相似名字的 volume
+- 恢复数据：`sudo docker cp` 或 `sudo cp -r /var/lib/docker/volumes/旧卷名/_data/* /var/lib/docker/volumes/koc_output/_data/` 然后重启 backend
+
+**2. VPS 上 git pull 之前必须先 push**
+
+告诉用户去 VPS 执行 `git pull` 之前，确认本地 commit 已经 push 到远程。否则 VPS 会显示 "Already up to date"，用户会困惑。
+
+**教训**：先 `git push`，再说 `git pull`。
+
+**3. docker exec 中运行 Python 代码的引号陷阱**
+
+`docker exec container python3 -c "..."` 里面如果有单引号或嵌套引号会直接炸。多层嵌套时换行也会出问题。
+
+**正确姿势**：
+```bash
+# 方案A：用 heredoc 写临时脚本到容器
+sudo docker exec -i koc-backend python3 <<'PYEOF'
+import bcrypt, json, os
+h = bcrypt.hashpw('admin123'.encode(), bcrypt.gensalt()).decode()
+p = os.path.join(os.environ['OUTPUT_DIR'], 'users/users.json')
+d = json.load(open(p))
+d['68f7e29e8a90']['password_hash'] = h
+json.dump(d, open(p, 'w'), indent=2, ensure_ascii=False)
+print('done')
+PYEOF
+
+# 方案B：先写到本地文件，再 docker cp 进去执行
+echo '...python code...' > /tmp/reset_pwd.py
+sudo docker cp /tmp/reset_pwd.py koc-backend:/tmp/
+sudo docker exec koc-backend python3 /tmp/reset_pwd.py
+```
+
+**4. 不要假设网站打不开就是 DNS 问题**
+
+用户报告"域名解析有问题"时，先用 `dig` / `nslookup` / `curl -v` 确认是不是真的 DNS 问题。本次 DNS 一直正常（`kocengine.com → 47.237.69.3`），真正的问题是：
+- SSL 证书从未初始化（443 端口不通）
+- `ssl-init.sh` 必须手动跑一次才能拿到证书
+- HTTP 80 端口一直是好的，但用户尝试的是 `https://`
+
+**排查顺序**：DNS 解析 → 端口是否监听 → HTTP 是否响应 → HTTPS 证书状态
+
+**5. 恢复旧 volume 数据后密码会回退**
+
+从旧 volume 恢复数据意味着 old passwords 也恢复了。如果之前重置过密码，数据恢复后需要再次重置。记得恢复数据后验证登录是否正常。
+
 ## Environment Variables
 
 Backend `backend/.env`:
