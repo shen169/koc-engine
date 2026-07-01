@@ -1,44 +1,59 @@
-"""Email service — SMTP sending for KOC notifications"""
+"""Email service — Resend HTTP API for KOC notifications"""
 
 import os
-import smtplib
+import json
 import threading
 import logging
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 log = logging.getLogger("email_service")
 
-SMTP_HOST = os.getenv("SMTP_HOST", "")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "")
-SMTP_PASS = os.getenv("SMTP_PASS", "")
+# Resend config — uses HTTP API (SMTP blocked in some regions)
+RESEND_API_KEY = os.getenv("SMTP_PASS", "")  # Resend API key stored as SMTP_PASS
 SMTP_FROM = os.getenv("SMTP_FROM", "noreply@kocengine.com")
+RESEND_API_URL = "https://api.resend.com/emails"
 
-EMAIL_ENABLED = bool(SMTP_HOST and SMTP_USER and SMTP_PASS)
+EMAIL_ENABLED = bool(RESEND_API_KEY and SMTP_FROM)
 
 
 def _send_email_sync(to_email: str, subject: str, body: str):
-    """Send email synchronously via SMTP. Logs instead of raising."""
+    """Send email via Resend HTTP API. Logs instead of raising."""
     if not EMAIL_ENABLED:
         log.info(f"[email disabled] To: {to_email} | Subject: {subject}")
         log.info(f"[email body]\n{body}")
         return
 
     try:
-        msg = MIMEMultipart()
-        msg["From"] = SMTP_FROM
-        msg["To"] = to_email
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain", "utf-8"))
+        payload = json.dumps({
+            "from": SMTP_FROM,
+            "to": [to_email],
+            "subject": subject,
+            "text": body,
+        }).encode("utf-8")
 
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(SMTP_FROM, to_email, msg.as_string())
-        log.info(f"[email sent] To: {to_email} | Subject: {subject}")
+        req = Request(
+            RESEND_API_URL,
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "User-Agent": "koc-engine/2.0",
+            },
+        )
+        resp = urlopen(req, timeout=15)
+        result = json.loads(resp.read())
+        log.info(f"[email sent] To: {to_email} | Subject: {subject} | Resend ID: {result.get('id', 'N/A')}")
+    except HTTPError as e:
+        body_text = ""
+        try:
+            body_text = e.read().decode()
+        except Exception:
+            pass
+        log.error(f"[email failed] To: {to_email} | HTTP {e.code}: {body_text}")
+        log.info(f"[email fallback body]\n{body}")
     except Exception as e:
-        log.error(f"[email failed] To: {to_email} | Error: {e}")
+        log.error(f"[email failed] To: {to_email} | Error: {type(e).__name__}: {e}")
         log.info(f"[email fallback body]\n{body}")
 
 
@@ -51,6 +66,52 @@ def send_email_async(to_email: str, subject: str, body: str):
 # ═══════════════════════════════════════════
 # Template functions
 # ═══════════════════════════════════════════
+
+def send_registration_email(user_email: str, role: str):
+    """注册成功后的欢迎邮件 — 区分 KOC 和商家"""
+    if role == "merchant":
+        subject = "Welcome to KOC Engine — Start Publishing Tasks"
+        body = f"""Welcome to KOC Engine!
+
+Your merchant account has been created. You received **100 bonus points**.
+
+**Next Steps:**
+1. Create your merchant profile at https://kocengine.com/dashboard
+2. List your products with commission links
+3. Publish a task — Urgent tasks auto-match creators instantly
+4. KOCs create content, you approve → creators earn commission, you get content
+
+**Task Costs:**
+• 5pt platform fee per task publish (non-refundable)
+• Commission per creator: 20-50pt (paid only on approved content)
+• Service fee of 10% (min 1pt) on creator earnings
+
+Questions? Reply to this email or contact support.
+
+— KOC Engine Team
+"""
+    else:
+        subject = "Welcome to KOC Engine — Your Creator Journey Starts Here"
+        body = f"""Welcome to KOC Engine!
+
+Your creator account has been created. You received **200 bonus points**.
+
+**Next Steps:**
+1. Complete your creator application at https://kocengine.com/koc/apply
+2. Get AI scored and auto-approved instantly
+3. Browse the Task Hall for brand collaboration opportunities
+4. Accept a task (10pt pledge required, refunded on completion)
+
+**Creator Benefits:**
+• Free product samples from brands
+• Earn commission in platform points: 1pt = $1 USD
+• 90% commission (withdrawable) + full pledge returned on content approval
+• Repeat collaborations boost your match score
+
+— KOC Engine Team
+"""
+    send_email_async(user_email, subject, body)
+
 
 def send_welcome_email(koc_email: str, koc_name: str, tier: str):
     tier_info = {
@@ -227,6 +288,8 @@ def send_template_email_async(to_email: str, template_name: str, **kwargs):
 
     template_dispatch = {
         "welcome": lambda: send_welcome_email(to_email, koc_name, tier),
+        "registration_koc": lambda: send_registration_email(to_email, "koc"),
+        "registration_merchant": lambda: send_registration_email(to_email, "merchant"),
         "match": lambda: send_match_email(to_email, koc_name, product_name, company_name),
         "ship": lambda: send_ship_email(to_email, koc_name, product_name, tracking, carrier),
         "review_approved": lambda: send_review_email(to_email, koc_name, product_name, "approved"),

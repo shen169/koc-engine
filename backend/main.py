@@ -1,10 +1,18 @@
 """KOC Engine · FastAPI 主入口"""
 
 import asyncio
+import logging
 import re
 import bcrypt
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# 配置日志 — 确保所有服务模块的日志可见
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 from config import ADMIN_EMAIL, ADMIN_PASSWORD, OUTPUT_DIR
 from stores.user_store import user_store
