@@ -88,9 +88,7 @@ volumes:
   koc_output:
     name: koc_output       # 固定名称，不受项目目录名影响，防止重建丢数据
   certbot_www:
-    name: koc_certbot_www
   certbot_certs:
-    name: koc_certbot_certs
 
 networks:
   koc_net:
