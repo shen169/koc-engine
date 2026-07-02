@@ -6,7 +6,7 @@ const SITE_NAME = "KOC Engine";
 const SITE_TAGLINE =
   "Making creator-brand collaboration accessible for everyone, not just the biggest brands and influencers.";
 const SITE_DESCRIPTION =
-  `${SITE_TAGLINE} KOC Engine connects cross-border sellers with vetted small creators. Dual-pledge escrow ensures fair deals. No monthly fees — per-task pricing.`;
+  `${SITE_TAGLINE} KOC Engine connects cross-border sellers with vetted small KOCs. Dual-pledge escrow ensures fair deals. No monthly fees — per-task pricing.`;
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -111,6 +111,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+        <link rel="alternate" type="application/rss+xml" title="KOC Engine Blog" href="https://kocengine.com/rss.xml" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

@@ -73,3 +73,8 @@ Disallow: /dashboard/
 Disallow: /admin/
 
 Sitemap: https://kocengine.com/sitemap.xml
+
+# ── AI Discovery Endpoints ──
+# llms.txt: https://kocengine.com/llms.txt
+# llms-full.txt: https://kocengine.com/llms-full.txt
+# ai.txt: https://kocengine.com/.well-known/ai.txt

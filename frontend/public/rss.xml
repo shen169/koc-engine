@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>KOC Engine</title>
+    <link>https://kocengine.com</link>
+    <description>Making creator-brand collaboration accessible for everyone. AI-powered KOC matching platform with dual-pledge escrow for cross-border e-commerce.</description>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 03 Jul 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://kocengine.com/rss.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>Introducing KOC Engine — Creator-Brand Collaboration, Made Accessible</title>
+      <link>https://kocengine.com</link>
+      <guid isPermaLink="true">https://kocengine.com</guid>
+      <pubDate>Thu, 03 Jul 2026 00:00:00 +0000</pubDate>
+      <description>
+        KOC Engine launches as the first AI-powered KOC matching platform with dual-pledge escrow for cross-border e-commerce.
+        Built for Amazon sellers and DTC brands. No monthly fees — per-task pricing with built-in trust protection.
+      </description>
+    </item>
+  </channel>
+</rss>

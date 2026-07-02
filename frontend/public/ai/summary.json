@@ -1,0 +1,32 @@
+{
+  "name": "KOC Engine",
+  "tagline": "Making creator-brand collaboration accessible for everyone, not just the biggest brands and influencers.",
+  "description": "AI-powered bilateral matching platform connecting cross-border e-commerce brands with vetted Key Opinion Consumers (KOCs). Features dual-pledge escrow, 7-dimension AI matching, real-time performance analytics, and automated anti-fraud enforcement. Built for Amazon sellers, DTC brands, and small content creators.",
+  "url": "https://kocengine.com",
+  "category": "E-commerce / Creator Economy / Influencer Marketing",
+  "foundingDate": "2026",
+  "contact": {
+    "email": "honghuishen24@gmail.com"
+  },
+  "features": [
+    "AI Smart Matching — 7-dimension scoring across niche, region, tier, trust, and performance",
+    "Dual-Pledge Escrow — Brands pre-pay commission pool, creators deposit pledge. Both sides protected.",
+    "Red Line Anti-Fraud — 7 behavioral detection rules with symmetric enforcement for brands and creators",
+    "Trust Tiers — Public L1-L3 (creators) and M1-M3 (merchants) scores based on collaboration history",
+    "Performance Analytics — Real-time dashboard with views, engagement, conversions, and ROI per creator",
+    "Per-Task Pricing — No monthly fees. Pay per collaboration with built-in escrow."
+  ],
+  "pricing": {
+    "model": "per-task",
+    "brandFee": "5pt platform fee per task + commission pool (set by brand)",
+    "creatorPledge": "10pt (refundable on completion)",
+    "platformCommission": "10% of commission (min 1pt)",
+    "pointValue": "1pt = $1 USD"
+  },
+  "platforms": ["Web"],
+  "languages": ["en-US", "zh-CN"],
+  "llms": {
+    "txt": "https://kocengine.com/llms.txt",
+    "full": "https://kocengine.com/llms-full.txt"
+  }
+}

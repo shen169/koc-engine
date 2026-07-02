@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Spark from "@/components/Spark";
 import JsonLd from "@/components/JsonLd";
-import { organizationSchema, webApplicationSchema, faqSchema } from "@/lib/schema";
+import { organizationSchema, webApplicationSchema, websiteSchema, faqSchema } from "@/lib/schema";
 import { HomeStats } from "./HomeStats";
 
 const homeFaqs = [
@@ -51,6 +51,7 @@ export default function HomePage() {
   return (
     <>
       <JsonLd data={organizationSchema()} />
+      <JsonLd data={websiteSchema()} />
       <JsonLd data={webApplicationSchema()} />
       <JsonLd data={faqSchema(homeFaqs)} />
 
@@ -67,7 +68,7 @@ export default function HomePage() {
           Making creator-brand collaboration accessible for everyone, not just the biggest brands and influencers.
         </p>
         <p className="text-base text-zinc-400 max-w-xl mb-10">
-          For Amazon sellers, DTC brands, and small creators — AI matching with dual-pledge escrow to ensure both sides deliver.
+          For Amazon sellers, DTC brands, and small content partners — AI matching with dual-pledge escrow to ensure both sides deliver.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
@@ -88,19 +89,19 @@ export default function HomePage() {
       {/* Value Props */}
       <section className="max-w-6xl mx-auto px-6 py-20">
         <div className="text-center mb-14">
-          <h2 className="text-3xl font-extrabold text-zinc-900 mb-4">Why Brands &amp; Creators Choose KOC Engine</h2>
+          <h2 className="text-3xl font-extrabold text-zinc-900 mb-4">Why Brands &amp; KOCs Choose KOC Engine</h2>
           <p className="text-zinc-500 max-w-2xl mx-auto">Built for cross-border e-commerce. AI matching, escrow protection, and real-time performance tracking — all in one platform.</p>
         </div>
         <div className="grid md:grid-cols-2 gap-5">
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-purple-600 uppercase tracking-wide mb-3">🏢 For Brands &amp; Sellers</h3>
-            {[{ icon: "🤖", title: "AI Smart Matching", desc: "7-dimension scoring — niche, region, tier, trust, performance. Find the right creator in seconds, not weeks." }, { icon: "🛡️", title: "Pledge Protection", desc: "Creators deposit before receiving samples. No more ghosting after free products. Only pay for approved content." }, { icon: "📊", title: "Performance Analytics", desc: "Real-time dashboard — views, engagement, conversions, revenue per creator. Know your ROI on every collaboration." }].map((v) => (
+            {[{ icon: "🤖", title: "AI Smart Matching", desc: "7-dimension scoring — niche, region, tier, trust, performance. Find the right KOC in seconds, not weeks." }, { icon: "🛡️", title: "Pledge Protection", desc: "KOCs deposit before receiving samples. No more ghosting after free products. Only pay for approved content." }, { icon: "📊", title: "Performance Analytics", desc: "Real-time dashboard — views, engagement, conversions, revenue per creator. Know your ROI on every collaboration." }].map((v) => (
               <div key={v.title} className="bg-white rounded-2xl p-6 border border-purple-100 shadow-sm"><div className="text-3xl mb-3">{v.icon}</div><h4 className="font-bold text-zinc-900 mb-1">{v.title}</h4><p className="text-sm text-zinc-500">{v.desc}</p></div>
             ))}
           </div>
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-pink-600 uppercase tracking-wide mb-3">🎬 For Creators</h3>
-            {[{ icon: "🏪", title: "Task Hall", desc: "Browse all open brand deals. Filter by category, commission, and region. Accept up to 5 concurrent tasks." }, { icon: "💰", title: "Earn Commission + Free Products", desc: "Keep the products you review. Earn commission in platform points (1pt = $1). Withdraw earnings anytime. Top performers unlock L3 priority matching." }, { icon: "⭐", title: "Build Your Reputation", desc: "Trust tiers (L1→L2→L3) based on completed collaborations and ratings. Higher tiers = more brand deals + better matching priority." }].map((v) => (
+            <h3 className="text-sm font-semibold text-pink-600 uppercase tracking-wide mb-3">🎬 For Content Partners</h3>
+            {[{ icon: "🏪", title: "Task Hall", desc: "Browse all open brand deals. Filter by category, commission, and region. Accept up to 5 concurrent tasks." }, { icon: "💰", title: "Earn Commission + Free Products", desc: "Keep the products you review. Earn commission in platform points (1pt = $1). Withdraw earnings anytime. Top performers unlock L3 priority matching." }, { icon: "⭐", title: "Build Your Reputation", desc: "Trust tiers (L1→L2→L3) based on completed collaborations and ratings. Higher tiers mean more brand deals + better matching priority." }].map((v) => (
               <div key={v.title} className="bg-white rounded-2xl p-6 border border-pink-100 shadow-sm"><div className="text-3xl mb-3">{v.icon}</div><h4 className="font-bold text-zinc-900 mb-1">{v.title}</h4><p className="text-sm text-zinc-500">{v.desc}</p></div>
             ))}
           </div>
@@ -112,7 +113,7 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto px-6">
           <h2 className="text-3xl font-extrabold text-center text-zinc-900 mb-14">How It Works</h2>
           <div className="grid md:grid-cols-4 gap-6">
-            {[{ step: "1", title: "Brand Posts Task", desc: "Set product, commission, KOC count. Urgent tasks auto-match." }, { step: "2", title: "AI Matches Creators", desc: "7-dimension scoring finds best-fit KOCs by niche and region." }, { step: "3", title: "Commission Pool + Ship", desc: "Brand pre-pays commission pool. KOC pledges 10pt. Brand ships sample, KOC creates content." }, { step: "4", title: "Review + Track ROI", desc: "Brand approves content. Track views, engagement, conversions." }].map((item) => (
+            {[{ step: "1", title: "Brand Posts Task", desc: "Set product, commission, KOC count. Urgent tasks auto-match." }, { step: "2", title: "AI Matches KOCs", desc: "7-dimension scoring finds best-fit talent by niche and region." }, { step: "3", title: "Commission Pool + Ship", desc: "Brand pre-pays commission pool. KOC pledges 10pt. Brand ships sample, KOC creates content." }, { step: "4", title: "Review + Track ROI", desc: "Brand approves content. Track views, engagement, conversions." }].map((item) => (
               <div key={item.step} className="text-center"><div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 brand-gradient"><span className="text-white text-xl font-extrabold">{item.step}</span></div><h4 className="font-bold text-zinc-900 mb-1">{item.title}</h4><p className="text-xs text-zinc-500">{item.desc}</p></div>
             ))}
           </div>
@@ -127,8 +128,16 @@ export default function HomePage() {
           </h2>
           <p className="text-zinc-500 max-w-3xl mx-auto text-lg leading-relaxed">
             KOC Engine is the <strong>only KOC platform</strong> with an automated anti-fraud enforcement system
-            that protects both brands and creators equally. Every action is monitored. Every violation is penalized.
+            that protects both brands and KOCs equally. Every action is monitored. Every violation is penalized.
             The innocent party always gets fully refunded.
+          </p>
+          <p className="text-zinc-400 text-sm mt-3 max-w-3xl mx-auto">
+            📊 <strong>Industry context:</strong>{" "}
+            59.1% of marketers have been ghosted by influencers (
+            <a href="https://www.modash.com/blog/influencer-ghosting-statistics" target="_blank" rel="noopener noreferrer" className="text-pink-500 underline">Modash 2024</a>
+            ), 87% of content partners experience delayed or missing payments (
+            <a href="https://www.campaignlive.com/article/creator-pay-report-2025/1864196" target="_blank" rel="noopener noreferrer" className="text-pink-500 underline">Campaign US 2025</a>
+            ), and $1.3B–$4.6B is lost annually to influencer marketing fraud. KOC Engine's dual-pledge escrow is designed to eliminate these structural problems.
           </p>
         </div>
 
@@ -138,7 +147,7 @@ export default function HomePage() {
             <div className="text-3xl mb-3">🔒</div>
             <h4 className="font-bold text-zinc-900 mb-2">Dual-Pledge Escrow</h4>
             <p className="text-sm text-zinc-500 leading-relaxed">
-              Brands pre-pay the commission pool. Creators deposit a 10pt pledge. Neither side can walk away
+              Brands pre-pay the commission pool. KOCs deposit a 10pt pledge. Neither side can walk away
               without financial consequence. Funds are released only after content is approved.
             </p>
           </div>
@@ -146,7 +155,7 @@ export default function HomePage() {
             <div className="text-3xl mb-3">🤖</div>
             <h4 className="font-bold text-zinc-900 mb-2">AI Vetting + Human Review</h4>
             <p className="text-sm text-zinc-500 leading-relaxed">
-              Every creator passes 3-dimension AI scoring: authenticity, niche fit, engagement.
+              Every applicant passes 3-dimension AI scoring: authenticity, niche fit, engagement.
               Manual admin review for final approval. No fake accounts. No bots.
             </p>
           </div>
@@ -268,6 +277,9 @@ export default function HomePage() {
         <p className="text-zinc-600 mt-2">
           Contact:{" "}
           <a href="mailto:honghuishen24@gmail.com" className="hover:text-purple-400 underline">honghuishen24@gmail.com</a>
+        </p>
+        <p className="text-zinc-600 mt-1 text-xs">
+          Last updated: <time dateTime="2026-07-03">July 3, 2026</time>
         </p>
       </footer>
     </>

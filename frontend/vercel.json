@@ -18,6 +18,26 @@
     {
       "source": "/robots.txt",
       "headers": [{ "key": "Content-Type", "value": "text/plain" }]
+    },
+    {
+      "source": "/.well-known/ai.txt",
+      "headers": [{ "key": "Content-Type", "value": "text/plain" }]
+    },
+    {
+      "source": "/ai/(.*).json",
+      "headers": [{ "key": "Content-Type", "value": "application/json" }]
+    },
+    {
+      "source": "/rss.xml",
+      "headers": [{ "key": "Content-Type", "value": "application/rss+xml" }]
+    },
+    {
+      "source": "/llms.txt",
+      "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }]
+    },
+    {
+      "source": "/llms-full.txt",
+      "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }]
     }
   ]
 }

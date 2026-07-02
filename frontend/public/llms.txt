@@ -1,5 +1,7 @@
 # KOC Engine
 
+> AI-powered bilateral matching platform for cross-border e-commerce KOC marketing — connect brands with vetted content partners through dual-pledge escrow and real-time performance tracking. No monthly fees. Per-task pricing with built-in trust.
+
 AI-powered bilateral matching platform for cross-border e-commerce KOC marketing.
 Connect brands with vetted content creators. Dual-pledge escrow. Real-time performance tracking.
 

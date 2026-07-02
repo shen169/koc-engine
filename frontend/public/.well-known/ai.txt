@@ -1,0 +1,44 @@
+# KOC Engine — AI Crawler & Agent Permissions
+# https://kocengine.com/.well-known/ai.txt
+# Standard: https://aeo.studio/tools/ai-txt-generator
+
+# AI Search Crawlers — Allowed
+Allow: GPTBot
+Allow: OAI-SearchBot
+Allow: ChatGPT-User
+Allow: ClaudeBot
+Allow: Claude-SearchBot
+Allow: anthropic-ai
+Allow: PerplexityBot
+Allow: Google-Extended
+Allow: Google-CloudVertexBot
+Allow: Bingbot
+Allow: Applebot-Extended
+Allow: cohere-ai
+Allow: DuckAssistBot
+Allow: meta-externalagent
+Allow: Meta-ExternalFetcher
+Allow: Amazonbot
+Allow: AI2Bot
+Allow: xAI-Bot
+Allow: YouBot
+Allow: CCBot
+
+# AI Agents — Allowed for public content
+Allow: claude-web
+Allow: Perplexity-User
+Allow: ChatGPT-User
+
+# Disallowed paths for all AI crawlers
+Disallow: /portal/*
+Disallow: /dashboard/*
+Disallow: /admin/*
+
+# Site Info
+Site: KOC Engine
+Type: AI-powered KOC matching platform for cross-border e-commerce
+Contact: honghuishen24@gmail.com
+llms: https://kocengine.com/llms.txt
+llms-full: https://kocengine.com/llms-full.txt
+summary: https://kocengine.com/ai/summary.json
+faq: https://kocengine.com/ai/faq.json

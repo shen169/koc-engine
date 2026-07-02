@@ -14,11 +14,37 @@ export function organizationSchema() {
       "https://twitter.com/kocengine",
       "https://reddit.com/user/kocengine",
       "https://github.com/shen169/koc-engine",
-      // TODO: create these profiles, then uncomment
-      // "https://linkedin.com/company/kocengine",
-      // "https://crunchbase.com/organization/koc-engine",
-      // "https://producthunt.com/products/koc-engine",
+      "https://linkedin.com/company/kocengine",
+      "https://crunchbase.com/organization/koc-engine",
+      "https://producthunt.com/products/koc-engine",
     ],
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer support",
+      email: "honghuishen24@gmail.com",
+      availableLanguage: ["English", "Chinese"],
+    },
+  };
+}
+
+export function websiteSchema() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "KOC Engine",
+    url: SITE_URL,
+    description:
+      "Making creator-brand collaboration accessible for everyone. AI-powered KOC matching platform with dual-pledge escrow for cross-border e-commerce.",
+    inLanguage: ["en-US", "zh-CN"],
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${SITE_URL}/search?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
+    dateModified: new Date().toISOString().split("T")[0],
   };
 }
 
@@ -32,6 +58,7 @@ export function webApplicationSchema() {
       "Making creator-brand collaboration accessible for everyone. AI-powered platform connecting cross-border e-commerce brands with vetted KOC creators for authentic product reviews and content.",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
+    dateModified: new Date().toISOString().split("T")[0],
     offers: {
       "@type": "Offer",
       price: "0",

@@ -1,0 +1,38 @@
+{
+  "name": "KOC Engine",
+  "description": "AI-powered bilateral matching platform for cross-border e-commerce KOC marketing with dual-pledge escrow.",
+  "url": "https://kocengine.com",
+  "capabilities": [
+    {
+      "name": "KOC Discovery",
+      "description": "Browse vetted content partners with AI-powered 7-dimension scoring and filtering",
+      "endpoint": "https://kocengine.com/portal/hall",
+      "access": "authenticated"
+    },
+    {
+      "name": "Task Publishing",
+      "description": "Brands publish collaboration tasks with commission pools and KOC requirements",
+      "endpoint": "https://kocengine.com/dashboard/tasks/new",
+      "access": "authenticated"
+    },
+    {
+      "name": "AI Matching",
+      "description": "Automated creator-brand matching based on niche, region, trust tier, and performance scores",
+      "access": "platform-internal"
+    },
+    {
+      "name": "Escrow Protection",
+      "description": "Dual-pledge escrow with automated fund release on content approval",
+      "access": "platform-internal"
+    }
+  ],
+  "authentication": {
+    "type": "JWT",
+    "roles": ["koc", "merchant", "admin"],
+    "register": "https://kocengine.com/register"
+  },
+  "api": {
+    "baseUrl": "https://koc-engine-api.onrender.com",
+    "docs": "https://koc-engine-api.onrender.com/docs"
+  }
+}

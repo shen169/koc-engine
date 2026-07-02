@@ -1,0 +1,70 @@
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is KOC Engine?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "KOC Engine is an AI-powered bilateral matching platform connecting cross-border e-commerce brands with vetted Key Opinion Consumers (KOCs). It features dual-pledge escrow to ensure both sides deliver, 7-dimension AI matching for precise creator discovery, and automated anti-fraud enforcement. Built for Amazon sellers and DTC brands, with per-task pricing and no monthly fees."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does KOC Engine prevent fraud and ghosting?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "KOC Engine uses a dual-pledge escrow system: brands pre-pay the commission pool (non-refundable), and creators deposit a 10pt pledge per task. Funds are released only after content is approved. The Red Line Protection System monitors 7 behavioral patterns in real time — speed anomalies, repeat collusion, and IP correlation. First offense freezes the account with one chance to rectify; second offense results in permanent ban. Both brands and creators face the same penalties with no double standards."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does AI matching work on KOC Engine?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "KOC Engine's AI scores creators across 7 dimensions: niche category overlap, tier bonus, content quality score, regional market match, collaboration history, trust score, and content performance. Top matches are automatically ranked and displayed. Urgent tasks auto-match on publish; long-term tasks stay in the task hall for organic browsing with filters by category, commission, platform, and region."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How much does KOC Engine cost?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "KOC Engine uses per-task pricing with no monthly subscription. Brands pay a 5pt platform fee per task plus the commission pool (amount they set). Creators deposit a 10pt pledge (refundable on completion). The platform takes 10% of commission (minimum 1pt) as a service fee. Platform points are valued at 1pt = $1 USD and are withdrawable."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Who can join KOC Engine as a creator?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Any content creator with an active social media presence can apply. There is no minimum follower count. Every applicant passes through 3-stage vetting: AI scoring across authenticity, niche fit, and engagement metrics, followed by admin review. Approved creators receive a trust tier (L1/L2/L3) that grows with completed collaborations and positive ratings."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What types of brands use KOC Engine?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "KOC Engine is built for cross-border e-commerce sellers: Amazon sellers, DTC (direct-to-consumer) brands, Shopify merchants, and brands expanding into global markets. The platform supports product seeding, unboxing reviews, and authentic content creation across TikTok, Instagram, YouTube, and other social platforms."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How are payments and commissions handled?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "All transactions use platform points (1pt = $1 USD). Brands pre-pay the commission pool when publishing a task. Upon content approval, the creator receives the commission (minus 10% platform fee, min 1pt) and their 10pt pledge is returned (minus 1pt platform fee). Points are withdrawable at any time. If a creator fails to submit content, the commission returns to the brand and the pledge is forfeited."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What makes KOC Engine different from other influencer platforms?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "KOC Engine is the only platform combining AI matching with dual-pledge escrow specifically for cross-border KOC marketing. Unlike enterprise platforms ($2K-$35K/year), KOC Engine uses per-task pricing accessible to small brands. Unlike general escrow platforms, it includes 7-dimension AI matching, automated fraud detection with symmetric enforcement, and public trust tiers. The pledge system ensures both sides have skin in the game — a structural solution to the ghosting problem that affects 59% of influencer marketing collaborations."
+      }
+    }
+  ]
+}
