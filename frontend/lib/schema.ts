@@ -8,7 +8,7 @@ export function organizationSchema() {
     url: SITE_URL,
     logo: `${SITE_URL}/favicon.svg`,
     description:
-      "AI-powered KOC matching platform for cross-border e-commerce. Connect Amazon sellers and DTC brands with vetted TikTok creators.",
+      "Making creator-brand collaboration accessible for everyone, not just the biggest brands and influencers. KOC Engine connects cross-border sellers with vetted small creators through dual-pledge escrow and AI matching.",
     foundingDate: "2026",
     sameAs: [
       "https://twitter.com/kocengine",
@@ -29,7 +29,7 @@ export function webApplicationSchema() {
     name: "KOC Engine",
     url: SITE_URL,
     description:
-      "AI-powered platform connecting cross-border e-commerce brands with vetted KOC creators for authentic product reviews and content.",
+      "Making creator-brand collaboration accessible for everyone. AI-powered platform connecting cross-border e-commerce brands with vetted KOC creators for authentic product reviews and content.",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     offers: {

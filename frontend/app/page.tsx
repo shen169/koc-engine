@@ -61,10 +61,13 @@ export default function HomePage() {
       >
         <Spark size={64} animate className="mb-8" />
         <h1 className="text-5xl font-extrabold tracking-tight mb-4 max-w-3xl brand-gradient-text">
-          AI-Powered KOC Matching for Cross-Border Brands
+          Creator-Brand Collaboration, Made Accessible
         </h1>
-        <p className="text-lg text-zinc-500 max-w-xl mb-10">
-          Find vetted TikTok creators for your Amazon or DTC products. Dual-pledge escrow ensures both sides deliver. Track performance in real time.
+        <p className="text-lg text-zinc-500 max-w-xl mb-2">
+          Making creator-brand collaboration accessible for everyone, not just the biggest brands and influencers.
+        </p>
+        <p className="text-base text-zinc-400 max-w-xl mb-10">
+          For Amazon sellers, DTC brands, and small creators — AI matching with dual-pledge escrow to ensure both sides deliver.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
@@ -261,7 +264,7 @@ export default function HomePage() {
           <Link href="/case-studies" className="hover:text-purple-400 underline">Case Studies</Link>
           <Link href="/guide/koc-marketing-cross-border-ecommerce" className="hover:text-purple-400 underline">KOC Marketing Guide</Link>
         </div>
-        <p className="text-zinc-500">KOC Engine — Connecting Cross-Border Brands &amp; Creators</p>
+        <p className="text-zinc-500">KOC Engine — Making Creator-Brand Collaboration Accessible for Everyone</p>
         <p className="text-zinc-600 mt-2">
           Contact:{" "}
           <a href="mailto:honghuishen24@gmail.com" className="hover:text-purple-400 underline">honghuishen24@gmail.com</a>

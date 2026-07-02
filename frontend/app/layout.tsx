@@ -3,8 +3,10 @@ import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://kocengine.com";
 const SITE_NAME = "KOC Engine";
+const SITE_TAGLINE =
+  "Making creator-brand collaboration accessible for everyone, not just the biggest brands and influencers.";
 const SITE_DESCRIPTION =
-  "AI-powered KOC matching platform for cross-border e-commerce. Connect Amazon sellers and DTC brands with vetted TikTok creators. Free product samples + commission. Dual-pledge escrow protection.";
+  `${SITE_TAGLINE} KOC Engine connects cross-border sellers with vetted small creators. Dual-pledge escrow ensures fair deals. No monthly fees — per-task pricing.`;
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -17,7 +19,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: `${SITE_NAME} — AI KOC Matching for Cross-Border E-Commerce`,
+    default: `${SITE_NAME} — ${SITE_TAGLINE}`,
     template: `%s | ${SITE_NAME}`,
   },
   description: SITE_DESCRIPTION,
@@ -43,7 +45,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
-    title: `${SITE_NAME} — AI KOC Matching Platform`,
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
     description: SITE_DESCRIPTION,
     url: SITE_URL,
     images: [
@@ -58,7 +60,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_NAME} — AI KOC Matching Platform`,
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
     description: SITE_DESCRIPTION,
     images: ["/images/og-image.svg"],
     creator: "@kocengine",
