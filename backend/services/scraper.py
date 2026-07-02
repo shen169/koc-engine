@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from config import APIFY_API_TOKEN, SCRAPE_DELAY_HOURS
+from config import APIFY_API_TOKEN, SCRAPE_DELAY_HOURS, NotifType
 
 # ═══════════════════════════════════════════
 # Apify Actor 映射（域名 → Apify Actor ID）
@@ -440,12 +440,13 @@ def run_content_scrape_check_sync() -> dict:
                             if koc_user:
                                 notify_user(
                                     koc_user.id,
-                                    "violation",
-                                    "🚨 Content Author Mismatch Detected",
-                                    f"{task.product_name}: The submitted content URL belongs to @{scraped_handle}, "
-                                    f"not your account @{koc_handle}. Trust Score -30.",
+                                    NotifType.VIOLATION,
                                     task_id=task.id,
                                     resource_path=f"/portal/tasks/{task.id}",
+                                    product_name=task.product_name,
+                                    violation_type="author_mismatch",
+                                    koc_handle=koc_handle,
+                                    scraped_handle=scraped_handle,
                                 )
 
                         # 通知商家
@@ -453,12 +454,12 @@ def run_content_scrape_check_sync() -> dict:
                         if m and m.user_id:
                             notify_user(
                                 m.user_id,
-                                "violation",
-                                "🚨 Content Author Mismatch — KOC Penalized",
-                                f"{task.product_name}: Platform detected the submitted content is from "
-                                f"@{scraped_handle}, not the assigned KOC. KOC Trust Score -30.",
+                                NotifType.VIOLATION,
                                 task_id=task.id,
                                 resource_path=f"/dashboard/tasks/{task.id}",
+                                product_name=task.product_name,
+                                violation_type="author_mismatch",
+                                commission=task.commission if hasattr(task, 'commission') else 0,
                             )
                         continue  # author mismatch → don't notify "success"
 
@@ -468,13 +469,13 @@ def run_content_scrape_check_sync() -> dict:
                         if koc_user:
                             notify_user(
                                 koc_user.id,
-                                "content_approved",
-                                "📊 Content Data Verified",
-                                f"{task.product_name}: Platform has verified your content performance. "
-                                f"Views: {content_data['views']:,}, Likes: {content_data['likes']:,}, "
-                                f"Engagement: {content_data['engagement_rate']}%",
+                                NotifType.CONTENT_APPROVED,
                                 task_id=task.id,
                                 resource_path=f"/portal/tasks/{task.id}",
+                                product_name=task.product_name,
+                                views=content_data.get('views', 0),
+                                likes=content_data.get('likes', 0),
+                                engagement_rate=content_data.get('engagement_rate', 0),
                             )
 
                         # 同步 KOC 综合表现分（内联计算，避免循环导入）
@@ -509,13 +510,11 @@ def _handle_scrape_failure(task, slot_index: int, koc_id: str, attempts: int,
             if koc_user:
                 notify_user(
                     koc_user.id,
-                    "content_revision",
-                    "⚠️ Content URL Scrape Failed — Please Resubmit",
-                    f"{task.product_name}: Platform could not verify your content ({error_msg[:150]}). "
-                    f"You have 1 chance to resubmit with a correct URL. "
-                    f"Second failure = 10pt pledge forfeited + Trust Score -15.",
+                    NotifType.CONTENT_REVISION,
                     task_id=task.id,
                     resource_path=f"/portal/tasks/{task.id}",
+                    product_name=task.product_name,
+                    error_msg=error_msg[:150],
                 )
 
         # 通知商家
@@ -523,13 +522,11 @@ def _handle_scrape_failure(task, slot_index: int, koc_id: str, attempts: int,
         if m and m.user_id:
             notify_user(
                 m.user_id,
-                "content_submitted",
-                "⚠️ Content Verification Failed — Awaiting KOC Resubmission",
-                f"{task.product_name}: Platform could not verify KOC's content URL. "
-                f"KOC has been notified to resubmit a correct link. "
-                f"Error: {error_msg[:150]}",
+                NotifType.CONTENT_SUBMITTED,
                 task_id=task.id,
                 resource_path=f"/dashboard/tasks/{task.id}",
+                product_name=task.product_name,
+                error_msg=error_msg[:150],
             )
 
         result["errors"].append({
@@ -577,13 +574,13 @@ def _handle_scrape_failure(task, slot_index: int, koc_id: str, attempts: int,
             if koc_user:
                 notify_user(
                     koc_user.id,
-                    "violation",
-                    "🚨 Content Verification Failed Twice — Pledge Forfeited",
-                    f"{task.product_name}: Both scraping attempts failed. "
-                    f"Your {task.pledge_koc}pt pledge has been forfeited and Trust Score -15. "
-                    f"Error: {error_msg[:150]}",
+                    NotifType.VIOLATION,
                     task_id=task.id,
                     resource_path=f"/portal/tasks/{task.id}",
+                    product_name=task.product_name,
+                    violation_type="scrape_failed_twice",
+                    pledge_koc=task.pledge_koc,
+                    error_msg=error_msg[:150],
                 )
 
         # 通知商家
@@ -591,12 +588,12 @@ def _handle_scrape_failure(task, slot_index: int, koc_id: str, attempts: int,
         if m and m.user_id:
             notify_user(
                 m.user_id,
-                "violation",
-                "🚨 KOC Content Verification Failed — Commission Refunded",
-                f"{task.product_name}: KOC's content URL could not be verified after 2 attempts. "
-                f"{task.commission}pt commission refunded. Error: {error_msg[:150]}",
+                NotifType.VIOLATION,
                 task_id=task.id,
                 resource_path=f"/dashboard/tasks/{task.id}",
+                product_name=task.product_name,
+                violation_type="scrape_failed_twice",
+                commission=task.commission if hasattr(task, 'commission') else 0,
             )
 
         # 更新 task 状态

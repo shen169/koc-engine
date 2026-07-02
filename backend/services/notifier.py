@@ -1,11 +1,13 @@
 """Unified notification helper — in-app + email + Feishu
 
-三通道通知体系（V2.3）：
+三通道通知体系（V2.4）：
 - KOC：站内信 + 邮件
 - 商家：站内信 + 邮件 + 飞书 Webhook
 - Admin：仅站内信
 
-所有通知类型使用 config.NotifType 常量，避免字符串不一致。
+V2.4 新增：自动渲染路径。传 render_kwargs（如 product_name, koc_name 等）
+→ 由 notification_templates.render() 自动生成 title/message/email 内容。
+旧路径（直接传 title/message）仍然兼容。
 """
 
 import logging
@@ -16,6 +18,7 @@ from stores.user_store import user_store
 from stores.koc_store import koc_store
 from stores.merchant_store import merchant_store
 from services.email_service import send_email_async, send_template_email_async
+from services.notification_templates import render as render_template
 from services.lark_notifier import notify_merchant_lark
 
 log = logging.getLogger("notifier")
@@ -89,41 +92,71 @@ def _get_lark_color(ntype: str) -> str:
 def notify_user(
     user_id: str,
     ntype: str,
-    title: str,
-    message: str,
+    title: str = "",
+    message: str = "",
     task_id: str = "",
     resource_path: str = "",
     template_name: str = "",
     template_vars: dict | None = None,
+    **render_kwargs,
 ):
     """
     统一通知入口：站内信 + 邮件 + 飞书。
 
+    两种调用方式：
+
+    【新方式（推荐）— 自动渲染模版】
+        notify_user(user_id, NotifType.TASK_ACCEPTED,
+            task_id="...", resource_path="/portal/tasks/1",
+            product_name="Product X", koc_name="John", pledge_koc=10)
+        → notification_templates.render() 自动生成 title/message/email
+
+    【旧方式（兼容）— 手动传 title/message】
+        notify_user(user_id, NotifType.TASK_ACCEPTED,
+            "Task Accepted", "You accepted Product X", task_id="...")
+        → 直接使用传入的 title/message
+
     参数：
     - user_id: 接收人 user_id
     - ntype: 通知类型（必须使用 NotifType 常量）
-    - title: 站内信标题
-    - message: 站内信正文
+    - title: 站内信标题（旧方式，render_kwargs 为空时必传）
+    - message: 站内信正文（旧方式，render_kwargs 为空时必传）
     - task_id: 关联任务 ID（可选）
     - resource_path: 前端跳转路径（可选）
-    - template_name: 邮件模板名称（可选，如 "welcome"/"match"/"ship"/"review_approved"/"review_revision"/"violation"/"warning"）
-    - template_vars: 邮件模板变量（可选，配合 template_name 使用）
+    - template_name: 邮件模板名称（旧方式，可选）
+    - template_vars: 邮件模板变量（旧方式，可选）
+    - **render_kwargs: 模版变量（新方式），如 product_name, koc_name, commission 等
     """
     if not user_id:
         return
+
+    role = _get_user_role(user_id)
+
+    # ── 新方式：render_kwargs 提供 → 自动生成内容 ──
+    if render_kwargs:
+        # Pass resource_path into render context so templates can use it
+        content = render_template(ntype, role, resource_path=resource_path, **render_kwargs)
+        in_app_title = content["in_app_title"]
+        in_app_message = content["in_app_message"]
+        email_subject = content["email_subject"]
+        email_body = content["email_body"]
+    else:
+        # ── 旧方式：使用手动传入的 title/message ──
+        in_app_title = title
+        in_app_message = message
+        email_subject = title
+        email_body = message
 
     # ① 站内信（所有人）
     notif = Notification(
         user_id=user_id,
         type=ntype,
-        title=title,
-        message=message,
+        title=in_app_title,
+        message=in_app_message,
         task_id=task_id,
         resource_path=resource_path,
     )
     notification_store.create(notif)
-
-    role = _get_user_role(user_id)
 
     # ② 邮件（KOC + 商家）
     if role == "koc":
@@ -134,13 +167,18 @@ def notify_user(
         email = None
 
     if email:
-        if template_name and template_vars:
+        if render_kwargs:
+            # 新方式：使用 render() 返回的专用邮件内容
+            send_email_async(email, email_subject, email_body)
+        elif template_name and template_vars:
+            # 旧方式：邮件模版
             send_template_email_async(email, template_name, **template_vars)
         else:
-            send_email_async(email, title, message)
+            # 旧方式：裸 title/message
+            send_email_async(email, email_subject, email_body)
 
     # ③ 飞书 Webhook（商家专属）
     if role == "merchant":
         webhook = _get_merchant_webhook(user_id)
         lark_color = _get_lark_color(ntype)
-        notify_merchant_lark(webhook, title, message, resource_path, lark_color)
+        notify_merchant_lark(webhook, in_app_title, in_app_message, resource_path, lark_color)

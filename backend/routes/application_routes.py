@@ -156,17 +156,12 @@ def submit_application(data: dict):
     credit_store.set_initial_balance(existing_user.id, DEFAULT_KOC_INITIAL_CREDITS)
 
     # Notification: KOC auto-approved
-    koc_name = data.get("name", "User")
     notify_user(
         existing_user.id,
         NotifType.APPLICATION_APPROVED,
-        "Application Approved",
-        f"Your creator application has been approved. You are now a {scoring['tier']} creator.",
-        template_name="application_approved",
-        template_vars={
-            "koc_name": koc_name,
-            "tier": scoring.get("tier", "L1"),
-        },
+        koc_name=data.get("name", "User"),
+        tier=scoring.get("tier", "L1"),
+        score=scoring.get("total", 0),
     )
 
     return {

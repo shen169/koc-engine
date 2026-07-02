@@ -104,16 +104,12 @@ def auto_assign_koc_to_product(koc_id: str, product_id: str) -> dict | None:
                     notify_user(
                         koc_user,
                         NotifType.KOC_MATCHED,
-                        "You've Been Matched!",
-                        f"You've been matched with {merchant_name} for {t.product_name}. {t.pledge_koc}pt pledge deducted. Brand will ship within 48h.",
                         task_id=t.id,
                         resource_path=f"/portal/tasks/{t.id}",
-                        template_name="match",
-                        template_vars={
-                            "koc_name": "Creator",
-                            "product_name": t.product_name,
-                            "company_name": merchant_name,
-                        },
+                        product_name=t.product_name,
+                        company_name=merchant_name,
+                        pledge_koc=t.pledge_koc,
+                        commission=getattr(t, 'koc_commission', 30),
                     )
                 
                 return {"task_id": t.id, "slot_index": i, "action": "filled"}
@@ -255,10 +251,10 @@ def express_interest(data: dict, current_user: dict = Depends(get_current_user))
                     notify_user(
                         merchant_usr.id,
                         NotifType.INTEREST_RECEIVED,
-                        "New Interest Signal",
-                        f"A KOC ({data.get('platform', '')} creator) has expressed interest in {product.name}",
                         task_id=assign_result.get("task_id", "") if assign_result else "",
                         resource_path=f"/dashboard/products/{to_id}",
+                        product_name=product.name,
+                        platform=data.get("platform", "social media"),
                     )
 
         # Notification: KOC → also confirm interest has been registered
@@ -266,10 +262,9 @@ def express_interest(data: dict, current_user: dict = Depends(get_current_user))
             notify_user(
                 current_user["sub"],
                 NotifType.INTEREST_RECEIVED,
-                "Interest Registered",
-                f"You have expressed interest in {product.name}. The brand will be notified.",
                 task_id=assign_result.get("task_id", "") if assign_result else "",
                 resource_path=f"/portal/products/{to_id}",
+                product_name=product.name,
             )
 
     result = interest.model_dump()

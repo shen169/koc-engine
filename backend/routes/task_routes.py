@@ -460,11 +460,11 @@ def delete_task(task_id: str, current_user: dict = Depends(get_current_user)):
         notify_user(
             m.user_id,
             NotifType.TASK_DELETED,
-            "Task Deleted — Credits Refunded",
-            f"Your task \"{task.product_name}\" has been deleted. "
-            f"{total_refunded}pt refunded ({task.pledge_merchant}pt commission pool + {PLATFORM_SERVICE_FEE}pt platform fee).",
             task_id=task_id,
             resource_path="/dashboard/tasks",
+            product_name=task.product_name,
+            total_refunded=total_refunded,
+            pledge_merchant=task.pledge_merchant,
         )
 
     return {
@@ -576,20 +576,20 @@ def accept_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
                 notify_user(
                     merchant_user.id,
                     NotifType.TASK_ACCEPTED,
-                    "KOC Accepted Your Task",
-                    f"A KOC has accepted {task.product_name}",
                     task_id=task_id,
                     resource_path=f"/dashboard/tasks/{task_id}",
+                    product_name=task.product_name,
                 )
     # Notification: KOC accepted → notify KOC themselves
     if koc_uid:
         notify_user(
             koc_uid,
             NotifType.TASK_ACCEPTED,
-            "Task Accepted — Pledge Deducted",
-            f"You have accepted {task.product_name}. {task.pledge_koc}pt pledge deducted. SLA: ship within 48h, submit content within 14d.",
             task_id=task_id,
             resource_path=f"/portal/tasks/{task_id}",
+            product_name=task.product_name,
+            pledge_koc=task.pledge_koc,
+            commission=task.commission,
         )
 
     return {"status": "accepted", "task_id": task_id, "slot_index": slot_index, "accepted_at": now}
@@ -639,10 +639,9 @@ def reject_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
             notify_user(
                 m.user_id,
                 NotifType.TASK_DECLINED,
-                "KOC Declined Task — Slot Released",
-                f"A KOC has declined {task.product_name}. The system will attempt to rematch the slot.",
                 task_id=task_id,
                 resource_path=f"/dashboard/tasks/{task_id}",
+                product_name=task.product_name,
             )
 
     # ── 通知 KOC：已拒绝任务 ──
@@ -653,10 +652,10 @@ def reject_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
             notify_user(
                 koc_usr.id,
                 NotifType.TASK_DECLINED,
-                "Task Declined — Trust Score -3",
-                f"You have declined {task.product_name}. Your Trust Score has been reduced by 3 (active rejection).",
                 task_id=task_id,
                 resource_path=f"/portal/tasks/{task_id}",
+                product_name=task.product_name,
+                trust_change=-3,
             )
 
     # 标记超时 → 触发重推
@@ -782,17 +781,12 @@ def ship_task(task_id: str, data: dict, current_user: dict = Depends(get_current
                 notify_user(
                     koc_usr.id,
                     NotifType.TASK_SHIPPED,
-                    "Your Sample Has Shipped",
-                    f"Your sample of {task.product_name} shipped via {carrier}. Tracking: {tracking_number}",
                     task_id=task_id,
                     resource_path=f"/portal/tasks/{task_id}",
-                    template_name="ship",
-                    template_vars={
-                        "koc_name": koc_prof.handle or koc_usr.email,
-                        "product_name": task.product_name,
-                        "tracking": tracking_number,
-                        "carrier": carrier,
-                    },
+                    koc_name=koc_prof.handle or koc_usr.email,
+                    product_name=task.product_name,
+                    tracking=tracking_number,
+                    carrier=carrier,
                 )
 
     return {
@@ -863,10 +857,9 @@ def receive_task(task_id: str, slot_index: int, data: dict, current_user: dict =
             notify_user(
                 m.user_id,
                 NotifType.RECEIPT_CONFIRMED,
-                "KOC Confirmed Receipt",
-                f"A KOC has confirmed receipt of {task.product_name}. Content creation in progress.",
                 task_id=task_id,
                 resource_path=f"/dashboard/tasks/{task_id}",
+                product_name=task.product_name,
             )
 
     # ── 通知 KOC：收货已确认 ──
@@ -878,15 +871,10 @@ def receive_task(task_id: str, slot_index: int, data: dict, current_user: dict =
                 notify_user(
                     koc_usr.id,
                     NotifType.RECEIPT_CONFIRMED,
-                    "Receipt Confirmed — Start Creating",
-                    f"Your receipt of {task.product_name} has been confirmed. You have 14 days to create and submit content.",
                     task_id=task_id,
                     resource_path=f"/portal/tasks/{task_id}",
-                    template_name="receipt_confirmed",
-                    template_vars={
-                        "koc_name": koc_prof.handle or koc_usr.email,
-                        "task_name": task.product_name,
-                    },
+                    koc_name=koc_prof.handle or koc_usr.email,
+                    product_name=task.product_name,
                 )
 
     return {
@@ -1016,10 +1004,10 @@ def submit_content(task_id: str, slot_index: int, data: dict, current_user: dict
                 notify_user(
                     merchant_usr.id,
                     NotifType.CONTENT_SUBMITTED,
-                    "Content Ready for Review",
-                    f"KOC has submitted content for {task.product_name}. Please review within 3 days.",
                     task_id=task_id,
                     resource_path=f"/dashboard/tasks/{task_id}",
+                    product_name=task.product_name,
+                    review_days=3,
                 )
 
     return {
@@ -1170,19 +1158,16 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
             if koc_prof and koc_prof.email:
                 koc_usr = user_store.get_by_email(koc_prof.email)
                 if koc_usr:
-                    total_earned = koc_commission + pledge_return
                     notify_user(
                         koc_usr.id,
                         NotifType.CONTENT_APPROVED,
-                        "Content Approved — Earnings Credited",
-                        f"Your content for {task.product_name} has been approved. +{koc_commission}pt withdrawable + {pledge_return}pt pledge returned. Trust Score +3.",
                         task_id=task_id,
                         resource_path=f"/portal/tasks/{task_id}",
-                        template_name="review_approved",
-                        template_vars={
-                            "koc_name": koc_prof.handle or koc_usr.email,
-                            "product_name": task.product_name,
-                        },
+                        koc_name=koc_prof.handle or koc_usr.email,
+                        product_name=task.product_name,
+                        koc_commission=koc_commission,
+                        pledge_return=pledge_return,
+                        trust_change=3,
                     )
 
         return {
@@ -1281,15 +1266,17 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                 _sync_task_status(task_id)
 
                 # ── 通知 KOC：AI 推翻商家拒因，内容通过 ──
-                total_earned = koc_commission + pledge_return
                 if koc_uid:
                     notify_user(
                         koc_uid,
                         NotifType.CONTENT_AI_OVERRULE,
-                        "AI Overruled — Content Approved",
-                        f"{task.product_name}: AI overruled the merchant's rejection. +{koc_commission}pt withdrawable + {pledge_return}pt pledge returned. Reason: {judge_result['reason']}",
                         task_id=task_id,
                         resource_path=f"/portal/tasks/{task_id}",
+                        koc_name=koc_for_judge.handle if koc_for_judge else "Creator",
+                        product_name=task.product_name,
+                        koc_commission=koc_commission,
+                        pledge_return=pledge_return,
+                        reason=judge_result['reason'],
                     )
 
                 # ── 通知商家：AI 推翻驳回 ──
@@ -1298,10 +1285,11 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                     notify_user(
                         m.user_id,
                         NotifType.CONTENT_AI_OVERRULE,
-                        "AI Overruled Your Rejection — Content Approved",
-                        f"{task.product_name}: AI reviewed the content and overruled your rejection. Commission released to KOC. Reason: {judge_result['reason']}",
                         task_id=task_id,
                         resource_path=f"/dashboard/tasks/{task_id}",
+                        product_name=task.product_name,
+                        reason=judge_result['reason'],
+                        direction="approved",
                     )
 
                 return {
@@ -1349,16 +1337,13 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                         notify_user(
                             koc_uid,
                             NotifType.VIOLATION,
-                            "AI Final Judgment — Content Rejected",
-                            f"{task.product_name}: AI reviewed your content and upheld the merchant's rejection. 10pt pledge forfeited, Trust Score -15. Reason: {judge_result['reason']}",
                             task_id=task_id,
                             resource_path=f"/portal/tasks/{task_id}",
-                            template_name="violation",
-                            template_vars={
-                                "koc_name": koc_for_judge.handle if koc_for_judge else "Creator",
-                                "reason": judge_result['reason'],
-                                "penalty": "10pt pledge forfeited, Trust Score -15",
-                            },
+                            koc_name=koc_for_judge.handle if koc_for_judge else "Creator",
+                            product_name=task.product_name,
+                            violation_type="ai_final_reject",
+                            reason=judge_result['reason'],
+                            pledge_koc=task.pledge_koc,
                         )
 
                 # ── 通知商家：AI 终审驳回 KOC ──
@@ -1367,10 +1352,12 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                     notify_user(
                         m_uid,
                         NotifType.CONTENT_AI_OVERRULE,
-                        "AI Final Judgment — KOC Content Rejected",
-                        f"{task.product_name}: AI upheld your rejection. {task.commission}pt commission refunded. Reason: {judge_result['reason']}",
                         task_id=task_id,
                         resource_path=f"/dashboard/tasks/{task_id}",
+                        product_name=task.product_name,
+                        reason=judge_result['reason'],
+                        direction="rejected",
+                        commission=task.commission,
                     )
 
                 return {
@@ -1398,16 +1385,13 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
                 notify_user(
                     koc_uid,
                     NotifType.CONTENT_REVISION,
-                    "Content Needs Revision",
-                    f"{task.product_name}: Brand requested revisions. Reason: {feedback}. You have {revisions_left} resubmission attempt(s) remaining. Deadline: 3 days.",
                     task_id=task_id,
                     resource_path=f"/portal/tasks/{task_id}",
-                    template_name="review_revision",
-                    template_vars={
-                        "koc_name": koc_for_judge.handle if (koc_for_judge := koc_store.get(koc_id)) else "Creator",
-                        "product_name": task.product_name,
-                        "note": feedback,
-                    },
+                    koc_name=koc_for_judge.handle if (koc_for_judge := koc_store.get(koc_id)) else "Creator",
+                    product_name=task.product_name,
+                    feedback=feedback,
+                    revisions_left=revisions_left,
+                    deadline_days=3,
                 )
 
         # ── 通知商家：已要求 KOC 修改 ──
@@ -1416,10 +1400,10 @@ def review_content(task_id: str, slot_index: int, data: dict, current_user: dict
             notify_user(
                 m_uid,
                 NotifType.CONTENT_REVISION,
-                "Revision Requested — Awaiting KOC Resubmission",
-                f"{task.product_name}: You requested content revisions. KOC has {MAX_REVISIONS + 1 - revision_count} resubmission attempt(s) remaining (3 day deadline).",
                 task_id=task_id,
                 resource_path=f"/dashboard/tasks/{task_id}",
+                product_name=task.product_name,
+                revisions_left=MAX_REVISIONS + 1 - revision_count,
             )
 
         return {
@@ -1757,11 +1741,11 @@ def _sync_task_status(task_id: str):
                         label = koc.display_name or f"Creator_{kid[:6]}" if koc else f"KOC {kid[:8]}"
                         _notify(
                             m.user_id,
-                            "content_reviewed",
-                            f"⭐ Rate {label}",
-                            f"Collaboration on 「{task.product_name}」is complete. How was {label}?",
+                            NotifType.CONTENT_APPROVED,
                             task_id=task_id,
                             resource_path=f"/dashboard/tasks/{task_id}?review={i}",
+                            product_name=task.product_name,
+                            entity_name=label,
                         )
 
             # 通知每个 approved 的 KOC 去评商家
@@ -1779,11 +1763,11 @@ def _sync_task_status(task_id: str):
                             brand = m.company_name or "Brand"
                         _notify(
                             koc_user.id,
-                            "content_reviewed",
-                            f"⭐ Rate {brand}",
-                            f"Collaboration on 「{task.product_name}」is complete. How was your experience with {brand}?",
+                            NotifType.CONTENT_APPROVED,
                             task_id=task_id,
                             resource_path=f"/portal/tasks/{task_id}?review={i}",
+                            product_name=task.product_name,
+                            entity_name=brand,
                         )
 
     # 有内容在审核或创作中

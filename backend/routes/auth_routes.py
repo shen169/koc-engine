@@ -89,14 +89,13 @@ def register(data: UserRegister, request: Request = None):
     elif data.role == "merchant":
         credit_store.set_initial_balance(user.id, DEFAULT_MERCHANT_INITIAL_CREDITS)
 
-    # 发送注册欢迎邮件
+    # 发送注册欢迎通知（站内信 + 邮件）
     notify_user(
         user.id,
-        NotifType.APPLICATION_APPROVED if data.role == "koc" else "registration",
-        "Welcome to KOC Engine",
-        f"Your {'creator' if data.role == 'koc' else 'merchant'} account has been created. "
-        f"You received {DEFAULT_KOC_INITIAL_CREDITS if data.role == 'koc' else DEFAULT_MERCHANT_INITIAL_CREDITS} bonus points.",
-        template_name=f"registration_{data.role}",
+        "registration",
+        points=DEFAULT_KOC_INITIAL_CREDITS if data.role == "koc" else DEFAULT_MERCHANT_INITIAL_CREDITS,
+        koc_name=data.email.split("@")[0] if data.role == "koc" else "",
+        merchant_name=data.email.split("@")[0] if data.role == "merchant" else "",
     )
 
     token = create_token(user.id, user.email, user.role)

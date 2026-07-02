@@ -230,11 +230,12 @@ class FraudEnforcer:
                 notify_user(
                     koc_usr.id,
                     NotifType.TASK_CANCELLED_FRAUD,
-                    "Task Cancelled — Merchant Flagged",
-                    f"Task '{task.product_name}' has been cancelled because the merchant was {level_text}. "
-                    f"Your {task.pledge_koc}pt pledge has been refunded.",
                     task_id=task.id,
                     resource_path=f"/portal/tasks/{task.id}",
+                    product_name=task.product_name,
+                    pledge_koc=task.pledge_koc,
+                    cancelled_by="merchant",
+                    action="banned" if offense_level >= 2 else "flagged",
                 )
                 notified += 1
 
@@ -248,20 +249,15 @@ class FraudEnforcer:
             notify_user(
                 user_id,
                 NotifType.MERCHANT_BANNED,
-                "Account Permanently Banned — Fraud Detected",
-                f"Your merchant account '{merchant.company_name}' has been permanently banned due to repeated fraudulent activity. "
-                f"All active tasks have been cancelled. This decision is final and cannot be appealed.",
                 resource_path="/dashboard",
+                company_name=merchant.company_name,
             )
         else:
             notify_user(
                 user_id,
                 NotifType.MERCHANT_FLAGGED,
-                "Account Flagged — Fraud Warning",
-                f"Your merchant account '{merchant.company_name}' has been flagged for suspicious activity. "
-                f"All active tasks have been cancelled. You have ONE chance to provide evidence to admin for review. "
-                f"Contact admin immediately to appeal. If flagged again after clearance, your account will be permanently banned.",
                 resource_path="/dashboard",
+                company_name=merchant.company_name,
             )
 
     def _freeze_merchant(self, merchant_id: str):
@@ -437,15 +433,15 @@ class FraudEnforcer:
                 if not merchant:
                     continue
 
-                level_text = "permanently banned" if offense_level >= 2 else "flagged for fraudulent activity"
                 notify_user(
                     merchant.user_id,
                     NotifType.TASK_CANCELLED_FRAUD,
-                    "KOC Removed — Fraud Detected",
-                    f"KOC assigned to '{task.product_name}' has been {level_text}. "
-                    f"The slot has been freed and your commission ({task.commission}pt) has been returned.",
                     task_id=task.id,
                     resource_path=f"/dashboard/tasks/{task.id}",
+                    product_name=task.product_name,
+                    commission=task.commission,
+                    cancelled_by="koc",
+                    action="banned" if offense_level >= 2 else "flagged",
                 )
                 notified += 1
 
@@ -460,21 +456,15 @@ class FraudEnforcer:
             notify_user(
                 user_id,
                 NotifType.KOC_BANNED,
-                "Account Permanently Banned — Fraud Detected",
-                f"Your KOC account '{handle}' has been permanently banned due to repeated fraudulent activity. "
-                f"All pledges have been confiscated. This decision is final and cannot be appealed.",
                 resource_path="/portal",
+                handle=handle,
             )
         else:
             notify_user(
                 user_id,
                 NotifType.KOC_FLAGGED,
-                "Account Flagged — Fraud Warning",
-                f"Your KOC account '{handle}' has been flagged for suspicious activity. "
-                f"Your active pledges have been confiscated and you have been removed from all active tasks. "
-                f"You have ONE chance to provide evidence to admin for review. "
-                f"Contact admin immediately to appeal. If flagged again after clearance, your account will be permanently banned.",
                 resource_path="/portal",
+                handle=handle,
             )
 
     def _freeze_koc(self, koc_id: str):
@@ -510,13 +500,14 @@ class FraudEnforcer:
             notify_user(
                 admin.id,
                 NotifType.FRAUD_ALERT,
-                f"Fraud Alert: {role.upper()} {offender_name} — {level_text}",
-                f"{role.upper()} {offender_name} (user_id={offender_user_id}) triggered fraud enforcement.\n"
-                f"Level: {level_text}\n"
-                f"Confiscated: {confiscated.get('total_confiscated_pt', 0)}pt\n"
-                f"Tasks/Slots affected: {cancelled.get('tasks_cancelled', 0) or cancelled.get('slots_freed', 0)}\n"
-                f"Action: {'ban' if offense_level >= 2 else 'freeze'} — review at /admin/fraud",
                 resource_path="/admin/fraud",
+                role=role,
+                name=offender_name,
+                user_id=offender_user_id,
+                level=level_text,
+                confiscated=confiscated.get('total_confiscated_pt', 0),
+                affected=cancelled.get('tasks_cancelled', 0) or cancelled.get('slots_freed', 0),
+                action="ban" if offense_level >= 2 else "freeze",
             )
 
     def _is_first_offense(self, user_id: str) -> bool:
@@ -549,10 +540,9 @@ class FraudEnforcer:
                     notify_user(
                         user_id,
                         NotifType.PLATFORM_ANNOUNCEMENT,
-                        "Account Restored — Rectification Approved",
-                        f"Your merchant account '{m.company_name}' has been restored after admin review. "
-                        f"You can now publish tasks again. Note: any future fraud detection will result in a permanent ban.",
                         resource_path="/dashboard",
+                        announcement_title="Account Restored — Rectification Approved",
+                        announcement_body=f"Your merchant account '{m.company_name}' has been restored after admin review. You can now publish tasks again. Note: any future fraud detection will result in a permanent ban.",
                     )
                     break
 
@@ -563,10 +553,9 @@ class FraudEnforcer:
                 notify_user(
                     user_id,
                     NotifType.PLATFORM_ANNOUNCEMENT,
-                    "Account Restored — Rectification Approved",
-                    f"Your KOC account '{koc.handle or 'KOC'}' has been restored after admin review. "
-                    f"You can now accept tasks again. Note: any future fraud detection will result in a permanent ban.",
                     resource_path="/portal",
+                    announcement_title="Account Restored — Rectification Approved",
+                    announcement_body=f"Your KOC account '{koc.handle or 'KOC'}' has been restored after admin review. You can now accept tasks again. Note: any future fraud detection will result in a permanent ban.",
                 )
 
         # 记录整改通过事件（用于区分 1st/2nd offense）

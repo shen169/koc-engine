@@ -23,6 +23,14 @@ const TYPE_ICONS: Record<string, string> = {
   task_rematched: "🔄",
   deadline_warning: "⚠️",
   platform_announcement: "📢",
+  task_idle_warning: "⏳",
+  task_deleted: "🗑️",
+  task_cancelled_fraud: "❌",
+  fraud_alert: "🔴",
+  merchant_flagged: "⚠️",
+  merchant_banned: "🚫",
+  koc_flagged: "⚠️",
+  koc_banned: "🚫",
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -44,6 +52,14 @@ const TYPE_COLORS: Record<string, string> = {
   task_rematched: "border-l-orange-400",
   deadline_warning: "border-l-rose-400",
   platform_announcement: "border-l-slate-400",
+  task_idle_warning: "border-l-amber-400",
+  task_deleted: "border-l-gray-400",
+  task_cancelled_fraud: "border-l-red-500",
+  fraud_alert: "border-l-red-600",
+  merchant_flagged: "border-l-orange-400",
+  merchant_banned: "border-l-red-700",
+  koc_flagged: "border-l-orange-400",
+  koc_banned: "border-l-red-700",
 };
 
 export default function NotificationList({ bgClass = "bg-orange-50/40", unreadBorderClass = "border-pink-200" }: {

@@ -1,4 +1,10 @@
-"""Email service — Resend HTTP API for KOC notifications"""
+"""Email service — Resend HTTP API for KOC notifications
+
+DEPRECATED: The template functions and send_template_email_async() are being replaced by
+notification_templates.py. New code should use notify_user() with render_kwargs instead of
+template_name + template_vars. The old dispatch path in notifier.py is kept for backward
+compatibility during migration but will be removed once all call sites are migrated.
+"""
 
 import os
 import json
@@ -127,7 +133,7 @@ Your creator application has been approved! You are now a **{tier}** creator.
 {tier_info.get(tier, '')}
 
 **Your Benefits:**
-• 1,000 bonus points credited (use as task pledge)
+• 200 bonus points credited (use as task pledge)
 • Browse the Task Hall for brand collaboration opportunities
 • Earn commission in platform points: 1pt = $1 USD
 • 90% commission (withdrawable) + full pledge returned on content approval
