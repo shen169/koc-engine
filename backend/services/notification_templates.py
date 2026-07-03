@@ -35,7 +35,8 @@ PLATFORM_URL = "https://kocengine.com"
 # ═══════════════════════════════════════════
 
 RULES_PLEDGE_KOC = (
-    f"Pledge: {KOC_FIXED_PLEDGE}pt deducted when you accept a task. "
+    f"Pledge: Sample tasks = {KOC_PLEDGE_SAMPLE}pt (refunded on completion). "
+    f"Commission tasks = pledge equals commission amount (skin in the game). "
     f"Fully refunded on approved content. Forfeited if you miss SLA deadlines."
 )
 
@@ -55,15 +56,15 @@ RULES_TRUST = (
 )
 
 RULES_TIER_KOC = {
-    "L1": "Explorer — receive free samples, build your portfolio",
-    "L2": "Creator — priority matching + earn commission (1pt=$1)",
-    "L3": "Partner — premium brand deals + highest match priority",
+    "L1": "Explorer — sample tasks only (free products, {KOC_PLEDGE_SAMPLE}pt pledge), max {TIER_MAX_ACTIVE_SLOTS.get('L1', 2)} concurrent tasks",
+    "L2": "Creator — commission tasks 20-50pt + priority matching, max {TIER_MAX_ACTIVE_SLOTS.get('L2', 3)} concurrent tasks",
+    "L3": "Partner — premium commissions up to 500pt + highest match priority + ×3 repeat collab bonus, max {TIER_MAX_ACTIVE_SLOTS.get('L3', 5)} concurrent tasks",
 }
 
 RULES_TIER_MERCHANT = {
-    "M1": "Bronze Merchant — publish up to 3 active tasks",
-    "M2": "Silver Merchant — publish up to 10 active tasks + priority listing",
-    "M3": "Gold Merchant — unlimited tasks + featured placement + lower fees",
+    "M1": "Bronze Merchant — sample-only tasks, max {TIER_MAX_KOC_REQUIRED.get('M1', 2)} KOCs/task",
+    "M2": "Silver Merchant — commission tasks 20-50pt + urgent available, max {TIER_MAX_KOC_REQUIRED.get('M2', 3)} KOCs/task",
+    "M3": "Gold Merchant — premium commissions up to 500pt + featured placement, max {TIER_MAX_KOC_REQUIRED.get('M3', 10)} KOCs/task",
 }
 
 RULES_WITHDRAWAL = (
@@ -199,7 +200,7 @@ Ready to start? Browse the Task Hall:
 def _tpl_koc_task_accepted(**kwargs) -> dict:
     """KOC accepted a task — pledge deducted, SLA starts."""
     product_name = kwargs.get("product_name", "this product")
-    pledge = kwargs.get("pledge_koc", KOC_FIXED_PLEDGE)
+    pledge = kwargs.get("pledge_koc", 0)
     commission = kwargs.get("commission", 30)
     resource_path = kwargs.get("resource_path", "/portal/tasks")
 
@@ -293,7 +294,7 @@ Tracking Details:
 Your Deadlines:
 • Confirm receipt within 7 days of delivery (upload unboxing photos)
 • Submit content within 14 days of confirming receipt
-• Late submission = {KOC_FIXED_PLEDGE}pt pledge forfeited + Trust Score -15
+• Late submission = {0}pt pledge forfeited + Trust Score -15
 
 What To Do When It Arrives:
 1. Take unboxing photos
@@ -334,7 +335,7 @@ Content Guidelines:
 
 Your Deadline:
 • Submit within 14 days → earn commission + full pledge return
-• Miss the deadline → {KOC_FIXED_PLEDGE}pt pledge forfeited + Trust Score -15
+• Miss the deadline → {0}pt pledge forfeited + Trust Score -15
 
 Submit your content at:
 {PLATFORM_URL}{resource_path}
@@ -374,7 +375,7 @@ def _tpl_koc_content_approved(**kwargs) -> dict:
     """Brand approved KOC content — earnings released."""
     product_name = kwargs.get("product_name", "this product")
     commission = kwargs.get("koc_commission", 30)
-    pledge_return = kwargs.get("pledge_return", KOC_FIXED_PLEDGE)
+    pledge_return = kwargs.get("pledge_return", 0)
     trust_change = kwargs.get("trust_change", 3)
     resource_path = kwargs.get("resource_path", "/portal/credits")
 
@@ -441,7 +442,7 @@ What You Need To Do:
 
 Important:
 - If the brand rejects again after this revision, AI (DeepSeek) will make the final binding decision
-- Missing the revision deadline = {KOC_FIXED_PLEDGE}pt pledge forfeited + Trust Score -15
+- Missing the revision deadline = {0}pt pledge forfeited + Trust Score -15
 
 Revise and resubmit now:
 {PLATFORM_URL}{resource_path}
@@ -455,7 +456,7 @@ def _tpl_koc_ai_final_reject(**kwargs) -> dict:
     """AI final judgment — content rejected, penalty applied."""
     product_name = kwargs.get("product_name", "this product")
     reason = kwargs.get("reason", "Content did not meet quality standards")
-    pledge = kwargs.get("pledge_koc", KOC_FIXED_PLEDGE)
+    pledge = kwargs.get("pledge_koc", 0)
     resource_path = kwargs.get("resource_path", "/portal/tasks")
 
     return {
@@ -514,7 +515,7 @@ def _tpl_koc_deadline_warning(**kwargs) -> dict:
         "in_app_title": f"{urgency} {days_left} Days Left — {action.title()}!",
         "in_app_message": (
             f"{product_name}: Only {days_left} day(s) left to {action}. "
-            f"Missing the deadline = {KOC_FIXED_PLEDGE}pt pledge forfeited + Trust Score -15."
+            f"Missing the deadline = {0}pt pledge forfeited + Trust Score -15."
         ),
         "email_subject": f"{urgency} {days_left} Day(s) Left — {action.title()} for {product_name}",
         "email_body": f"""Hi {kwargs.get('koc_name', 'Creator')},
@@ -524,7 +525,7 @@ Your {category} deadline for **{product_name}** is approaching.
 Time Remaining: {days_left} day(s)
 
 If you miss this deadline:
-• {KOC_FIXED_PLEDGE}pt pledge will be forfeited
+• {0}pt pledge will be forfeited
 • Trust Score: -15
 • Commission goes back to the brand
 
@@ -542,7 +543,7 @@ def _tpl_koc_violation(**kwargs) -> dict:
     """KOC missed a deadline — pledge forfeited, Trust penalized."""
     product_name = kwargs.get("product_name", "this product")
     violation_type = kwargs.get("violation_type", "submit_timeout")
-    pledge = kwargs.get("pledge_koc", KOC_FIXED_PLEDGE)
+    pledge = kwargs.get("pledge_koc", 0)
     resource_path = kwargs.get("resource_path", "/portal/tasks")
 
     violation_labels = {
@@ -771,7 +772,7 @@ def _tpl_koc_auto_approved(**kwargs) -> dict:
     """Merchant didn't review within 3 days — auto-approved by system."""
     product_name = kwargs.get("product_name", "this product")
     commission = kwargs.get("koc_commission", 30)
-    pledge_return = kwargs.get("pledge_return", KOC_FIXED_PLEDGE)
+    pledge_return = kwargs.get("pledge_return", 0)
     resource_path = kwargs.get("resource_path", "/portal/credits")
 
     return {
@@ -806,7 +807,7 @@ def _tpl_koc_matched(**kwargs) -> dict:
     """KOC was matched to a product/task."""
     product_name = kwargs.get("product_name", "this product")
     company_name = kwargs.get("company_name", "a brand")
-    pledge = kwargs.get("pledge_koc", KOC_FIXED_PLEDGE)
+    pledge = kwargs.get("pledge_koc", 0)
     commission = kwargs.get("commission", 30)
     resource_path = kwargs.get("resource_path", "/portal/tasks")
 
@@ -919,7 +920,7 @@ def _tpl_koc_scrape_failed_once(**kwargs) -> dict:
         "in_app_title": "Content URL Could Not Be Verified — Please Resubmit",
         "in_app_message": (
             f"{product_name}: Could not verify your content URL ({error_msg}). "
-            f"You have 1 chance to resubmit with a correct URL. Second failure = {KOC_FIXED_PLEDGE}pt forfeited + Trust Score -15."
+            f"You have 1 chance to resubmit with a correct URL. Second failure = {0}pt forfeited + Trust Score -15."
         ),
         "email_subject": f"Content URL Verification Failed — Resubmit for {product_name}",
         "email_body": f"""Hi {kwargs.get('koc_name', 'Creator')},
@@ -934,7 +935,7 @@ What You Need To Do:
 • Check that the URL is correct and publicly accessible
 • Resubmit with a valid content URL
 • This is your ONLY retry — a second failure will result in:
-  - {KOC_FIXED_PLEDGE}pt pledge forfeited
+  - {0}pt pledge forfeited
   - Trust Score -15
 
 Resubmit now:
@@ -1186,7 +1187,7 @@ You've requested content revisions for **{product_name}**. The creator has been 
 What Happens Now:
 • Creator revises and resubmits within 3 days
 • Remaining revision attempts: {revisions_left}
-• If the creator misses the deadline → {KOC_FIXED_PLEDGE}pt pledge forfeited, commission refunded to you
+• If the creator misses the deadline → {0}pt pledge forfeited, commission refunded to you
 • If you reject again after resubmission → AI (DeepSeek) makes the final binding decision
 
 View task:
@@ -1258,7 +1259,7 @@ Reason: The creator {reason}.
 
 Your Compensation:
 • {commission}pt commission refunded to your account
-• Creator's {KOC_FIXED_PLEDGE}pt pledge forfeited
+• Creator's {0}pt pledge forfeited
 • Creator's Trust Score penalized
 
 {MISSION}
