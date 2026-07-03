@@ -227,13 +227,16 @@ koc-engine/
 │   │   ├── referral_store.py / review_store.py / blacklist_store.py
 │   │   └── report_store.py   # Report ticket storage
 │   ├── services/
-│   │   ├── scorer.py          # DeepSeek v4 3D scoring (mock fallback)
-│   │   ├── matcher.py         # Matching engine: rule engine (7-dim weighted) + AI re-rank
-│   │   ├── cron.py            # Periodic scan: timeout detection + auto-processing + Trust Score linkage + tier calibration
-│   │   ├── tracking.py        # Shipment tracking: multi-carrier auto-query + delivery auto-receive
-│   │   ├── scraper.py          # Content data scraping: Apify actor triggers + cross-verification with self-reported data
-│   │   ├── email_service.py   # Email templates (placeholder)
-│   │   └── tvs_client.py      # TVS integration placeholder (P2)
+│   │   ├── scorer.py                   # DeepSeek v4 3D scoring (mock fallback)
+│   │   ├── matcher.py                  # Matching engine: rule engine (7-dim weighted) + AI re-rank
+│   │   ├── cron.py                     # Periodic scan: timeout detection + auto-processing + Trust Score linkage + tier calibration
+│   │   ├── tracking.py                 # Shipment tracking: multi-carrier auto-query + delivery auto-receive
+│   │   ├── scraper.py                  # Content data scraping: Apify actor triggers + cross-verification with self-reported data
+│   │   ├── notifier.py                 # Notification dispatcher — single entry point for all 3 channels (in-app + email + Feishu)
+│   │   ├── notification_templates.py   # Single source of truth for ALL user-facing messages (35 templates: 18 KOC + 17 merchant)
+│   │   ├── email_service.py            # Email delivery via Resend HTTP API — old templates deprecated, use notification_templates
+│   │   ├── fraud_enforcer.py           # Fraud detection + automatic enforcement (flag/ban/restore + cross-task pattern matching)
+│   │   └── tvs_client.py               # TVS integration placeholder (P2)
 │   └── requirements.txt
 ├── frontend/
 │   ├── app/
@@ -260,6 +263,7 @@ koc-engine/
 │   │   ├── IntegrityBadge.tsx     # Trust badge (M1/M2/M3 + L1/L2/L3)
 │   │   ├── DeadlineBadge.tsx      # SLA countdown timer (4-states: green/amber/red/expired)
 │   │   ├── CommitmentConfirm.tsx  # Pre-action confirmation modal with mandatory checkbox
+│   │   ├── NotificationList.tsx   # Notification center with type-specific icons and color-coded severity borders
 │   │   └── NavBar.tsx             # Global navigation bar
 │   ├── lib/api.ts                 # API client (fetch wrapper + auth helpers)
 │   └── middleware.ts              # Next.js route protection
@@ -325,29 +329,36 @@ koc-engine/
     - Receipt verification: KOC can upload `receipt_photo_urls` (unboxing photos) + `receipt_notes`
     - Tracking automation: cron daily queries all shipped slots → carrier confirms delivery → auto-mark received. Supports FedEx/DHL/USPS/UPS/SF-Express and other major carriers, API query + web parsing dual-path fallback, result caching to avoid frequent requests
 
-12. **Notification System** (V2.3): Three-channel notification for every lifecycle event:
+12. **Notification System** (V2.4 — Unified Template System): Three-channel notification for every lifecycle event:
     - **KOC**: In-app + Email
     - **Merchant**: In-app + Email + Feishu Webhook
     - **Admin**: In-app only
 
-    | Event | KOC | Merchant | Trigger |
-    |------|:--:|:--:|------|
-    | Task accepted | — | ✅ | accept_task |
-    | Task declined | — | ✅ | reject_task |
-    | Sample shipped | ✅ | — | ship_task |
-    | Receipt confirmed | — | ✅ | receive_task |
-    | Content submitted | — | ✅ | submit_content |
-    | Content approved | ✅ | — | review (approve) |
-    | Revision requested | ✅ | — | review (reject 1st) |
-    | AI overruled → approve | ✅ | ✅ | review (reject 2nd) |
-    | AI rejected KOC | ✅ | ✅ | review (reject 2nd) |
-    | Auto-approved (cron) | ✅ | ✅ | cron timeout |
-    | Submit timeout (cron) | ✅ | ✅ | cron timeout |
-    | Revision timeout (cron) | ✅ | ✅ | cron timeout |
-    | Ship timeout (cron) | ✅ | ✅ | cron timeout |
-    | Application approved | ✅ | — | application auto-approve |
+    **Architecture:**
+    - `services/notification_templates.py` — **Single source of truth** for ALL user-facing messages (35 templates: 18 KOC + 17 merchant)
+    - `services/notifier.py` — `notify_user()` is the single entry point for all 3 channels; auto-renders content via `render(ntype, role, **render_kwargs)` when kwargs are provided
+    - `services/email_service.py` — Resend HTTP API delivery only; old template functions deprecated
 
-    All notifications go through `notify_user()` in `services/notifier.py` — the single entry point. Cron handlers call it directly. Email templates in `services/email_service.py` updated to V2 economic model (1pt=$1, commission + 9pt return, SLA deadlines).
+    **Design principles:**
+    - Every email includes: platform mission ("Creator-Brand Collaboration, Made Accessible") + transparent rules (pledge/SLA/commission/trust) + CTA link
+    - `NotifType` enum (26 constants) in `config.py` — all 53 call sites use it, no hardcoded strings
+    - Sub-variant detection: same `NotifType` adapts content based on kwargs (e.g., `VIOLATION` covers 6+ sub-variants: author mismatch, scrape failed, ship timeout, etc.)
+    - Backward compatible: old `notify_user(title="...", message="...")` calls still work
+
+    **Template coverage (35 templates across 7 lifecycle stages):**
+    | Stage | KOC Templates | Merchant Templates |
+    |------|------|------|
+    | Onboarding | registration, application_approved | registration |
+    | Task Matching | task_accepted, task_declined, koc_matched, interest_registered | task_accepted, task_declined, interest_received |
+    | Fulfillment | task_shipped, receipt_confirmed, receipt_auto, deadline_warning | receipt_confirmed, ship_timeout, task_idle |
+    | Content Review | content_submitted, content_approved, content_revision, ai_final_reject, auto_approved, scraper_verified, scrape_failed_once | content_submitted, review_approved, revision_requested, auto_approved, ai_overrule |
+    | Violations | violation (6 sub-variants), task_cancelled_fraud | koc_violation, task_deleted, task_cancelled_fraud |
+    | Trust & Tier | tier_changed | tier_changed |
+    | Fraud Enforcement | koc_flagged, koc_banned, koc_restored | merchant_flagged, merchant_banned, merchant_restored |
+    | Platform | review_reminder, platform_announcement | review_reminder, platform_announcement |
+    | Admin | — | fraud_alert |
+
+    All 53 `notify_user()` call sites across 7 files migrated to the unified template system.
 
 13. **Hook System** — All automated state transitions:
     - **Cron hooks** (8, every 1h): accept timeout / ship timeout / receive auto-confirm / submit timeout / review auto-approve / revision timeout / long-term idle rematch / content scrape verify

@@ -70,6 +70,9 @@ app/
 | `TaskCard` | `components/TaskCard.tsx` | 任务卡片 (广场/列表复用，显示佣金/质押/商家诚信度/剩余名额) |
 | `TaskProgress` | `components/TaskProgress.tsx` | 任务状态进度条 (Slot 级别状态流转) |
 | `IntegrityBadge` | `components/IntegrityBadge.tsx` | 诚信度徽章 (M1/M2/M3 + L1/L2/L3) |
+| `DeadlineBadge` | `components/DeadlineBadge.tsx` | SLA 倒计时 (4 态: 绿/黄/红/深红过期) |
+| `CommitmentConfirm` | `components/CommitmentConfirm.tsx` | 操作前确认弹窗 (必勾复选框 + 质押规则 + 红线说明) |
+| `NotificationList` | `components/NotificationList.tsx` | 通知中心 (26 种类型图标 + 严重程度颜色边框) |
 | `NavBar` | `components/NavBar.tsx` | 全局导航栏 (按角色显示不同入口) |
 
 ## API 客户端 (`lib/api.ts`)
