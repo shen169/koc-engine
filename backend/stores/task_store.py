@@ -132,10 +132,18 @@ class TaskStore:
 
     def list_for_hall(self, koc_id: str = None, category: str = "",
                       task_type: str = "", commission_min: int = 0,
-                      sort_by: str = "default", region: str = "") -> list[dict]:
-        """KOC 视角的任务广场 — 过滤 + 排序"""
+                      sort_by: str = "default", region: str = "",
+                      koc_tier: str = "L1") -> list[dict]:
+        """KOC 视角的任务广场 — 过滤 + 排序（V2.6: tier-gated）"""
+        from config import TIER_COMMISSION_MAX
+
         with self._lock:
             data = self._load()
+
+        # V2.6: 根据 KOC 等级确定可匹配的商家等级
+        TIER_COMPAT = {"L1": {"M1"}, "L2": {"M1", "M2"}, "L3": {"M1", "M2", "M3"}}
+        allowed_merchant_tiers = TIER_COMPAT.get(koc_tier, {"M1"})
+        koc_commission_max = TIER_COMMISSION_MAX.get(koc_tier, 0)
 
         tasks = []
         for t in data.values():
@@ -144,6 +152,22 @@ class TaskStore:
             # 只展示待匹配或进行中的任务
             if task.task_status not in ("pending", "assigned"):
                 continue
+
+            # ── V2.6: 等级兼容过滤 — 只展示 KOC 能接的任务 ──
+            # 查商家等级
+            try:
+                from stores.merchant_store import merchant_store
+                m = merchant_store.get(task.merchant_id)
+                merchant_tier = m.tier if m else "M1"
+            except Exception:
+                merchant_tier = "M1"
+
+            if merchant_tier not in allowed_merchant_tiers:
+                continue  # 等级不兼容，不展示给该 KOC
+
+            # ── V2.6: 佣金等级过滤 ──
+            if task.commission > koc_commission_max:
+                continue  # 佣金超过该等级上限
 
             # 排除该 KOC 已在其中的任务
             already_in = False

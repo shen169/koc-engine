@@ -133,7 +133,7 @@ def submit_application(data: dict):
         score_engagement=scoring["engagement"],
         score_total=scoring["total"],
         score_reason=scoring["reason"],
-        tier=scoring["tier"],
+        tier="L1",  # V2.6: 所有 KOC 从 L1 起步，打怪升级
         status="Approved",
     )
     koc_store.create(koc)

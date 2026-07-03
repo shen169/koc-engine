@@ -16,8 +16,9 @@ Design principles (every template must include):
 Tone: professional but warm, like a reliable partner.
 """
 
-from config import NotifType, KOC_FIXED_PLEDGE, KOC_PLATFORM_FEE_RATE, KOC_PLATFORM_FEE_MIN
+from config import NotifType, KOC_PLATFORM_FEE_RATE, KOC_PLATFORM_FEE_MIN, KOC_PLEDGE_SAMPLE
 from config import PT_TO_USD, PLATFORM_SERVICE_FEE
+from config import TIER_COMMISSION_MAX, TIER_MAX_ACTIVE_SLOTS, TIER_UPGRADE_TASKS, TIER_UPGRADE_MIN_RATING
 
 
 # ═══════════════════════════════════════════
@@ -110,14 +111,21 @@ Your creator account has been created. You received **{points} bonus points** to
 What Makes KOC Engine Different:
 We're not just a marketplace. We're building a trusted community where creators and brands collaborate transparently. No hidden fees, no delayed payments, no guessing games.
 
+Your Progression — Start Small, Grow Big:
+Everyone starts at L1 (Explorer). Complete tasks to level up:
+• L1 → L2: Complete {TIER_UPGRADE_TASKS['L1_to_L2']} sample tasks (avg rating ≥ {TIER_UPGRADE_MIN_RATING}) → unlock commission tasks
+• L2 → L3: Complete {TIER_UPGRADE_TASKS['L2_to_L3']} total tasks + Trust ≥ 55 → unlock premium commissions (up to {TIER_COMMISSION_MAX.get('L3', 500)}pt)
+
 Your Next Steps:
-1. Complete your creator application → AI scores your profile → auto-approved instantly
-2. Browse the Task Hall for brand collaboration opportunities
-3. Accept a task ({KOC_FIXED_PLEDGE}pt pledge required, fully refunded on completion)
-4. Receive free product samples, create content, earn commission
+1. Complete your creator application → auto-approved as L1 Explorer
+2. Browse the Task Hall for sample collaboration opportunities
+3. Accept a sample task ({KOC_PLEDGE_SAMPLE}pt pledge, fully refunded on completion)
+4. Receive free product samples, create content → earn your first completion
+5. Level up to L2 Creator → unlock commission tasks (20-50pt)
 
 Transparent Rules:
-- {RULES_PLEDGE_KOC}
+- Sample tasks: {KOC_PLEDGE_SAMPLE}pt pledge (refunded on completion)
+- Commission tasks: pledge = commission amount (skin in the game)
 - {RULES_COMMISSION}
 - {RULES_SLA_TIMELINE}
 - {RULES_WITHDRAWAL}
@@ -131,40 +139,43 @@ Complete your application now:
 
 
 def _tpl_koc_application_approved(**kwargs) -> dict:
-    """KOC application auto-approved with tier assignment."""
+    """KOC application auto-approved — always L1 in V2.6 (打怪升级)."""
     name = kwargs.get("koc_name", "Creator")
-    tier = kwargs.get("tier", "L1")
+    tier = "L1"  # V2.6: everyone starts at L1
     score = kwargs.get("score", 0)
     resource_path = kwargs.get("resource_path", "/portal")
 
-    tier_label = {"L1": "Explorer", "L2": "Creator", "L3": "Partner"}.get(tier, tier)
-    tier_desc = RULES_TIER_KOC.get(tier, "")
+    tier_label = "Explorer"
 
     return {
-        "in_app_title": f"Application Approved — You're a {tier_label}!",
+        "in_app_title": f"Application Approved — Welcome, Explorer!",
         "in_app_message": (
-            f"Your creator application has been approved with an AI score of {score}. "
-            f"You are now a {tier_label} creator. "
-            f"Browse the Task Hall to find your first collaboration opportunity."
+            f"Your creator application has been approved. You start as L1 Explorer. "
+            f"Complete {TIER_UPGRADE_TASKS['L1_to_L2']} sample tasks to unlock commission tasks (L2 Creator). "
+            f"Browse the Task Hall to find your first sample collaboration."
         ),
-        "email_subject": f"Application Approved — Welcome to KOC Engine, {tier_label}!",
+        "email_subject": f"Application Approved — Welcome to KOC Engine!",
         "email_body": f"""Hi {name},
 
 Congratulations! Your creator application has been approved.
 
 {MISSION}
 
-Your Tier: {tier_label} ({tier})
-{tier_desc}
+You Start As: L1 Explorer
+Everyone begins at Explorer — prove your skills, earn trust, level up.
 
-AI Score: {score}/100
+Your Progression Path:
+• L1 Explorer (Now): Sample tasks only — receive free products, create content
+  → Upgrade: Complete {TIER_UPGRADE_TASKS['L1_to_L2']} sample tasks with avg rating ≥ {TIER_UPGRADE_MIN_RATING}
+• L2 Creator: Unlock commission tasks (20-50pt), {TIER_MAX_ACTIVE_SLOTS.get('L2', 3)} concurrent tasks
+  → Upgrade: Complete {TIER_UPGRADE_TASKS['L2_to_L3']} total tasks + Trust ≥ 55
+• L3 Partner: Premium commissions up to {TIER_COMMISSION_MAX.get('L3', 500)}pt, {TIER_MAX_ACTIVE_SLOTS.get('L3', 5)} concurrent tasks
 
-Your Benefits:
-• Browse the Task Hall for brand collaboration opportunities
+Your Benefits Now (L1):
+• Browse the Task Hall for sample collaboration opportunities
 • Receive free product samples from brands
-• Earn commission in platform points: 1pt = ${PT_TO_USD} USD
-• {int((1 - KOC_PLATFORM_FEE_RATE) * 100)}% commission withdrawable + full pledge returned on approved content
-• Repeat collaborations boost your match score
+• {KOC_PLEDGE_SAMPLE}pt pledge per task (fully refunded on completion)
+• Level up to unlock commission earnings (1pt = ${PT_TO_USD} USD)
 
 Your Creator Toolkit:
 • Task Hall: browse open tasks → {PLATFORM_URL}/portal/hall
@@ -172,7 +183,8 @@ Your Creator Toolkit:
 • Credits: view balance & earnings → {PLATFORM_URL}/portal/credits
 
 Transparent Rules:
-- {RULES_PLEDGE_KOC}
+- Sample tasks: {KOC_PLEDGE_SAMPLE}pt pledge, refunded on completion
+- Commission tasks: pledge = commission (skin in the game)
 - {RULES_SLA_TIMELINE}
 - {RULES_TRUST}
 
@@ -637,6 +649,122 @@ View your profile:
 {SIGNATURE}
 """
     }
+
+
+# ── V2.6: 等级升级 + 限制模板 ──
+
+def _tpl_koc_tier_upgraded(**kwargs) -> dict:
+    """KOC 等级升级祝贺 + 新权益."""
+    name = kwargs.get("koc_name", "Creator")
+    old_tier = kwargs.get("old_tier", "L1")
+    new_tier = kwargs.get("new_tier", "L2")
+    completed_tasks = kwargs.get("completed_tasks", 0)
+    resource_path = kwargs.get("resource_path", "/portal")
+    tier_labels = {"L1": "Explorer", "L2": "Creator", "L3": "Partner"}
+    old_label = tier_labels.get(old_tier, old_tier)
+    new_label = tier_labels.get(new_tier, new_tier)
+    benefits = {
+        "L2": f"Commission tasks unlocked (20-50pt), {TIER_MAX_ACTIVE_SLOTS.get('L2', 3)} concurrent slots, pledge=commission",
+        "L3": f"Premium commissions up to {TIER_COMMISSION_MAX.get('L3', 500)}pt, {TIER_MAX_ACTIVE_SLOTS.get('L3', 5)} concurrent slots, x3 repeat collab bonus",
+    }
+    return {
+        "in_app_title": f"🎉 Level Up! {old_label} → {new_label}",
+        "in_app_message": (
+            f"After {completed_tasks} completed tasks, you've leveled up to {new_label}! "
+            f"New benefits: {benefits.get(new_tier, 'enhanced matching')}. Check your profile."
+        ),
+        "email_subject": f"🎉 Level Up! You're Now a {new_label} on KOC Engine",
+        "email_body": f"""Hi {name},
+
+CONGRATULATIONS! You've leveled up!
+
+{old_label} ({old_tier}) → {new_label} ({new_tier})
+
+After completing {completed_tasks} tasks with consistent quality, you've earned your upgrade.
+
+{MISSION}
+
+New Benefits:
+{benefits.get(new_tier, 'Enhanced matching priority + higher task limits')}
+
+Your Growth: {completed_tasks} completed tasks — the community trusts you more.
+
+Next: Browse new tier-appropriate tasks → {PLATFORM_URL}/portal/hall
+
+Keep creating, keep earning!
+
+{SIGNATURE}
+"""
+    }
+
+
+def _tpl_merchant_tier_upgraded(**kwargs) -> dict:
+    """商家等级升级."""
+    name = kwargs.get("merchant_name", "Brand")
+    old_tier = kwargs.get("old_tier", "M1")
+    new_tier = kwargs.get("new_tier", "M2")
+    completed_tasks = kwargs.get("completed_tasks", 0)
+    resource_path = kwargs.get("resource_path", "/dashboard")
+    tier_labels = {"M1": "Bronze", "M2": "Silver", "M3": "Gold"}
+    old_label = tier_labels.get(old_tier, old_tier)
+    new_label = tier_labels.get(new_tier, new_tier)
+    benefits = {
+        "M2": f"Commission tasks unlocked (20-50pt), {TIER_MAX_KOC_REQUIRED.get('M2', 3)} KOCs/task",
+        "M3": f"Premium commissions up to {TIER_COMMISSION_MAX.get('M3', 500)}pt, {TIER_MAX_KOC_REQUIRED.get('M3', 10)} KOCs/task, x3 repeat collab bonus",
+    }
+    return {
+        "in_app_title": f"🎉 Level Up! {old_label} → {new_label}",
+        "in_app_message": (
+            f"After {completed_tasks} completed collaborations, your store leveled up to {new_label}! "
+            f"New publishing limits unlocked."
+        ),
+        "email_subject": f"🎉 Level Up! Your Store is Now {new_label} on KOC Engine",
+        "email_body": f"""Hi {name},
+
+CONGRATULATIONS! Your store has leveled up!
+
+{old_label} ({old_tier}) → {new_label} ({new_tier})
+
+After {completed_tasks} collaborations with consistent quality, you've earned your upgrade.
+
+{MISSION}
+
+New Benefits:
+{benefits.get(new_tier, 'Enhanced publishing limits + higher matching priority')}
+
+Your Growth: {completed_tasks} completed collaborations — the community trusts you more.
+
+Next: Publish new tier-appropriate tasks → {PLATFORM_URL}/dashboard/tasks/new
+
+Keep shipping, keep growing!
+
+{SIGNATURE}
+"""
+    }
+
+
+def _tpl_tier_restriction(**kwargs) -> dict:
+    """等级限制拦截提示（in-app only）."""
+    tier = kwargs.get("tier", "L1")
+    role = kwargs.get("role", "koc")
+    if role == "koc":
+        return {
+            "in_app_title": "🔒 Tier Locked — Complete Sample Tasks First",
+            "in_app_message": (
+                f"Complete {TIER_UPGRADE_TASKS.get('L1_to_L2', 3)} sample tasks "
+                f"with avg rating ≥ {TIER_UPGRADE_MIN_RATING} to unlock commission tasks (L2 Creator)."
+            ),
+            "email_subject": "", "email_body": "",
+        }
+    else:
+        return {
+            "in_app_title": "🔒 Tier Locked — Complete Sample Tasks First",
+            "in_app_message": (
+                f"Complete {TIER_UPGRADE_TASKS.get('M1_to_M2', 3)} sample collaborations "
+                f"with avg rating ≥ {TIER_UPGRADE_MIN_RATING} to unlock commission tasks (M2 Silver)."
+            ),
+            "email_subject": "", "email_body": "",
+        }
 
 
 def _tpl_koc_auto_approved(**kwargs) -> dict:
@@ -1825,6 +1953,10 @@ _DISPATCH = {
     # ── Tier Changes ──
     (NotifType.TIER_CHANGED, "koc"): _tpl_koc_tier_changed,
     (NotifType.TIER_CHANGED, "merchant"): _tpl_merchant_tier_changed,
+    (NotifType.TIER_UPGRADED, "koc"): _tpl_koc_tier_upgraded,
+    (NotifType.TIER_UPGRADED, "merchant"): _tpl_merchant_tier_upgraded,
+    (NotifType.TIER_RESTRICTION, "koc"): _tpl_tier_restriction,
+    (NotifType.TIER_RESTRICTION, "merchant"): _tpl_tier_restriction,
 
     # ── Fraud & Ban ──
     (NotifType.KOC_FLAGGED, "koc"): _tpl_koc_flagged,

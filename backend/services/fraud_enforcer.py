@@ -19,7 +19,6 @@ from typing import Optional
 
 from config import (
     NotifType,
-    KOC_FIXED_PLEDGE,
     KOC_PLEDGE_SAMPLE,
 )
 

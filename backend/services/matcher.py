@@ -55,6 +55,39 @@ def _tier_bonus(tier: str) -> float:
     return {"L3": 100, "L2": 70, "L1": 50}.get(tier, 30)
 
 
+# ── V2.6 Tier-to-tier 匹配兼容性 ──
+TIER_COMPAT_MAP = {
+    "L1": {"M1"},
+    "L2": {"M1", "M2"},
+    "L3": {"M1", "M2", "M3"},
+}
+
+
+def _tier_compatible(koc_tier: str, merchant_tier: str) -> bool:
+    """检查 KOC 等级是否可以匹配该商家等级的任务。"""
+    allowed = TIER_COMPAT_MAP.get(koc_tier, {"M1"})
+    return merchant_tier in allowed
+
+
+# ── V2.6 Tier-weighted repeat collab bonus ──
+TIER_COLLAB_MULTIPLIER = {"L1": 1.0, "L2": 2.0, "L3": 3.0, "M1": 1.0, "M2": 2.0, "M3": 3.0}
+
+
+def _calc_tier_collab_bonus(past_collabs: int, past_rating: float, koc_tier: str, merchant_tier: str) -> float:
+    """等级加权合作加成：等级越高，合作过的老搭档越优先匹配。"""
+    if past_collabs == 0:
+        return 0.0
+    # 原始加分
+    count_bonus = min(15.0, past_collabs * 3.0)
+    rating_bonus = 5.0 if past_rating >= 4.0 else (2.0 if past_rating >= 3.0 else 0)
+    raw = count_bonus + rating_bonus
+    # 等级倍率（取双方中较高者）
+    koc_mult = TIER_COLLAB_MULTIPLIER.get(koc_tier, 1.0)
+    merchant_mult = TIER_COLLAB_MULTIPLIER.get(merchant_tier, 1.0)
+    multiplier = max(koc_mult, merchant_mult)
+    return raw * multiplier
+
+
 def _region_match(product_target_market: str, koc_region: str) -> float:
     """地区模糊匹配。检查 product.target_market 与 KOC.region 的关联度。"""
     if not koc_region or not product_target_market:
@@ -175,13 +208,13 @@ def _rule_score(koc: dict, product: dict) -> dict:
     elif dim_recency >= 30:
         reasons.append(f"近期上架")
 
-    # 加权总分（内容表现 5%，从品类匹配挤出）
+    # 加权总分（V2.6: tier_bonus 降权，hard filter 已做 tier-compat 检查）
     weights = {
         "niche_match": 0.35,
-        "tier_bonus": 0.10,
+        "tier_bonus": 0.05,
         "score_normalized": 0.15,
         "region_match": 0.15,
-        "history": 0.05,
+        "history": 0.10,
         "trust_score": 0.05,
         "recency": 0.10,
         "content_performance": 0.05,
@@ -333,11 +366,23 @@ def match_kocs_for_product(
     Returns:
         list of match result dicts，按 match_score 降序
     """
+    # ── V2.6: 查找商家 tier ──
+    merchant_tier = "M1"
+    if merchant_id:
+        try:
+            from stores.merchant_store import merchant_store
+            m = merchant_store.get(merchant_id)
+            if m:
+                merchant_tier = m.tier
+        except Exception:
+            pass
+
     eligible = [
         k for k in all_kocs
         if k.get("status") in APPROVED_STATUSES
         and not k.get("is_blacklisted")
         and k.get("trust_score", 100) >= 30  # 信任分 <30 不参与匹配
+        and _tier_compatible(k.get("tier", "L1"), merchant_tier)  # V2.6: tier-to-tier
     ]
 
     if not eligible:
@@ -372,19 +417,16 @@ def match_kocs_for_product(
     for koc in eligible:
         result = _rule_score(koc, product)
         koc_id = koc.get("id", "")
+        koc_tier = koc.get("tier", "L1")
 
-        # 合作过加成：同一商家 × 同一 KOC 的历史完成合作
+        # V2.6: 等级加权合作加成
         past_collabs = past_collab_counts.get(koc_id, 0)
         past_rating = past_collab_ratings.get(koc_id, 0)
-        collab_bonus = 0.0
-        if past_collabs > 0:
-            # 基础加成：每次合作 +3 分，上限 15 分
-            count_bonus = min(15.0, past_collabs * 3.0)
-            # 评价加成：均分 ≥4.0 额外 +5
-            rating_bonus = 5.0 if past_rating >= 4.0 else (2.0 if past_rating >= 3.0 else 0)
-            collab_bonus = count_bonus + rating_bonus
+        collab_bonus = _calc_tier_collab_bonus(past_collabs, past_rating, koc_tier, merchant_tier)
+        if collab_bonus > 0:
             result["dimensions"]["past_collab_bonus"] = round(collab_bonus, 1)
-            result["reasons"].append(f"🤝 合作过 {past_collabs} 次" + (f" (均分 {past_rating:.1f})" if past_rating > 0 else ""))
+            mult = max(TIER_COLLAB_MULTIPLIER.get(koc_tier, 1.0), TIER_COLLAB_MULTIPLIER.get(merchant_tier, 1.0))
+            result["reasons"].append(f"🤝 合作过 {past_collabs} 次 (×{mult:.0f})" + (f" (均分 {past_rating:.1f})" if past_rating > 0 else ""))
         else:
             result["dimensions"]["past_collab_bonus"] = 0.0
 

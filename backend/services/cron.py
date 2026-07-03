@@ -1,7 +1,7 @@
 """Cron 周期扫描 V2 — 超时检测 + 自动处理 + 诚信度 + 物流追踪 + 通知"""
 
 from datetime import datetime, timedelta, timezone
-from config import GHOSTED_GRACE_DAYS, STALE_DAYS, SLA_CONTENT_REVIEW_DAYS, SLA_REVISION_DAYS, MAX_REVISIONS, KOC_PLATFORM_FEE_RATE, KOC_PLATFORM_FEE_MIN, KOC_FIXED_PLEDGE, NotifType
+from config import GHOSTED_GRACE_DAYS, STALE_DAYS, SLA_CONTENT_REVIEW_DAYS, SLA_REVISION_DAYS, MAX_REVISIONS, KOC_PLATFORM_FEE_RATE, KOC_PLATFORM_FEE_MIN, KOC_PLEDGE_SAMPLE, TIER_COMMISSION_MAX, TIER_COMMISSION_MIN, TIER_MAX_ACTIVE_SLOTS, TIER_MAX_KOC_REQUIRED, TIER_UPGRADE_TASKS, TIER_UPGRADE_MIN_RATING, TIER_UPGRADE_MIN_TRUST, NotifType
 from stores.koc_store import koc_store
 from stores.task_store import task_store
 from stores.merchant_store import merchant_store
@@ -18,8 +18,66 @@ from services.notifier import notify_user
 SLA_ACCEPT_HOURS = 12        # KOC 接单超时
 SLA_SHIP_HOURS = 48          # 商家发货超时
 SLA_RECEIVE_DAYS = 7         # KOC 确认收货超时
-SLA_SUBMIT_DAYS = 14         # KOC 提交内容超时
-SLA_LONG_TERM_IDLE_DAYS = 7  # 长线任务空位无人接 → 系统介入匹配
+SLA_SUBMIT_DAYS = 14         # KOC 提交内容超时（急迫任务）
+SLA_LONG_TERM_IDLE_DAYS = 30  # 长线任务空位无人接 → 提醒商家（V2.6: was 7）
+SLA_LONG_TERM_WARN_1_DAYS = 15  # 首次提醒
+SLA_LONG_TERM_WARN_2_DAYS = 25  # 二次提醒
+SLA_SUBMIT_DAYS_LONG_TERM = 21  # 长线任务提交超时（V2.6: 给新手更多时间）
+
+
+# ═══════════════════════════════════════════
+# V2.6 打怪升级：一次性数据迁移
+# ═══════════════════════════════════════════
+
+_MIGRATION_DONE = False
+
+
+def run_tier_reset_migration():
+    """一次性迁移：所有用户等级重置为基础 L1/M1。
+    保留 completed_tasks / trust_score / avg_rating（升级进度不丢失）。
+    幂等：执行后写标记文件，重启不会重复执行。
+    """
+    global _MIGRATION_DONE
+    if _MIGRATION_DONE:
+        return
+
+    import os
+    import json
+
+    migration_flag = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "..", "output", ".migration_tier_reset_v26")
+    if os.path.exists(migration_flag):
+        _MIGRATION_DONE = True
+        return
+
+    print("[migration] V2.6 tier reset: reverting all users to L1/M1...")
+
+    # ── 重置所有 KOC 为 L1 ──
+    koc_reset = 0
+    for k in koc_store.list_all():
+        if k.tier != "L1":
+            koc_store.update(k.id, {"tier": "L1"})
+            koc_reset += 1
+
+    # ── 重置所有商家为 M1 ──
+    merchant_reset = 0
+    for m in merchant_store.list_all():
+        if m.tier != "M1":
+            merchant_store.update(m.id, {"tier": "M1"})
+            merchant_reset += 1
+
+    # ── 写标记文件防止重复 ──
+    os.makedirs(os.path.dirname(migration_flag), exist_ok=True)
+    with open(migration_flag, "w") as f:
+        json.dump({
+            "migration": "tier_reset_v26",
+            "koc_reset": koc_reset,
+            "merchant_reset": merchant_reset,
+            "timestamp": datetime.utcnow().isoformat(),
+        }, f)
+
+    print(f"[migration] Done: {koc_reset} KOCs → L1, {merchant_reset} merchants → M1")
+    _MIGRATION_DONE = True
 
 
 # ═══════════════════════════════════════════
@@ -28,6 +86,9 @@ SLA_LONG_TERM_IDLE_DAYS = 7  # 长线任务空位无人接 → 系统介入匹�
 
 def run_weekly_scan() -> dict:
     """执行周度扫描，返回扫描结果统计"""
+    # ── V2.6: 首次启动执行等级重置迁移 ──
+    run_tier_reset_migration()
+
     now = datetime.utcnow()
     result = {
         "slot_rematched": 0,
@@ -109,34 +170,37 @@ def run_weekly_scan() -> dict:
                             product_name=task.product_name,
                         )
 
-            # 4. 已收货未提交内容（14d）
+            # 4. 已收货未提交内容（急迫 14d / 长线 21d）
             if slot_status in ("received", "creating"):
                 received_at = _parse_ts(slot.get("received_at", ""))
                 if received_at:
                     days_since_received = (now - received_at).days
+                    submit_sla = SLA_SUBMIT_DAYS_LONG_TERM if task.task_type == "long_term" else SLA_SUBMIT_DAYS
                     koc_uid_w = _get_koc_user_id(koc_id) if koc_id else ""
                     koc_prof_w = koc_store.get(koc_id) if koc_id else None
                     koc_name_w = koc_prof_w.handle if (koc_prof_w and koc_prof_w.handle) else "Creator"
 
-                    # ⚠️ 预警：已收货 7 天，还剩 7 天提交内容
-                    if days_since_received >= 7:
-                        _warn_if_needed(task, i, "submit_7d", days_since_received < SLA_SUBMIT_DAYS,
+                    # ⚠️ 预警：已收货过半，提醒提交
+                    warn_mid = submit_sla // 2
+                    warn_urgent = submit_sla - 3
+                    if days_since_received >= warn_urgent:
+                        _warn_if_needed(task, i, f"submit_{warn_urgent}d",
+                            days_since_received < submit_sla,
                             NotifType.DEADLINE_WARNING,
-                            "⏰ 7 Days Left — Submit Your Content",
-                            f"{task.product_name}: You have 7 days left to submit content. Late submission = {task.pledge_koc}pt forfeited + Trust Score -15.",
+                            f"🚨 {submit_sla - days_since_received} Days Left — Submit Now or Lose Pledge!",
+                            f"{task.product_name}: ONLY {submit_sla - days_since_received} DAYS LEFT! Submit your content now or your {task.pledge_koc}pt pledge will be forfeited + Trust Score -15.",
                             koc_uid_w, f"/portal/tasks/{task.id}",
-                            koc_name=koc_name_w, days_left=SLA_SUBMIT_DAYS - days_since_received)
-
-                    # ⚠️ 预警：已收货 11 天，仅剩 3 天！
-                    if days_since_received >= 11:
-                        _warn_if_needed(task, i, "submit_11d", days_since_received < SLA_SUBMIT_DAYS,
+                            koc_name=koc_name_w, days_left=submit_sla - days_since_received)
+                    elif days_since_received >= warn_mid:
+                        _warn_if_needed(task, i, f"submit_{warn_mid}d",
+                            days_since_received < submit_sla,
                             NotifType.DEADLINE_WARNING,
-                            "🚨 3 Days Left — Submit Now or Lose Pledge!",
-                            f"{task.product_name}: ONLY 3 DAYS LEFT! Submit your content now or your {task.pledge_koc}pt pledge will be forfeited + Trust Score -15.",
+                            f"⏰ {submit_sla - days_since_received} Days Left — Submit Your Content",
+                            f"{task.product_name}: You have {submit_sla - days_since_received} days left to submit content. Late submission = {task.pledge_koc}pt forfeited + Trust Score -15.",
                             koc_uid_w, f"/portal/tasks/{task.id}",
-                            koc_name=koc_name_w, days_left=SLA_SUBMIT_DAYS - days_since_received)
+                            koc_name=koc_name_w, days_left=submit_sla - days_since_received)
 
-                if received_at and (now - received_at).days >= SLA_SUBMIT_DAYS:
+                if received_at and (now - received_at).days >= submit_sla:
                     _handle_submit_timeout(task, i, koc_id)
                     result["koc_defaulted"] += 1
 
@@ -182,14 +246,19 @@ def run_weekly_scan() -> dict:
                     _handle_revision_timeout(task, i, koc_id)
                     result["koc_defaulted"] += 1
 
-            # 5. 长线任务空位无人接（7d）→ 系统介入自动匹配
+            # 5. 长线任务空位无人接（V2.6: 15d 首次提醒 → 25d 二次提醒 → 30d 最终提醒）
             if (task.task_type == "long_term"
                     and not koc_id
                     and slot_status in ("assigned", "pending")):
                 task_created = _parse_ts(task.created_at)
-                if task_created and (now - task_created).days >= SLA_LONG_TERM_IDLE_DAYS:
-                    _handle_long_term_idle(task, i)
-                    result["slot_rematched"] += 1
+                if task_created:
+                    days_idle = (now - task_created).days
+                    if days_idle >= SLA_LONG_TERM_IDLE_DAYS:
+                        _handle_long_term_idle(task, i, "final")
+                    elif days_idle >= SLA_LONG_TERM_WARN_2_DAYS:
+                        _handle_long_term_idle(task, i, "warn_25d")
+                    elif days_idle >= SLA_LONG_TERM_WARN_1_DAYS:
+                        _handle_long_term_idle(task, i, "warn_15d")
 
         # ── 商家发货超时检测（48h from earliest accepted slot） ──
         if task.task_status == "accepted":
@@ -478,18 +547,31 @@ def _handle_accept_timeout(task, slot_index: int, old_koc_id: str):
             })
 
 
-def _handle_long_term_idle(task, slot_index: int):
-    """长线任务空位 7 天无人接 → 通知商家建议放弃（不再强制匹配 KOC）。
+def _handle_long_term_idle(task, slot_index: int, stage: str = "final"):
+    """长线任务空位提醒（V2.6: 三阶段递进）。
 
+    stage: "warn_15d" | "warn_25d" | "final"
     商家可选择：1) 手动删除任务拿回退款  2) 继续等待  3) 改为加急触发匹配。
     """
-    # ── 防重复：每个 slot 只通知一次 ──
+    stage_keys = {
+        "warn_15d": "long_term_idle_15d",
+        "warn_25d": "long_term_idle_25d",
+        "final": "long_term_idle_30d",
+    }
+    stage_days = {
+        "warn_15d": 15,
+        "warn_25d": 5,   # remaining
+        "final": 0,
+    }
+
+    # ── 防重复：每个 stage 只通知一次 ──
     slots = task.koc_slots or []
+    stage_key = stage_keys.get(stage, "long_term_idle")
     if slot_index < len(slots):
         warned = list(slots[slot_index].get("warned_stages", []))
-        if "long_term_idle_7d" in warned:
+        if stage_key in warned:
             return
-        warned.append("long_term_idle_7d")
+        warned.append(stage_key)
         task_store.update_slot(task.id, slot_index, {"warned_stages": warned})
 
     # ── 统计空 slot 数量 ──
@@ -499,9 +581,10 @@ def _handle_long_term_idle(task, slot_index: int):
         if not s.get("koc_id") or s.get("status") in ("pending", "assigned", "rejected", "timed_out")
     )
 
-    # ── 通知商家：不再自动匹配，建议主动决策 ──
+    # ── 通知商家 ──
     m_uid = _get_merchant_user_id(task.merchant_id)
     if m_uid:
+        days_left = stage_days.get(stage, 0)
         notify_user(
             m_uid,
             NotifType.TASK_IDLE_WARNING,
@@ -511,6 +594,11 @@ def _handle_long_term_idle(task, slot_index: int):
             empty_slots=empty_slots,
             total_slots=total_slots,
             pledge_merchant=task.pledge_merchant,
+            days_idle=SLA_LONG_TERM_IDLE_DAYS if stage == "final" else (
+                SLA_LONG_TERM_WARN_1_DAYS if stage == "warn_15d" else SLA_LONG_TERM_WARN_2_DAYS
+            ),
+            days_left=days_left,
+            stage=stage,
         )
 
 
@@ -829,16 +917,20 @@ def _get_merchant_user_id(merchant_id: str) -> str:
 # ═══════════════════════════════════════════
 
 def calculate_tier(trust_score: int, completed_tasks: int, avg_rating: float) -> str:
-    """根据信任分和历史表现综合计算等级（双向：信任回升等级也回升）。
+    """V2.6 打怪升级：纯完成驱动（不再依赖 AI 初始评分）。
 
     门槛：
-    - L3：信任 ≥ 75 且完成 ≥ 5 单 且均分 ≥ 4.0
-    - L2：信任 ≥ 55 且完成 ≥ 2 单 且均分 ≥ 3.0
+    - L3：完成 ≥ 5 单 且 信任 ≥ 55 且 均分 ≥ 3.0
+    - L2：完成 ≥ 3 单 且 均分 ≥ 3.0（无需信任分门槛，鼓励新手）
     - L1：不满足以上任一条件
+
+    降级：trust < 30 → 强制 L1
     """
-    if trust_score >= 75 and completed_tasks >= 5 and avg_rating >= 4.0:
+    if trust_score < 30:
+        return "L1"  # 信任崩塌 → 强制降级
+    if completed_tasks >= 5 and trust_score >= TIER_UPGRADE_MIN_TRUST and avg_rating >= TIER_UPGRADE_MIN_RATING:
         return "L3"
-    elif trust_score >= 55 and completed_tasks >= 2 and avg_rating >= 3.0:
+    elif completed_tasks >= TIER_UPGRADE_TASKS["L1_to_L2"] and avg_rating >= TIER_UPGRADE_MIN_RATING:
         return "L2"
     else:
         return "L1"
@@ -866,19 +958,21 @@ def sync_koc_tier(koc_id: str) -> dict | None:
     reason = f"信任={koc.trust_score} 完成={koc.completed_tasks} 均分={koc.avg_rating:.1f}"
     print(f"[tier] {koc.display_name or koc_id[:8]}: {old_tier} {direction} {new_tier} ({reason})")
 
-    # ── 通知 KOC：等级变更 ──
+    # ── 通知 KOC：升级用 TIER_UPGRADED，降级用 TIER_CHANGED ──
     if koc.email:
         koc_usr = user_store.get_by_email(koc.email)
         if koc_usr:
+            is_upgrade = direction == "↑"
             notify_user(
                 koc_usr.id,
-                NotifType.TIER_CHANGED,
+                NotifType.TIER_UPGRADED if is_upgrade else NotifType.TIER_CHANGED,
                 resource_path="/portal",
                 koc_name=koc.display_name or koc.handle or "Creator",
                 old_tier=old_tier,
                 new_tier=new_tier,
                 trust_score=koc.trust_score,
-                direction="up" if direction == "↑" else "down",
+                completed_tasks=koc.completed_tasks,
+                direction="up" if is_upgrade else "down",
             )
 
     return {
@@ -896,16 +990,20 @@ def sync_koc_tier(koc_id: str) -> dict | None:
 # ═══════════════════════════════════════════
 
 def calculate_merchant_tier(trust_score: int, completed_tasks: int, avg_rating: float) -> str:
-    """根据商家信任分和历史表现综合计算等级（双向）。
+    """V2.6 打怪升级：纯完成驱动。
 
     门槛：
-    - M3：信任 ≥ 75 且完成 ≥ 10 单 且均分 ≥ 4.0
-    - M2：信任 ≥ 55 且完成 ≥ 3 单 且均分 ≥ 3.0
+    - M3：完成 ≥ 5 单 且 信任 ≥ 55 且 均分 ≥ 3.0
+    - M2：完成 ≥ 3 单 且 均分 ≥ 3.0
     - M1：不满足以上任一条件
+
+    降级：trust < 40 → 强制 M1（失去发布权限）
     """
-    if trust_score >= 75 and completed_tasks >= 10 and avg_rating >= 4.0:
+    if trust_score < 40:
+        return "M1"
+    if completed_tasks >= TIER_UPGRADE_TASKS["M2_to_M3"] and trust_score >= TIER_UPGRADE_MIN_TRUST and avg_rating >= TIER_UPGRADE_MIN_RATING:
         return "M3"
-    elif trust_score >= 55 and completed_tasks >= 3 and avg_rating >= 3.0:
+    elif completed_tasks >= TIER_UPGRADE_TASKS["M1_to_M2"] and avg_rating >= TIER_UPGRADE_MIN_RATING:
         return "M2"
     else:
         return "M1"
@@ -933,17 +1031,19 @@ def sync_merchant_tier(merchant_id: str) -> dict | None:
     reason = f"信任={m.trust_score} 完成={m.total_tasks_completed} 均分={m.avg_rating:.1f}"
     print(f"[tier:merchant] {m.company_name or merchant_id[:8]}: {old_tier} {direction} {new_tier} ({reason})")
 
-    # ── 通知商家：等级变更 ──
+    # ── 通知商家：升级用 TIER_UPGRADED，降级用 TIER_CHANGED ──
     if m.user_id:
+        is_upgrade = direction == "↑"
         notify_user(
             m.user_id,
-            NotifType.TIER_CHANGED,
+            NotifType.TIER_UPGRADED if is_upgrade else NotifType.TIER_CHANGED,
             resource_path="/dashboard",
             merchant_name=m.company_name or "Brand",
             old_tier=old_tier,
             new_tier=new_tier,
             trust_score=m.trust_score,
-            direction="up" if direction == "↑" else "down",
+            completed_tasks=m.total_tasks_completed,
+            direction="up" if is_upgrade else "down",
         )
 
     return {

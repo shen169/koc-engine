@@ -13,7 +13,7 @@ from stores.product_store import product_store
 from services.matcher import match_kocs_for_task, rematch_slot
 from services.cron import sync_koc_tier, sync_merchant_tier
 from auth import get_current_user, require_admin
-from config import PLATFORM_SERVICE_FEE, KOC_PLATFORM_FEE_RATE, KOC_PLATFORM_FEE_MIN, KOC_FIXED_PLEDGE, KOC_PLEDGE_SAMPLE, TASK_COMMISSION_MIN, TASK_COMMISSION_MAX, MAX_REVISIONS, NotifType
+from config import PLATFORM_SERVICE_FEE, KOC_PLATFORM_FEE_RATE, KOC_PLATFORM_FEE_MIN, KOC_PLEDGE_SAMPLE, TASK_COMMISSION_MIN, TASK_COMMISSION_MAX, MAX_REVISIONS, TIER_COMMISSION_MAX, TIER_COMMISSION_MIN, TIER_MAX_KOC_REQUIRED, TIER_MAX_ACTIVE_SLOTS, NotifType
 from models import ContentMetrics
 from services.notifier import notify_user
 from services.content_judge import judge_submission
@@ -95,14 +95,31 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
     task_type = data.get("task_type", "long_term")
     koc_required = data.get("koc_required", 1)
     commission = data.get("commission", 30)
+    task_mode = data.get("task_mode", "sample" if m.tier == "M1" else "commission")
 
-    # ── 任务模式判断 ──
-    task_mode = data.get("task_mode", "commission")  # "commission" | "sample"
+    # ── V2.6 等级门禁：M1 只能发样品任务 ──
+    if m.tier == "M1" and task_mode != "sample":
+        raise HTTPException(400,
+            f"🔒 Tier {m.tier}: Sample-only mode. "
+            f"Complete {TIER_COMMISSION_MAX.get('M2', 0) if False else 3} sample tasks "
+            f"with avg rating ≥ 3.0 to unlock commission tasks (M2).")
+
+    # ── 等级门禁：佣金不能超过当前等级上限 ──
+    tier_max = TIER_COMMISSION_MAX.get(m.tier, 0)
+    tier_min = TIER_COMMISSION_MIN.get(m.tier, 0)
     if task_mode == "sample":
-        commission = 0  # 寄样模式：无佣金，KOC 只拿免费产品
-    elif not (TASK_COMMISSION_MIN <= commission <= TASK_COMMISSION_MAX):
-        raise HTTPException(400, f"Commission must be between {TASK_COMMISSION_MIN}-{TASK_COMMISSION_MAX}pt "
-                                 f"(or use task_mode='sample' for product-only collaboration)")
+        commission = 0  # 寄样模式：无佣金
+    elif not (tier_min <= commission <= tier_max):
+        raise HTTPException(400,
+            f"🔒 Tier {m.tier} commission range: {tier_min}-{tier_max}pt. "
+            f"Complete more tasks to unlock higher commissions.")
+
+    # ── 等级门禁：koc_required 不能超过当前等级上限 ──
+    tier_koc_max = TIER_MAX_KOC_REQUIRED.get(m.tier, 2)
+    if koc_required > tier_koc_max:
+        raise HTTPException(400,
+            f"🔒 Tier {m.tier}: Max {tier_koc_max} KOCs per task. "
+            f"Upgrade to unlock more slots.")
 
     # 验证产品归属（product_id 必须属于该商家或 admin）
     product_id = data.get("product_id", "")
@@ -115,7 +132,8 @@ def create_task(data: dict, current_user: dict = Depends(get_current_user)):
 
     # ── 质押规则 ──
     pledge_merchant = commission * koc_required      # 商家佣金池（寄样模式=0，不退，发布时一次扣完）
-    pledge_koc = KOC_PLEDGE_SAMPLE if task_mode == "sample" else KOC_FIXED_PLEDGE
+    # V2.6: 质押 = 佣金（样品固定 5pt）
+    pledge_koc = KOC_PLEDGE_SAMPLE if task_mode == "sample" else commission
 
     task = KocTask(
         merchant_id=merchant_id,
@@ -259,8 +277,10 @@ def list_task_hall(
         koc = koc_store.get_by_email(user.email) if user else None
         koc_id = koc.id if koc else current_user["sub"]
 
+    koc_tier = koc.tier if koc else "L1"
     tasks = task_store.list_for_hall(
         koc_id=koc_id,
+        koc_tier=koc_tier,  # V2.6: tier-gated filtering
         category=category,
         task_type=task_type,
         commission_min=commission_min,
@@ -519,6 +539,18 @@ def accept_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
         if koc_profile.trust_score < 30:
             raise HTTPException(403, f"Trust score too low ({koc_profile.trust_score}/100). Cannot accept tasks.")
 
+        # ── V2.6 等级门禁：L1 只能接样品任务 ──
+        if koc_profile.tier == "L1" and task.task_mode != "sample":
+            raise HTTPException(400,
+                f"🔒 Tier L1: Sample-only mode. "
+                f"Complete 3 sample tasks with avg rating ≥ 3.0 to unlock commission tasks (L2).")
+        # ── 等级门禁：佣金不能超过 KOC 等级上限 ──
+        koc_tier_max = TIER_COMMISSION_MAX.get(koc_profile.tier, 0)
+        if task.commission > koc_tier_max:
+            raise HTTPException(400,
+                f"🔒 Tier {koc_profile.tier}: Max commission {koc_tier_max}pt. "
+                f"Upgrade to access higher-commission tasks.")
+
     # ── 欺诈检测：预检累积风险评分 ──
     from services.fraud_detector import FraudDetector, _extract_ip
     fd = FraudDetector()
@@ -530,14 +562,17 @@ def accept_task(task_id: str, slot_index: int, current_user: dict = Depends(get_
     if r5.warn:
         fd.record(user.id if user else current_user["sub"], r5, task_id=task_id, related_user_id=task.merchant_id)
 
-    # 检查同时进行中任务数上限（最多 5 个 active slot）
+    # 检查同时进行中任务数上限（V2.6: tier-gated）
+    max_slots = TIER_MAX_ACTIVE_SLOTS.get(koc_profile.tier if koc_profile else "L1", 2)
     active_slots = 0
     for t in task_store.list_by_koc(koc_id):
         for s in t.koc_slots:
             if s.get("koc_id") == koc_id and s.get("status") in ("accepted", "shipped", "received", "creating"):
                 active_slots += 1
-    if active_slots >= 5:
-        raise HTTPException(400, f"You already have {active_slots} active tasks (max 5). Complete some before accepting new ones.")
+    if active_slots >= max_slots:
+        raise HTTPException(400,
+            f"🔒 Tier {koc_profile.tier if koc_profile else 'L1'}: Max {max_slots} active tasks. "
+            f"You have {active_slots}. Complete some or upgrade to accept more.")
 
     koc_uid = _get_koc_user_id(koc_id)
 
