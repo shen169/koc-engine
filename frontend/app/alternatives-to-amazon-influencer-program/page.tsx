@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
 import RedLineGuarantee from "@/components/RedLineGuarantee";
-import { faqSchema } from "@/lib/schema";
+import { faqSchema, breadcrumbSchema, webPageSchema } from "@/lib/schema";
 
 export const metadata: Metadata = {
   title: "5 Amazon Influencer Program Alternatives for Cross-Border Sellers (2026)",
@@ -51,6 +51,8 @@ export default function AmazonAlternativesPage() {
     <>
       <JsonLd data={articleSchema} />
       <JsonLd data={faqSchema(pageFaqs)} />
+      <JsonLd data={breadcrumbSchema([{ name: "Home", url: "https://kocengine.com" }, { name: "Blog", url: "https://kocengine.com/blog" }, { name: "Amazon Influencer Program Alternatives", url: "https://kocengine.com/alternatives/amazon-influencer" }])} />
+      <JsonLd data={webPageSchema({ name: "Amazon Influencer Program Alternatives for Cross-Border Sellers", description: "5 alternatives to Amazon's influencer program for cross-border creator campaigns — including KOC Engine, GRIN, Upfluence, and more.", url: "https://kocengine.com/alternatives/amazon-influencer" })} />
 
       <article className="max-w-4xl mx-auto px-6 py-16">
         <div className="mb-10">

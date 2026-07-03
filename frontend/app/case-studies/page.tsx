@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
+import { breadcrumbSchema, webPageSchema } from "@/lib/schema";
 
 export const metadata: Metadata = {
   title: "Case Studies — How Brands Use KOC Engine to Guarantee Content Delivery",
@@ -84,6 +85,8 @@ export default function CaseStudiesPage() {
   return (
     <>
       <JsonLd data={articleSchema} />
+      <JsonLd data={breadcrumbSchema([{ name: "Home", url: "https://kocengine.com" }, { name: "Case Studies", url: "https://kocengine.com/case-studies" }])} />
+      <JsonLd data={webPageSchema({ name: "KOC Engine Case Studies", description: "Real results from cross-border brands using KOC Engine's pledge-protected KOC campaigns.", url: "https://kocengine.com/case-studies" })} />
       <main className="max-w-3xl mx-auto px-6 py-16">
         <div className="mb-12">
           <Link href="/" className="text-sm text-pink-500 hover:text-pink-600 mb-4 inline-block">← KOC Engine</Link>

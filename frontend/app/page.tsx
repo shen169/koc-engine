@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Spark from "@/components/Spark";
 import JsonLd from "@/components/JsonLd";
-import { organizationSchema, webApplicationSchema, websiteSchema, faqSchema } from "@/lib/schema";
+import { organizationSchema, webApplicationSchema, websiteSchema, faqSchema, breadcrumbSchema, webPageSchema } from "@/lib/schema";
 import { HomeStats } from "./HomeStats";
 
 const homeFaqs = [
@@ -54,6 +54,8 @@ export default function HomePage() {
       <JsonLd data={websiteSchema()} />
       <JsonLd data={webApplicationSchema()} />
       <JsonLd data={faqSchema(homeFaqs)} />
+      <JsonLd data={breadcrumbSchema([{ name: "Home", url: "https://kocengine.com" }])} />
+      <JsonLd data={webPageSchema({ name: "KOC Engine — Creator-Brand Collaboration, Made Accessible", description: "Making creator-brand collaboration accessible for everyone. AI-powered KOC matching platform with dual-pledge escrow for cross-border e-commerce.", url: "https://kocengine.com" })} />
 
       {/* Hero */}
       <section

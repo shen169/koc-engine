@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import JsonLd from "@/components/JsonLd";
+import { breadcrumbSchema, webPageSchema } from "@/lib/schema";
 
 export const metadata: Metadata = {
   title: "Blog — KOC Marketing Insights for Cross-Border Brands",
@@ -90,7 +92,10 @@ const posts = [
 
 export default function BlogPage() {
   return (
-    <main className="max-w-4xl mx-auto px-6 py-16">
+    <>
+      <JsonLd data={breadcrumbSchema([{ name: "Home", url: "https://kocengine.com" }, { name: "Blog", url: "https://kocengine.com/blog" }])} />
+      <JsonLd data={webPageSchema({ name: "KOC Engine Blog", description: "KOC marketing insights, platform comparisons, and cross-border e-commerce growth strategies.", url: "https://kocengine.com/blog" })} />
+      <main className="max-w-4xl mx-auto px-6 py-16">
       <h1 className="text-4xl font-extrabold text-zinc-900 mb-2">Blog</h1>
       <p className="text-zinc-500 mb-10">KOC marketing insights, platform comparisons, and cross-border e-commerce growth strategies.</p>
 
@@ -107,5 +112,6 @@ export default function BlogPage() {
         ))}
       </div>
     </main>
+    </>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
+import { breadcrumbSchema, webPageSchema } from "@/lib/schema";
 
 export const metadata: Metadata = {
   title: "Complete Guide to KOC Marketing for Cross-Border E-Commerce (2026)",
@@ -41,6 +42,8 @@ export default function KocMarketingGuidePage() {
   return (
     <>
       <JsonLd data={articleSchema} />
+      <JsonLd data={breadcrumbSchema([{ name: "Home", url: "https://kocengine.com" }, { name: "Guide", url: "https://kocengine.com/guide/koc-marketing-cross-border-ecommerce" }])} />
+      <JsonLd data={webPageSchema({ name: "Complete Guide to KOC Marketing for Cross-Border E-Commerce (2026)", description: "The definitive guide to KOC marketing: how to find, vet, and manage TikTok creators for Amazon and DTC brands.", url: "https://kocengine.com/guide/koc-marketing-cross-border-ecommerce" })} />
       <article className="max-w-3xl mx-auto px-6 py-16">
         <div className="mb-12">
           <Link href="/" className="text-sm text-pink-500 hover:text-pink-600 mb-4 inline-block">← KOC Engine</Link>

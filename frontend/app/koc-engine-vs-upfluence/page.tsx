@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
 import RedLineGuarantee from "@/components/RedLineGuarantee";
-import { faqSchema } from "@/lib/schema";
+import { faqSchema, breadcrumbSchema, webPageSchema } from "@/lib/schema";
 
 export const metadata: Metadata = {
   title: "KOC Engine vs Upfluence: Which Is Better for Cross-Border Creator Campaigns?",
@@ -46,6 +46,8 @@ export default function VsUpfluencePage() {
     <>
       <JsonLd data={articleSchema} />
       <JsonLd data={faqSchema(pageFaqs)} />
+      <JsonLd data={breadcrumbSchema([{ name: "Home", url: "https://kocengine.com" }, { name: "Blog", url: "https://kocengine.com/blog" }, { name: "KOC Engine vs Upfluence", url: "https://kocengine.com/vs/upfluence" }])} />
+      <JsonLd data={webPageSchema({ name: "KOC Engine vs Upfluence", description: "Compare KOC Engine and Upfluence on pricing, escrow protection, creator vetting, and cross-border features.", url: "https://kocengine.com/vs/upfluence" })} />
 
       <article className="max-w-4xl mx-auto px-6 py-16">
         <div className="mb-10">

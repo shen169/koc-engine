@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
 import RedLineGuarantee from "@/components/RedLineGuarantee";
-import { faqSchema } from "@/lib/schema";
+import { faqSchema, breadcrumbSchema, webPageSchema } from "@/lib/schema";
 
 export const metadata: Metadata = {
   title: "KOC Engine vs GRIN: Creator Management for E-Commerce Brands Compared",
@@ -41,6 +41,8 @@ export default function VsGrinPage() {
     <>
       <JsonLd data={articleSchema} />
       <JsonLd data={faqSchema(pageFaqs)} />
+      <JsonLd data={breadcrumbSchema([{ name: "Home", url: "https://kocengine.com" }, { name: "Blog", url: "https://kocengine.com/blog" }, { name: "KOC Engine vs GRIN", url: "https://kocengine.com/vs/grin" }])} />
+      <JsonLd data={webPageSchema({ name: "KOC Engine vs GRIN", description: "Compare KOC Engine and GRIN on creator management, escrow protection, cross-border support, and pricing for e-commerce brands.", url: "https://kocengine.com/vs/grin" })} />
 
       <article className="max-w-4xl mx-auto px-6 py-16">
         <div className="mb-10">

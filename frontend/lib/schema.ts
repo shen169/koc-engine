@@ -169,3 +169,77 @@ export function howToSchema(params: {
     })),
   };
 }
+
+export function articleSchema(params: {
+  headline: string;
+  description: string;
+  datePublished: string;
+  dateModified?: string;
+  authorName?: string;
+  image?: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: params.headline,
+    description: params.description,
+    datePublished: params.datePublished,
+    dateModified: params.dateModified || params.datePublished,
+    author: {
+      "@type": "Person",
+      name: params.authorName || "KOC Engine",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "KOC Engine",
+      url: SITE_URL,
+    },
+    ...(params.image && { image: params.image }),
+  };
+}
+
+export function personSchema(params: {
+  name: string;
+  jobTitle?: string;
+  description?: string;
+  url?: string;
+  sameAs?: string[];
+  image?: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: params.name,
+    ...(params.jobTitle && { jobTitle: params.jobTitle }),
+    ...(params.description && { description: params.description }),
+    ...(params.url && { url: params.url }),
+    ...(params.sameAs && { sameAs: params.sameAs }),
+    ...(params.image && { image: params.image }),
+    worksFor: {
+      "@type": "Organization",
+      name: "KOC Engine",
+      url: SITE_URL,
+    },
+  };
+}
+
+export function webPageSchema(params: {
+  name: string;
+  description: string;
+  url: string;
+  dateModified?: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: params.name,
+    description: params.description,
+    url: params.url,
+    ...(params.dateModified && { dateModified: params.dateModified }),
+    isPartOf: {
+      "@type": "WebSite",
+      name: "KOC Engine",
+      url: SITE_URL,
+    },
+  };
+}

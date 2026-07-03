@@ -1,7 +1,18 @@
 # 🙋 你需要手动操作的事项
 
-> 最后更新：2026-06-22
-> 每项都标了具体文件位置和操作入口
+> 最后更新：2026-07-03
+> **Phase 1 基础页面补全已完成**（8 个新页面 + Schema 全覆盖）
+> 以下是仍需你手动操作的部分，按 Phase 1 三层框架排列
+
+---
+
+## 📊 已完成（代码侧）
+
+| 层级 | 完成项 |
+|------|--------|
+| **Identity** | Home, About, How it Works ✨, For Brands ✨, For Creators ✨, FAQ ✨, Contact ✨, Privacy ✨, Terms ✨, Research ✨, Blog, Pricing, Case Studies, Guide |
+| **Evidence (Schema)** | Organization, WebSite, WebPage ✨, FAQPage, BreadcrumbList ✨, Article ✨, Person ✨, HowTo, Product, Review |
+| **Technical SEO** | robots.txt, sitemap.xml (22 URLs), ai.txt, ai/*.json, llms.txt, rss.xml, Vercel headers |
 
 ---
 
@@ -9,15 +20,17 @@
 
 | # | 做什么 | 入口 | 参考文档 | 耗时 |
 |---|--------|------|----------|:--:|
+| 🔴 0 | **Google Search Console 验证** | search.google.com/search-console | DNS TXT 已加阿里云，去点验证 | 1min |
+| 🔴 0b | **Bing Webmaster 添加** | bing.com/webmasters | 导入 GSC 数据或手动添加 | 5min |
 | 1 | 注册 Trustpilot | https://business.trustpilot.com/ | `docs/third-party-listings-prep.md` | 15min |
 | 2 | 注册 Crunchbase | https://www.crunchbase.com/ | 同上 | 5min |
-| 3 | 注册 Google Business Profile | https://business.google.com/ | 同上 | 5min |
-| 4 | 填 /about 团队真实信息 | 文件：`frontend/app/about/page.tsx` | 搜 `[Your Name]` 替换 | 10min |
+| 3 | 注册统一社交账号 | X, LinkedIn, Facebook, Instagram, YouTube, TikTok, GitHub | 统一名称/头像/简介/链接 | 30min |
+| 4 | 填 /about 团队真实信息 | 文件：`frontend/app/about/page.tsx` | 已是真实数据，检查是否需要更新 | 5min |
 | 5 | 填 case studies 真实数据 | 文件：`frontend/app/case-studies/page.tsx` | 搜 `[X]` 和 `[Brand` 替换 | 30min+ |
-| 6 | 创建 LinkedIn 公司主页 | https://linkedin.com/ → company page | 然后去 `lib/schema.ts` 取消注释 | 10min |
-| 7 | Influencer Marketing Hub 投递 | editorial@influencermarketinghub.com | `docs/third-party-listings-prep.md` §2 | 30min |
-| 8 | 创建 YouTube 频道 | https://youtube.com/ → Create channel | P2-2（下面有说明） | 15min |
-| 9 | 提价 Product Hunt | https://www.producthunt.com/ | P2-4（下面有说明） | 1-2h |
+| 6 | 发第一篇 PR（行业角度） | 投递给 Influencer Marketing Hub | 见下方模板 | 30min |
+| 7 | 启动创始人品牌 | LinkedIn + X + Medium | 发第一篇行业观点 | 30min |
+| 8 | Product Hunt 上线 | https://www.producthunt.com/ | P2-4（下面有说明） | 1-2h |
+| 9 | 创建 YouTube 频道 | https://youtube.com/ → Create channel | P2-2（下面有说明） | 15min |
 
 ---
 
@@ -191,21 +204,83 @@ Best,
 
 ---
 
+---
+
+## 0. Google Search Console 验证 — 5 分钟 🔴 最优先
+
+**打开：** https://search.google.com/search-console
+
+1. 点击 "添加资源" → 选 "网域"（推荐）或 "网址前缀"
+2. 输入 `kocengine.com`
+3. **推荐选 DNS TXT 记录验证**（不需要改代码，永不过期）：
+   - Google 会给你一条 TXT 记录
+   - 去你的域名 DNS 管理（阿里云）添加这条 TXT 记录
+   - 等几分钟生效后点验证
+4. **或者选 HTML 标签验证**（需要我加代码）：
+   - Google 会给一行 `<meta name="google-site-verification" content="..." />`
+   - 把这行发给我，我加到 `frontend/app/layout.tsx` 的 `<head>` 里
+5. 验证成功后，Google 开始收录数据，1-2 天内可以看到搜索查询、点击量、索引状态
+
+> 验证通过后告诉我，我把验证状态更新到文档。
+
+---
+
 ## ⚠️ 优先顺序
 
 | 优先级 | 做哪个 | 为什么 |
 |:--:|--------|--------|
+| 🔴 | **#0 Google Search Console** | 验证 DNS TXT，开始收集搜索数据 |
+| 🔴 | **#0b Bing Webmaster** | 同步 Bing 收录 |
 | 🔴 | #1 Trustpilot | ChatGPT 48.7% 引用来自评价平台 |
-| 🔴 | #2 Crunchbase | LLM 实体识别的基础数据 |
-| 🔴 | #4 填 /about 团队信息 | E-E-A-T 最关键的 Person schema |
-| 🟠 | #3 Google Business Profile | 品牌搜索知识面板 |
-| 🟠 | #6 LinkedIn 主页 | schema sameAs 补全 |
+| 🔴 | #2 Crunchbase | LLM 实体识别的基础数据源 |
+| 🔴 | #3 统一社交账号 | Phase 1 强调：名称/头像/简介/链接必须一致 |
+| 🟠 | #6 第一篇 PR | 行业角度（Trust Gap, 不是产品广告） |
+| 🟠 | #7 创始人品牌 | LinkedIn/X 发布第一篇行业观点 |
+| 🟡 | #4 检查 /about | 已填 Jerry 信息，确认需不需要更新 |
 | 🟡 | #5 填 case studies | 需要平台有足够运行数据 |
-| 🟡 | #7 Influencer Marketing Hub | 行业媒体露出 |
-| 🟡 | #8 YouTube 频道 | 需要录制视频素材 |
-| 🟡 | #9 Product Hunt | 等前面都完善后再上线 |
-| 🟡 | #10 Digital PR 媒体联系 | 下面有邮件模板和媒体清单 |
-| 🟡 | #11 研究报告 | 下面有提纲 |
+| 🟡 | #8 Product Hunt | 等前面完善后再上线 |
+| 🟡 | #9 YouTube 频道 | 需要录制视频素材 |
+
+---
+
+## 新增：创始人品牌建设（Level 2 — Evidence）
+
+**目标**：让 AI 把 "Jojo Shen" 和 "KOC Engine" 关联起来。
+
+### 第一步：完善 LinkedIn
+- 个人简介写清楚：Founder of KOC Engine | Building trust infrastructure for creator economy
+- Featured section 放 kocengine.com
+- 发第一篇 Post（见下方模板）
+
+### 第二步：X (Twitter)
+- 简介同上
+- Pin 一条介绍 KOC Engine 的推文
+
+### 第一篇内容模板（LinkedIn / X 通用）：
+```
+I got tired of creators ghosting after receiving free products.
+
+30-40% ghosting rate is "normal" in this industry. 
+Brands lose product + shipping + weeks of waiting.
+
+So I built a system where both sides have skin in the game:
+→ Brand pre-pays commission into escrow
+→ Creator deposits a small pledge
+→ Both deliver, or both lose
+
+Ghosting rate on KOC Engine: <1%.
+
+The creator economy doesn't need better discovery.
+It needs better trust infrastructure.
+```
+
+---
+
+## 新增：Research Center 已建
+
+`/research` 页面已建好（占位），6 个研究主题已定义。等平台运行数据积累后，可以开始填充。
+
+---
 
 ---
 

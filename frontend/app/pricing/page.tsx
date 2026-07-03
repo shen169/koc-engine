@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
+import { breadcrumbSchema, webPageSchema } from "@/lib/schema";
 
 export const metadata: Metadata = {
   title: "KOC Engine Pricing — Transparent Economics, Pay Per Result",
@@ -32,6 +33,8 @@ export default function PricingPage() {
   return (
     <>
       <JsonLd data={offerSchema} />
+      <JsonLd data={breadcrumbSchema([{ name: "Home", url: "https://kocengine.com" }, { name: "Pricing", url: "https://kocengine.com/pricing" }])} />
+      <JsonLd data={webPageSchema({ name: "KOC Engine Pricing", description: "Transparent economics. See exactly where every point goes. 1pt = $1 USD. No hidden fees.", url: "https://kocengine.com/pricing" })} />
       <main className="max-w-3xl mx-auto px-6 py-16">
 
         {/* Hero */}
