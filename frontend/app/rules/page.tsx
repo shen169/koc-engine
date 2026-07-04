@@ -39,10 +39,10 @@ export default function RulesPage() {
             <div className="text-sm space-y-1">
               <div className="text-gray-500">Example: <strong>commission = 30pt, 3 KOCs needed</strong></div>
               <FlowStep actor="Brand" action={`Pays 5pt platform fee + (30pt × 3 KOCs) = 95pt total`} />
-              <FlowStep actor="KOC" action="Pays 10pt pledge on accept (from bonus)" />
-              <FlowStep actor="KOC" action={`Receives 27pt withdrawable (90%) + 10pt pledge returned (bonus) = 37pt total`} highlight />
+              <FlowStep actor="KOC" action={`Pays 30pt pledge on accept (pledge = commission, skin in the game)`} />
+              <FlowStep actor="KOC" action={`Receives 27pt withdrawable (90%) + 30pt pledge returned (bonus) = 57pt total`} highlight />
               <FlowStep actor="Platform" action="Earns 5pt service fee + 3pt × 3 = 14pt (10% commission fee, min 1pt)" />
-              <FlowStep actor="Brand" action={`Net cost: 95pt. Commission range: 20–50pt per KOC.`} />
+              <FlowStep actor="Brand" action={`Net cost: 95pt. Commission range: 20–500pt (tier-gated).`} />
             </div>
           </ExampleBox>
 
@@ -51,6 +51,7 @@ export default function RulesPage() {
             <li>• Commission is paid to KOC only after content is approved (brand approval, AI judgment, or auto-approve)</li>
             <li>• Earned commission points (90%) are <strong>withdrawable</strong> by KOCs. Pledge returned as <strong>bonus</strong> (non-withdrawable).</li>
             <li>• <strong>Brands can never withdraw</strong> — all brand points are for publishing tasks only.</li>
+            <li className="text-amber-700">• <strong>V2.6 Pledge = Commission:</strong> KOC pledge equals the commission amount (sample = 5pt). No more freeloading — KOCs have real skin in the game.</li>
           </ul>
         </RuleSection>
 
@@ -78,11 +79,17 @@ export default function RulesPage() {
                 <td className="py-3 pr-4">5pt platform fee</td>
                 <td className="py-3 text-red-500">No — platform revenue</td>
               </tr>
+              <tr className="border-b border-gray-100">
+                <td className="py-3 pr-4 font-medium">KOC</td>
+                <td className="py-3 pr-4">Accept sample task</td>
+                <td className="py-3 pr-4">5pt fixed</td>
+                <td className="py-3 text-green-600">Yes — fully returned (bonus)</td>
+              </tr>
               <tr>
                 <td className="py-3 pr-4 font-medium">KOC</td>
-                <td className="py-3 pr-4">Accept task</td>
-                <td className="py-3 pr-4">10pt fixed</td>
-                <td className="py-3 text-green-600">Yes — 10pt fully returned (bonus)</td>
+                <td className="py-3 pr-4">Accept commission task</td>
+                <td className="py-3 pr-4 font-semibold text-amber-700">= commission (20–500pt)</td>
+                <td className="py-3 text-green-600">Yes — fully returned on completion</td>
               </tr>
               <tr>
                 <td className="py-3 pr-4 font-medium">Platform</td>
@@ -94,8 +101,8 @@ export default function RulesPage() {
           </table>
 
           <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-xl text-sm text-amber-800">
-            <strong>⚠️ Pledge loss scenarios:</strong> KOC loses 10pt if they fail to submit content within 14 days,
-            exceed revision limits, or are rejected by AI final judgment. Brand loses commission pool only on their own breach (48h shipping timeout). Brand can never withdraw — all refunds go to bonus balance for reuse.
+            <strong>⚠️ Pledge loss scenarios:</strong> KOC loses their full pledge (5pt for sample, =commission for paid tasks) if they fail to submit content,
+            exceed revision limits, or are rejected by AI final judgment. Brand loses commission pool only on their own breach (48h shipping timeout). Brand can never withdraw.
           </div>
         </RuleSection>
 
@@ -106,10 +113,10 @@ export default function RulesPage() {
               { stage: "KOC Accept Task", time: "12 hours", penalty: "Slot released, auto-redistributed. No penalty.", color: "blue" },
               { stage: "Brand Ship Product", time: "48 hours", penalty: "Brand violation: KOC pledge refunded in full (10pt). Brand Trust -20.", color: "amber" },
               { stage: "KOC Confirm Receipt", time: "7 days", penalty: "Auto-confirmed by system. No penalty.", color: "gray" },
-              { stage: "KOC Submit Content", time: "14 days", penalty: "KOC violation: commission returned to brand. KOC forfeits 10pt pledge. Trust -15.", color: "red" },
+              { stage: "KOC Submit Content", time: "14d (urgent) / 21d (long-term)", penalty: "KOC violation: commission returned to brand. KOC forfeits pledge (= commission). Trust -15.", color: "red" },
               { stage: "Brand Review Content", time: "3 days", penalty: "Auto-approved by system. KOC gets 90% commission (withdrawable) + 10pt pledge returned. Both sides Trust +3.", color: "amber" },
               { stage: "KOC Revise & Resubmit", time: "3 days", penalty: "KOC violation: same as submit timeout. Commission returned to brand.", color: "red" },
-              { stage: "Long-term Empty Slot", time: "7 days", penalty: "System auto-matches a KOC to fill the slot.", color: "gray" },
+              { stage: "Long-term Empty Slot", time: "30 days", penalty: "Warn at 15d + 25d. Final reminder at 30d. Merchant can delete for refund.", color: "gray" },
             ].map((item, i) => (
               <div key={i} className="flex items-start gap-4 py-3 border-b border-gray-100 last:border-0">
                 <div className={`shrink-0 w-2 h-2 rounded-full mt-2 bg-${item.color}-400`} />
@@ -213,35 +220,43 @@ export default function RulesPage() {
         </RuleSection>
 
         {/* ── 6. Trust Score ── */}
-        <RuleSection icon="🛡️" title="Trust Score & Tiers" subtitle="Your reputation on the platform">
+        <RuleSection icon="🛡️" title="Trust Score & Tier Progression" subtitle="Start small, level up — everyone begins at base tier">
+          <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-100 rounded-xl p-5 mb-5">
+            <p className="text-sm text-pink-800 font-semibold mb-2">🎮 V2.6 Level-Up System — Everyone Starts at L1/M1</p>
+            <p className="text-xs text-pink-700 leading-relaxed">
+              No more AI-determined starting tiers. Every creator and brand begins at the base level.
+              Complete tasks → earn trust → unlock higher commissions and more slots. The platform is fair for everyone.
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <div className="text-sm font-semibold text-gray-800 mb-2">KOC Tiers</div>
+              <div className="text-sm font-semibold text-gray-800 mb-2">KOC Tiers (Upgrade Path)</div>
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b text-left text-gray-400">
-                    <th className="py-1 pr-2">Tier</th><th className="py-1 pr-2">Trust</th><th className="py-1 pr-2">Tasks</th><th className="py-1">Rating</th>
+                    <th className="py-1 pr-2">Tier</th><th className="py-1 pr-2">Unlock</th><th className="py-1 pr-2">Tasks</th><th className="py-1">Benefits</th>
                   </tr>
                 </thead>
                 <tbody className="text-gray-700">
-                  <tr><td className="py-1 pr-2 font-medium">🏆 L3 Partner</td><td>≥75</td><td>≥5</td><td>≥4.0</td></tr>
-                  <tr><td className="py-1 pr-2 font-medium">⭐ L2 Creator</td><td>≥55</td><td>≥2</td><td>≥3.0</td></tr>
-                  <tr><td className="py-1 pr-2 font-medium">🌱 L1 Explorer</td><td>0-100</td><td>any</td><td>any</td></tr>
+                  <tr><td className="py-1 pr-2 font-medium">🏆 L3 Partner</td><td>≥5 tasks + trust ≥55 + rating ≥3.0</td><td>5</td><td>Commission up to 500pt, ×3 repeat bonus, 5 concurrent</td></tr>
+                  <tr><td className="py-1 pr-2 font-medium">⭐ L2 Creator</td><td>≥3 tasks + rating ≥3.0</td><td>3</td><td>Commission 20–50pt, 3 concurrent</td></tr>
+                  <tr><td className="py-1 pr-2 font-medium">🌱 L1 Explorer</td><td>Start here</td><td>2</td><td>Sample tasks only (5pt pledge), 2 concurrent</td></tr>
                 </tbody>
               </table>
             </div>
             <div>
-              <div className="text-sm font-semibold text-gray-800 mb-2">Brand Tiers</div>
+              <div className="text-sm font-semibold text-gray-800 mb-2">Brand Tiers (Upgrade Path)</div>
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b text-left text-gray-400">
-                    <th className="py-1 pr-2">Tier</th><th className="py-1 pr-2">Trust</th><th className="py-1 pr-2">Tasks</th><th className="py-1">Rating</th>
+                    <th className="py-1 pr-2">Tier</th><th className="py-1 pr-2">Unlock</th><th className="py-1 pr-2">KOCs</th><th className="py-1">Benefits</th>
                   </tr>
                 </thead>
                 <tbody className="text-gray-700">
-                  <tr><td className="py-1 pr-2 font-medium">🏆 M3 Gold</td><td>≥75</td><td>≥10</td><td>≥4.0</td></tr>
-                  <tr><td className="py-1 pr-2 font-medium">⭐ M2 Silver</td><td>≥55</td><td>≥3</td><td>≥3.0</td></tr>
-                  <tr><td className="py-1 pr-2 font-medium">🌱 M1 Bronze</td><td>0-100</td><td>any</td><td>any</td></tr>
+                  <tr><td className="py-1 pr-2 font-medium">🏆 M3 Gold</td><td>≥5 tasks + trust ≥55 + rating ≥3.0</td><td>10</td><td>Commission up to 500pt, ×3 repeat bonus</td></tr>
+                  <tr><td className="py-1 pr-2 font-medium">⭐ M2 Silver</td><td>≥3 tasks + rating ≥3.0</td><td>3</td><td>Commission 20–50pt, urgent tasks enabled</td></tr>
+                  <tr><td className="py-1 pr-2 font-medium">🌱 M1 Bronze</td><td>Start here</td><td>2</td><td>Sample tasks only (long-term, no commission)</td></tr>
                 </tbody>
               </table>
             </div>
@@ -251,14 +266,14 @@ export default function RulesPage() {
             <div className="font-medium text-gray-800">Trust Score Adjustments:</div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="text-green-700">+3 · Task completed</div>
-              <div className="text-green-700">+3 · Repeat collaboration bonus</div>
+              <div className="text-green-700">🎉 · Tier upgrade (unlocks higher commissions)</div>
               <div className="text-red-700">−3 · Active task rejection</div>
               <div className="text-red-700">−15 · Violation (timeout/breach)</div>
               <div className="text-red-700">−20 · Brand shipping timeout (ghosted)</div>
               <div className="text-red-700">−30 · Report upheld by admin</div>
             </div>
             <div className="mt-2 pt-2 border-t border-gray-200">
-              <strong>⚠️ Thresholds:</strong> Trust &lt; 40 → Brand cannot publish tasks. Trust &lt; 30 → KOC excluded from matching.
+              <strong>⚠️ Thresholds:</strong> Trust &lt; 40 → Brand cannot publish tasks. Trust &lt; 30 → KOC excluded from matching and forced back to L1.
             </div>
           </div>
         </RuleSection>
@@ -276,9 +291,11 @@ export default function RulesPage() {
               {[
                 ["Brand platform fee (per task)", "5pt (non-refundable)"],
                 ["Platform commission fee (per slot)", "10% of commission (min 1pt)"],
-                ["KOC fixed pledge", "10pt (fully returned as bonus on completion)"],
+                ["KOC pledge (sample task)", "5pt fixed"],
+                ["KOC pledge (commission task)", "= commission amount (20–500pt)"],
                 ["Commission pool", "commission × KOC count (brand pre-pays)"],
-                ["Commission range", "20–50pt per KOC"],
+                ["Commission range — L2/M2", "20–50pt"],
+                ["Commission range — L3/M3", "20–500pt"],
                 ["KOC commission take-home", "90% of commission (withdrawable)"],
                 ["KOC registration bonus", "200pt (non-withdrawable)"],
                 ["Brand registration bonus", "100pt (non-withdrawable)"],
@@ -286,13 +303,17 @@ export default function RulesPage() {
                 ["KOC daily withdrawal cap", "500pt per 24 hours"],
                 ["Brand withdrawal", "Not allowed — points for publishing only"],
                 ["Exchange rate", "1pt = $1.00 USD"],
-                ["Max concurrent KOC tasks", "5 active slots"],
+                ["Max concurrent KOC tasks", "L1: 2 / L2: 3 / L3: 5 (tier-gated)"],
+                ["Max KOCs per task (brand)", "M1: 2 / M2: 3 / M3: 10 (tier-gated)"],
+                ["Tier upgrade", "3 completed → L2/M2, 5 completed + trust≥55 → L3/M3"],
                 ["Max revisions before AI judgment", "1"],
                 ["Content review auto-approve", "3 days"],
                 ["Content revision deadline", "3 days"],
                 ["Shipping deadline", "48 hours"],
                 ["Accept deadline", "12 hours"],
-                ["Submit deadline", "14 days"],
+                ["Submit deadline (urgent)", "14 days"],
+                ["Submit deadline (long-term)", "21 days"],
+                ["Long-term empty slot warning", "15d / 25d / 30d (three-stage)"],
                 ["Contact admin", "honghuishen24@gmail.com"],
               ].map(([item, value], i) => (
                 <tr key={i} className="border-b border-gray-100">

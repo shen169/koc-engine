@@ -28,12 +28,12 @@ const homeFaqs = [
   {
     question: "How much can creators earn from KOC brand collaborations?",
     answer:
-      "Creators earn commission paid in platform points — brands set per-KOC commission when publishing tasks (e.g. 30pt = $30). KOC pays a small 10pt pledge fully refunded on completion. Platform takes 10% of commission (min 1pt) as service fee. Earned points are withdrawable at 1pt = $1 USD. Top performers (L3 tier) get priority matching.",
+      "Creators earn commission paid in platform points — brands set per-KOC commission when publishing tasks. Everyone starts at L1 Explorer (sample-only, 5pt pledge). Level up to L2 Creator (20–50pt commission) by completing 3 tasks. Reach L3 Partner (up to 500pt commission) with 5+ tasks and high trust. Pledge = commission for paid tasks — real accountability. Platform takes 10% of commission (min 1pt) as service fee. Earned points are withdrawable at 1pt = $1 USD.",
   },
   {
     question: "How to prevent creators from taking free samples without posting content?",
     answer:
-      "KOC Engine uses a deposit + commission pool system. Brands pre-pay the commission pool (non-refundable), KOCs deposit a fixed 10pt pledge. Pledge (10pt) is fully returned + 90% of commission is released after content approval (platform takes 10%, min 1pt). AI judges disputes if brands reject twice. If KOC fails to submit, commission is returned to brand and KOC forfeits pledge.",
+      "KOC Engine uses a deposit + commission pool system with a level-up mechanic. Brands pre-pay the commission pool (non-refundable). KOCs deposit a pledge that equals the commission amount (sample tasks = 5pt) — real skin in the game. Everyone starts at L1 (sample-only). Complete 3 tasks → unlock L2 (commission 20–50pt). Reach 5 tasks + high trust → L3 (up to 500pt commission). Pledge is fully returned + 90% of commission is released after content approval. AI judges disputes if brands reject twice. If KOC fails to submit, commission is returned to brand and KOC forfeits their pledge.",
   },
   {
     question: "How does KOC Engine protect both brands and creators from fraud?",
@@ -103,7 +103,7 @@ export default function HomePage() {
           </div>
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-pink-600 uppercase tracking-wide mb-3">🎬 For Content Partners</h3>
-            {[{ icon: "🏪", title: "Task Hall", desc: "Browse all open brand deals. Filter by category, commission, and region. Accept up to 5 concurrent tasks." }, { icon: "💰", title: "Earn Commission + Free Products", desc: "Keep the products you review. Earn commission in platform points (1pt = $1). Withdraw earnings anytime. Top performers unlock L3 priority matching." }, { icon: "⭐", title: "Build Your Reputation", desc: "Trust tiers (L1→L2→L3) based on completed collaborations and ratings. Higher tiers mean more brand deals + better matching priority." }].map((v) => (
+            {[{ icon: "🏪", title: "Task Hall", desc: "Browse all open brand deals. Filter by category, commission, and region. Accept 2–5 tasks (tier-gated)." }, { icon: "💰", title: "Earn Commission + Free Products", desc: "Keep the products you review. Earn commission in platform points (1pt = $1). Withdraw earnings anytime. Top performers unlock L3 priority matching." }, { icon: "⭐", title: "Build Your Reputation", desc: "Trust tiers (L1→L2→L3) based on completed collaborations and ratings. Higher tiers mean more brand deals + better matching priority." }].map((v) => (
               <div key={v.title} className="bg-white rounded-2xl p-6 border border-pink-100 shadow-sm"><div className="text-3xl mb-3">{v.icon}</div><h4 className="font-bold text-zinc-900 mb-1">{v.title}</h4><p className="text-sm text-zinc-500">{v.desc}</p></div>
             ))}
           </div>
@@ -115,7 +115,7 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto px-6">
           <h2 className="text-3xl font-extrabold text-center text-zinc-900 mb-14">How It Works</h2>
           <div className="grid md:grid-cols-4 gap-6">
-            {[{ step: "1", title: "Brand Posts Task", desc: "Set product, commission, KOC count. Urgent tasks auto-match." }, { step: "2", title: "AI Matches KOCs", desc: "7-dimension scoring finds best-fit talent by niche and region." }, { step: "3", title: "Commission Pool + Ship", desc: "Brand pre-pays commission pool. KOC pledges 10pt. Brand ships sample, KOC creates content." }, { step: "4", title: "Review + Track ROI", desc: "Brand approves content. Track views, engagement, conversions." }].map((item) => (
+            {[{ step: "1", title: "Brand Posts Task", desc: "Set product, commission, KOC count. Urgent tasks auto-match." }, { step: "2", title: "AI Matches KOCs", desc: "7-dimension scoring finds best-fit talent by niche and region." }, { step: "3", title: "Pledge + Ship + Create", desc: "KOC pledges = commission (5pt for samples). Both sides have skin in the game. Brand ships. KOC creates content." }, { step: "4", title: "Review + Track ROI", desc: "Brand approves content. Track views, engagement, conversions." }].map((item) => (
               <div key={item.step} className="text-center"><div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 brand-gradient"><span className="text-white text-xl font-extrabold">{item.step}</span></div><h4 className="font-bold text-zinc-900 mb-1">{item.title}</h4><p className="text-xs text-zinc-500">{item.desc}</p></div>
             ))}
           </div>
@@ -149,8 +149,8 @@ export default function HomePage() {
             <div className="text-3xl mb-3">🔒</div>
             <h4 className="font-bold text-zinc-900 mb-2">Dual-Pledge Escrow</h4>
             <p className="text-sm text-zinc-500 leading-relaxed">
-              Brands pre-pay the commission pool. KOCs deposit a 10pt pledge. Neither side can walk away
-              without financial consequence. Funds are released only after content is approved.
+              Brands pre-pay the commission pool. KOCs deposit a pledge equal to the commission (5pt for sample tasks).
+              Neither side can walk away without financial consequence. Funds are released only after content is approved.
             </p>
           </div>
           <div className="bg-white rounded-2xl border border-pink-100 p-6 shadow-sm">
@@ -165,8 +165,8 @@ export default function HomePage() {
             <div className="text-3xl mb-3">⭐</div>
             <h4 className="font-bold text-zinc-900 mb-2">Public Trust Tiers</h4>
             <p className="text-sm text-zinc-500 leading-relaxed">
-              Merchants (M1–M3) and KOCs (L1–L3) display real trust scores based on completed
-              collaborations and peer ratings. Higher tiers get priority matching.
+              Merchants (M1–M3) and KOCs (L1–L3) earn their tier by completing tasks — everyone starts at base level.
+              Higher tiers unlock higher commissions, more concurrent tasks, and priority matching.
             </p>
           </div>
         </div>
