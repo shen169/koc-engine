@@ -12,6 +12,34 @@ export const metadata: Metadata = {
 
 const posts = [
   {
+    href: "/blog/pledge-economy-moat",
+    title: "Pledge Economy — Why 'Skin in the Game' Is KOC Engine's Biggest Moat",
+    desc: "Most people hear 'you need to deposit money to accept a task' and think it's a barrier. Here's why pledge economics is actually the most underrated competitive advantage in creator marketplaces — and how it eliminates ghosting.",
+    date: "2026-07-09",
+    category: "Strategy",
+  },
+  {
+    href: "/blog/tiktok-shop-koc-ecosystem",
+    title: "TikTok Shop Is Mass-Producing KOCs — The Cross-Border Arbitrage Window",
+    desc: "TikTok Shop taught millions how to make product videos that convert. These creators earn $5–$15 in TikTok commissions but can earn 5–10x from cross-border brands. Here's the disconnect and the opportunity.",
+    date: "2026-07-09",
+    category: "Market Analysis",
+  },
+  {
+    href: "/blog/koc-level-up-system",
+    title: "From L1 to L3 — The KOC Level-Up System Designed Like an RPG",
+    desc: "Most platforms have tiers based on how much you PAY. KOC Engine's L1→L2→L3 progression is based on how much you've PROVEN. Why game design principles make for better marketplace trust infrastructure.",
+    date: "2026-07-09",
+    category: "Platform Design",
+  },
+  {
+    href: "/blog/koc-vs-influencer",
+    title: "KOC vs Influencer vs KOL vs UGC Creator — Stop Confusing Them",
+    desc: "KOL, Influencer, KOC, UGC Creator — they are NOT the same. Learn the 2-axis map of the creator economy and why KOCs deliver the highest ROI that most brands ignore.",
+    date: "2026-07-09",
+    category: "Guide",
+  },
+  {
     href: "/blog/how-to-prevent-influencer-ghosting",
     title: "How to Prevent Influencer Ghosting: 5 Proven Strategies for E-Commerce Brands (2026)",
     desc: "Influencer ghosting costs brands 30–40% of their campaign budget. Learn 5 proven strategies including escrow protection, SLA deadlines, AI vetting, trust scores, and automated matching.",
