@@ -13,11 +13,11 @@ echo "域名: ${DOMAIN}"
 echo ""
 
 # 1. 获取证书（HTTP-01 挑战，nginx 已配好 /.well-known/acme-challenge/）
-echo "[1/3] 申请 SSL 证书..."
+echo "[1/3] 申请 SSL 证书（含 www 子域名）..."
 docker compose run --rm certbot \
     certonly --webroot \
     --webroot-path=/var/www/certbot \
-    -d "${DOMAIN}" \
+    -d "${DOMAIN}" -d "www.${DOMAIN}" \
     --email "honghuishen24@gmail.com" \
     --agree-tos \
     --no-eff-email

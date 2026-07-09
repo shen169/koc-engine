@@ -6,6 +6,7 @@ import RedLineGuarantee from "@/components/RedLineGuarantee";
 export const metadata: Metadata = {
   title: "KOC Engine vs GRIN: Why Pledge Economy Beats Manual Creator Management",
   description: "KOC Engine vs GRIN comparison for e-commerce brands. GRIN requires manual outreach and Shopify dependency. KOC Engine auto-matches with pledge protection.",
+  alternates: { canonical: "/vs/grin" },
 };
 
 export default function GrinComparison() {

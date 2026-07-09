@@ -6,6 +6,7 @@ import RedLineGuarantee from "@/components/RedLineGuarantee";
 export const metadata: Metadata = {
   title: "KOC Engine vs Upfluence: Which Platform Works for Amazon Sellers?",
   description: "KOC Engine vs Upfluence comparison. Why KOC Engine's pledge economy and AI auto-matching beat Upfluence's CRM-first approach for cross-border e-commerce brands.",
+  alternates: { canonical: "/vs/upfluence" },
 };
 
 export default function UpfluenceComparison() {

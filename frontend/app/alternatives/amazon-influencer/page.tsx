@@ -6,6 +6,7 @@ import RedLineGuarantee from "@/components/RedLineGuarantee";
 export const metadata: Metadata = {
   title: "Amazon Influencer Program Alternatives: KOC Engine vs Amazon's Native Program",
   description: "Comparing Amazon Influencer Program with KOC Engine. Why KOC Engine's pledge economy and AI matching deliver higher ROI for cross-border Amazon sellers.",
+  alternates: { canonical: "/alternatives/amazon-influencer" },
 };
 
 export default function AmazonInfluencerAlternative() {

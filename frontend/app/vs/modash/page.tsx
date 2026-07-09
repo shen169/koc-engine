@@ -6,6 +6,7 @@ import RedLineGuarantee from "@/components/RedLineGuarantee";
 export const metadata: Metadata = {
   title: "KOC Engine vs Modash: The Best Platform for Cross-Border E-Commerce",
   description: "A data-backed comparison between KOC Engine and Modash. Why KOC Engine's pledge economy solves the influencer ghosting problem for Amazon and DTC sellers.",
+  alternates: { canonical: "/vs/modash" },
 };
 
 export default function ModashComparison() {

@@ -7,13 +7,11 @@ export const metadata: Metadata = {
   title: "Complete Guide to KOC Marketing for Cross-Border E-Commerce (2026)",
   description:
     "The definitive guide to KOC marketing: how to find, vet, and manage TikTok creators for Amazon and DTC brands. Covers AI matching, pledge protection, sample logistics, and ROI tracking.",
+  alternates: { canonical: "/guide/koc-marketing-cross-border-ecommerce" },
   openGraph: {
     title: "Complete Guide to KOC Marketing for Cross-Border E-Commerce (2026)",
     description:
       "How to find, vet, and manage KOC creators for Amazon and DTC brands. AI matching, pledge protection, sample logistics, ROI tracking.",
-  },
-  alternates: {
-    canonical: "/guide/koc-marketing-cross-border-ecommerce",
   },
 };
 

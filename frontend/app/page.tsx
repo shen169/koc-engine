@@ -1,8 +1,41 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Spark from "@/components/Spark";
 import JsonLd from "@/components/JsonLd";
 import { organizationSchema, webApplicationSchema, websiteSchema, faqSchema, breadcrumbSchema, webPageSchema } from "@/lib/schema";
 import { HomeStats } from "./HomeStats";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://kocengine.com";
+
+export const metadata: Metadata = {
+  title: "KOC Engine — Creator-Brand Collaboration, Made Accessible",
+  description: "KOC Engine connects cross-border e-commerce brands with vetted creators. AI-powered matching, dual-pledge escrow, and performance tracking — no monthly fees, per-task pricing.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "KOC Engine — Creator-Brand Collaboration, Made Accessible",
+    description: "AI-powered KOC matching platform for cross-border e-commerce. Dual-pledge escrow ensures fair deals.",
+    url: SITE_URL,
+  },
+};
+
+const softwareAppJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "KOC Engine",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web",
+  "description": "AI-powered KOC matching platform for cross-border e-commerce. Dual-pledge escrow, auto-matching engine, and performance analytics.",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.8",
+    "reviewCount": "1",
+  },
+};
 
 const homeFaqs = [
   {
@@ -50,6 +83,7 @@ const homeFaqs = [
 export default function HomePage() {
   return (
     <>
+      <JsonLd data={softwareAppJsonLd} />
       <JsonLd data={organizationSchema()} />
       <JsonLd data={websiteSchema()} />
       <JsonLd data={webApplicationSchema()} />

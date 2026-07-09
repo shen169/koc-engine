@@ -3,10 +3,9 @@ import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://kocengine.com";
 const SITE_NAME = "KOC Engine";
-const SITE_TAGLINE =
-  "Making creator-brand collaboration accessible for everyone, not just the biggest brands and influencers.";
+const SITE_TAGLINE = "Creator-Brand Collaboration, Made Accessible";
 const SITE_DESCRIPTION =
-  `${SITE_TAGLINE} KOC Engine connects cross-border sellers with vetted small KOCs. Dual-pledge escrow ensures fair deals. No monthly fees — per-task pricing.`;
+  "KOC Engine connects cross-border e-commerce brands with vetted creators. AI-powered matching, dual-pledge escrow, and performance tracking — no monthly fees, per-task pricing.";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -24,13 +23,6 @@ export const metadata: Metadata = {
   },
   description: SITE_DESCRIPTION,
   metadataBase: new URL(SITE_URL),
-  alternates: {
-    canonical: "/",
-    languages: {
-      "en-US": "/",
-      "zh-CN": "/zh",
-    },
-  },
   robots: {
     index: true,
     follow: true,
@@ -80,31 +72,29 @@ export const metadata: Metadata = {
   publisher: "KOC Engine",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "KOC Engine",
-    "applicationCategory": "BusinessApplication",
-    "operatingSystem": "Web",
-    "description": SITE_DESCRIPTION,
-    "offers": {
-      "@type": "Offer",
-      "price": "0.00",
-      "priceCurrency": "USD",
-    },
-    "author": {
-      "@type": "Organization",
-      "name": "KOC Engine",
-      "url": SITE_URL,
-      "sameAs": [
-        "https://github.com/shen169/koc-engine",
-        "https://x.com/kocengine",
-        "https://reddit.com/r/kocengine",
-      ],
-    },
-  };
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "KOC Engine",
+  "url": SITE_URL,
+  "logo": `${SITE_URL}/favicon.svg`,
+  "description": SITE_DESCRIPTION,
+  "foundingDate": "2026",
+  "sameAs": [
+    "https://github.com/shen169/koc-engine",
+    "https://x.com/kocengine",
+    "https://reddit.com/r/kocengine",
+    "https://linkedin.com/company/kocengine",
+  ],
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "contactType": "customer support",
+    "email": "honghuishen24@gmail.com",
+    "availableLanguage": ["English", "Chinese"],
+  },
+};
 
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full antialiased">
       <head>
@@ -114,7 +104,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="alternate" type="application/rss+xml" title="KOC Engine Blog" href="https://kocengine.com/rss.xml" />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
