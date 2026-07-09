@@ -551,3 +551,28 @@ koc-engine/
 - Matching engine `matcher.py` has two layers: rule engine (7-dim weighted) always available → AI re-rank optional (use_ai=true). Task publish auto-matching only uses rule engine
 - **JSON storage thread safety**: Stores use `threading.Lock()` to prevent race conditions, but this is only effective for single-process. Multi-uvicorn-worker deployments have cross-process race condition risk for slot accept operations. Production recommendation: single worker (`--workers 1`) or migrate to database
 - Frontend is fully English (i18n completed June 2026): all UI labels, error messages, commitment modals, SLA warnings, status badges, and navigation items are in English. Use canonical translations: `pt` (not "points"), `Trust Score`, `Pledge`, `Commission`, `Urgent`/`Long-term`, `Task Hall`, tier labels `Partner`/`Creator`/`Explorer` and `Gold`/`Silver`/`Bronze Merchant`
+
+
+## SEO / GEO (updated 2026-07-09)
+
+After Semrush audit: all hreflang issues, canonical errors, and schema warnings fixed. Key changes:
+- **Removed hreflang from root layout** — single-language site, no `/zh` pages exist
+- **Per-page canonical** — each page exports its own `alternates: { canonical: "..." }`, not global `"/"`
+- **SoftwareApplication schema** — moved from root layout to homepage only, added `aggregateRating`
+- **Metadata exports** — login/register/rules pages have route-level `layout.tsx` with `robots: { index: false }` (auth pages shouldn't be indexed)
+- **nginx SSL config** — `koc-engine-ssl.conf` handles www→non-www redirect + HSTS
+- **ssl-init.sh** — requests certs for both `domain.com` and `www.domain.com`
+
+## Blog Posts
+
+| Route | Title | Category | Date |
+|------|------|------|------|
+| `/blog/how-to-prevent-influencer-ghosting` | 5 Proven Strategies for E-Commerce Brands | Guide | 2026-06-23 |
+| `/blog/influencer-marketing-for-chinese-cross-border-sellers` | The Complete 2026 Playbook | Guide | 2026-06-23 |
+| `/blog/koc-marketing-southeast-asia-guide` | TikTok, Shopee, Local Creator Strategies | Guide | 2026-06-23 |
+| `/blog/koc-vs-influencer` | KOC vs KOL vs Influencer vs UGC — 4-Quadrant Map | Guide | 2026-07-09 |
+| `/blog/pledge-economy-moat` | Why Pledge Is the Most Underrated Moat | Strategy | 2026-07-09 |
+| `/blog/koc-level-up-system` | L1→L2→L3 Designed Like an RPG | Platform Design | 2026-07-09 |
+| `/blog/tiktok-shop-koc-ecosystem` | The Cross-Border Arbitrage Window | Market Analysis | 2026-07-09 |
+
+> Blog content source: Second Brain vault `~/Desktop/📁 工作文档/第二项目/第二项目/Wiki/内容/草稿/`. X threads adapted to long-form blog format with TOC, comparison tables, FAQs, and CTA banners.
